@@ -12,6 +12,7 @@
  *       • CellDreamer  (amber accent)
  *       • Model Hub
  *       • Jobs
+ *       • Blog (teal accent)
  *     Active tab is highlighted with module-specific colour
  *   - Right:
  *       • Backend status indicator (green dot = healthy)

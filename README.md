@@ -1,4 +1,4 @@
-# BioDreamer — World Models for Biological Design
+# BioDreamer: World Models for Biological Design
 
 > *Teaching machines to dream about biology so we don't have to wait for every experiment.*
 
@@ -6,11 +6,11 @@
 
 ## Why BioDreamer?
 
-Biological design — engineering proteins, simulating molecular dynamics, reprogramming cells — faces a fundamental bottleneck: **real experiments are slow and expensive**. An MD simulation of one protein can take days on a GPU cluster. A single round of directed evolution costs months and thousands of dollars. A genome-wide CRISPR screen requires millions of cells and weeks of work.
+Biological design, engineering proteins, simulating molecular dynamics, reprogramming cells, faces a fundamental bottleneck: **real experiments are slow and expensive**. An MD simulation of one protein can take days on a GPU cluster. A single round of directed evolution costs months and thousands of dollars. A genome-wide CRISPR screen requires millions of cells and weeks of work.
 
-Current ML approaches are mostly **one-shot**: generate a candidate, hope it works, repeat. No existing system does what a skilled engineer would — **mentally simulate outcomes before committing**, plan multi-step strategies, and learn from each round of feedback.
+Current ML approaches are mostly **one-shot**: generate a candidate, hope it works, repeat. No existing system does what a skilled engineer would, **mentally simulate outcomes before committing**, plan multi-step strategies, and learn from each round of feedback.
 
-**BioDreamer** solves this by applying *world models* from model-based reinforcement learning to biology. Instead of querying the real environment (MD simulator, wet lab, CRISPR screen), the agent learns a latent-space simulator and plans optimal interventions *in imagination* — replacing brute-force experimentation with intelligent, amortised, in-silico reasoning.
+**BioDreamer** solves this by applying *world models* from model-based reinforcement learning to biology. Instead of querying the real environment (MD simulator, wet lab, CRISPR screen), the agent learns a latent-space simulator and plans optimal interventions *in imagination*, replacing brute-force experimentation with intelligent, amortised, in-silico reasoning.
 
 ---
 
@@ -119,16 +119,23 @@ bio_dreamer/
 │   └── workers/                         #   Redis-based GPU job runner
 │
 ├── frontend/                            # Next.js 14 + React 18 + TypeScript
-│   ├── src/app/                         #   App Router pages (dashboard, modules, jobs)
+│   ├── src/app/                         #   App Router pages (dashboard, modules, jobs, blog)
 │   ├── src/components/                  #   UI components
 │   │   ├── layout/                      #     Navbar, Sidebar, Footer
 │   │   ├── common/                      #     MolViewer, ProteinViewer, FitnessPlot, ...
 │   │   ├── protein-dreamer/             #     ProteinDreamerForm, ProteinDreamerResults
 │   │   ├── mol-dreamer/                 #     MolDreamerForm, MolDreamerResults
 │   │   └── cell-dreamer/                #     CellDreamerForm, CellDreamerResults
+│   ├── src/components/blog/              #     BlogPostCard, BlogRenderer
 │   ├── src/hooks/                       #   useApi, useJob, useModel
 │   ├── src/lib/                         #   API client, TypeScript types
 │   └── src/styles/                      #   Tailwind globals
+│
+├── blog/                                # Blog (Markdown — readable on GitHub + web app)
+│   ├── README.md                        #   Blog index and writing guide
+│   ├── posts/                           #   Markdown posts with YAML frontmatter
+│   │   └── 2026-03-19-introducing-biodreamer.md
+│   └── assets/                          #   Images and media for posts
 │
 ├── configs/                             # YAML configs per module + server
 ├── docs/                                # Architecture, API reference, tutorials, model cards
@@ -190,6 +197,8 @@ pandas >= 2.1
 pyyaml >= 6.0
 jinja2 >= 3.1
 biopython >= 1.82
+markdown-it-py >= 3.0
+pygments >= 2.17
 ```
 
 ### Frontend (Node.js)
@@ -201,6 +210,10 @@ typescript >= 5.3
 tailwindcss >= 3.4
 molstar >= 4.0
 recharts >= 2.10 (or plotly.js)
+react-markdown >= 9.0
+rehype-highlight >= 7.0
+rehype-katex >= 7.0
+remark-math >= 6.0
 ```
 
 ---
