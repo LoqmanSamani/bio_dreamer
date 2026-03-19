@@ -1,0 +1,70 @@
+
+World Models & Model-Based RL
+
+[1]
+---
+Developing  a  general  algorithm  that  learns  to  solve  tasks  across  a  wide  range  of applications  
+has  been  a  fundamental  challenge  in  artificial  intelligence.
+DreamerV3, a general algorithm that outperforms specialized methods across over 150 diverse tasks,with a single configuration. 
+Dreamer learns a model of the environment and improves its behavior by imagining future scenarios. 
+Dreamer is the first algorithm to collect diamonds in Minecraft from scratch without human data or curricula.
+The Dreamer algorithm is based on the idea of learning a world model that equips the agent with rich perception and the ability
+to imagine the future.
+The world model predicts the outcomes of potential actions, a critic neural network judges the value of each outcome, 
+and anactor neural network chooses actions to reach the best outcomes.
+
+The algorithm consists of three neural networks: 
+   1. the world model: predicts the outcomes of potential actions and it is implemented as Recurrent State-Space Model (RSSM)
+      RSSM: a) Sequence model: ht=fφ(ht−1,zt−1,at−1)
+            b) Encoder:        zt∼qφ(zt|ht,xt)
+            c) Dynamics predictor:ˆzt∼pφ(ˆzt|ht)
+            d) Decoder:ˆxt∼pφ(ˆxt|ht,zt)
+   2. the critic model: judges the value of each outcome, Continue predictor:ˆct∼pφ(ˆct|ht,zt)
+   3. the actor chooses actions to reach the most valuable outcomes, Reward predictor:ˆrt∼pφ(ˆrt|ht,zt)
+The components are trained concurrently from replayed experience while the agent interacts with the environment.
+the encoder and decoder use convolutional neural networks (CNN) for image inputs and multi-layer perceptrons (MLPs) forvector inputs. 
+The dynamics, reward, and continue predictors are also MLPs.
+Given a sequence batch of inputs x1:T,  actions a1:T,  rewards r1:T,  and continuation flags c1:T, the world model parameters φ are optimized
+end-to-end to minimize the prediction loss Lpred, the dynamics loss Ldyn, and the representation loss Lrep with corresponding loss weights
+βpred= 1,βdyn= 1, andβrep= 0.1:
+    L(φ).= Eqφ sum_{t=1, T}([(βpred Lpred(φ) + βdyn Ldyn(φ) + βrep Lrep(φ)]) 
+
+The prediction loss trains the decoder and reward predictor via the symlog squared loss and the continue predictor via logistic regression.
+the dynamics loss trains the sequence modelto predict the next representation by minimizing the KL divergence between the predictor pφ(zt|ht)
+and the next stochastic representation qφ(zt|ht,xt).
+The representation loss trains the representations to become more predictable allowing us to use a factorized dynamics predictor for fast sampling
+during imagination training. 
+
+    Lpred(φ).=−lnpφ(xt|zt,ht)−lnpφ(rt|zt,ht)−lnpφ(ct|zt,ht)
+    Ldyn(φ).= max1,KLsg(qφ(zt|ht,xt))pφ(zt|ht)
+    Lrep(φ).= max1,KLqφ(zt|ht,xt)sg(pφ(zt|ht))
+
+The actor and critic neural networks learn behaviors purely from abstract trajectories of representa-tions predicted by the world model.
+Because the critic regresses targets that depend on its own predictions, we stabilize learning by regularizing the critic towards predicting 
+the outputs of an exponentially moving average of itsown parameters.
+
+
+[2]
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1] Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2023). Mastering diverse domains through world models. arXiv preprint arXiv:2301.04104.
+
+[2]Alonso, E., Jelley, A., Micheli, V., Kanervisto, A., Storkey, A., Pearce, T., & Fleuret, F. (2024). 
+   Diffusion for world modeling: Visual details matter in atari. Advances in Neural Information Processing Systems, 37, 58757-58791.
+
+[3]
