@@ -1,2 +1,2 @@
-# bio_dreamer
+# BioDreamer
 World Models for Biological Design
