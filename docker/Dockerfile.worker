@@ -1,0 +1,34 @@
+# Dockerfile.worker — GPU Worker for Background Jobs.
+#
+# Purpose:
+#   Builds the BioDreamer GPU worker image that processes queued jobs
+#   (dreaming rollouts, training, model uploads). Requires NVIDIA GPU
+#   runtime at deployment.
+#
+# Base image:
+#   nvidia/cuda:12.1-devel-ubuntu22.04 (includes CUDA toolkit for PyTorch)
+#
+# Build stages:
+#   1. builder: install Python 3.11, pip dependencies (including PyTorch
+#      with CUDA 12.1 support, torch-geometric, torchdiffeq)
+#   2. runtime: copy venv + biodreamer package + worker code
+#
+# Environment variables:
+#   - BIODREAMER_ENV: "production"
+#   - HF_TOKEN: Hugging Face API token
+#   - MODEL_CACHE_DIR: /app/model_cache
+#   - REDIS_URL: redis://redis:6379/0
+#   - CUDA_VISIBLE_DEVICES: GPU indices (set by orchestrator)
+#   - WORKER_CONCURRENCY: number of concurrent jobs (default 1)
+#
+# Volumes:
+#   - /app/model_cache: persistent model cache (mount host directory)
+#   - /app/checkpoints: training output directory
+#
+# Entrypoint:
+#   python -m server.workers.task_runner
+#
+# Deploy requirements:
+#   - NVIDIA Container Toolkit installed on host
+#   - docker run --gpus all ...
+#   - In docker-compose: deploy.resources.reservations.devices with nvidia driver

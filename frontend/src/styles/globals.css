@@ -1,0 +1,24 @@
+/**
+ * globals.css — Global Stylesheet for BioDreamer Frontend.
+ *
+ * Purpose:
+ *   Tailwind CSS directives and global custom styles.
+ *
+ * Contents:
+ *   @tailwind base;
+ *   @tailwind components;
+ *   @tailwind utilities;
+ *
+ *   Custom layers:
+ *   - CSS variables for module accent colours:
+ *       --color-mol-dreamer:     emerald-500
+ *       --color-protein-dreamer: indigo-500
+ *       --color-cell-dreamer:    amber-500
+ *
+ *   - Dark mode variables (prefers-color-scheme + manual toggle)
+ *   - Custom scrollbar styling (thin, matches theme)
+ *   - Mol* viewer container styles (prevent overflow, set min-height)
+ *   - Heatmap canvas container styles
+ *   - Animation keyframes for loading spinners and pulse effects
+ *   - Print styles (hide sidebar, navbar; expand main content)
+ */

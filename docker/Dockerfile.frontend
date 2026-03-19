@@ -1,0 +1,30 @@
+# Dockerfile.frontend — Next.js Frontend Application.
+#
+# Purpose:
+#   Builds the BioDreamer Next.js frontend as a standalone production image.
+#
+# Base image:
+#   node:20-alpine
+#
+# Build stages:
+#   1. deps: install node_modules (npm ci)
+#   2. builder: run next build (standalone output mode)
+#   3. runner: minimal image with standalone server + static assets
+#
+# Environment variables (build-time):
+#   - NEXT_PUBLIC_API_URL: backend URL (default http://localhost:8000)
+#
+# Environment variables (runtime):
+#   - PORT: 3000
+#   - HOSTNAME: 0.0.0.0
+#
+# Exposed ports:
+#   - 3000
+#
+# Entrypoint:
+#   node server.js (Next.js standalone server)
+#
+# Notes:
+#   - Uses output: "standalone" from next.config.js for minimal image size
+#   - Static files served from .next/static
+#   - Public assets copied to standalone/public

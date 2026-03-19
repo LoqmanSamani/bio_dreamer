@@ -1,0 +1,11 @@
+# BioDreamer — Server Configuration
+#
+# Configuration for the FastAPI backend server, job queue, and model serving.
+#
+# Sections:
+#   - server:       Host, port, CORS origins, rate limiting, max upload size
+#   - database:     Connection URL for job persistence (SQLite for dev, PostgreSQL for prod)
+#   - job_queue:    Redis connection for async job dispatch, max concurrent workers
+#   - model_serving: Model cache directory, max loaded models, GPU memory budget
+#   - auth:         Authentication mode (disabled for local dev, API key for prod)
+#   - huggingface:  HF Hub token, default org, model naming convention

@@ -1,0 +1,28 @@
+# Dockerfile.backend — FastAPI Backend Server.
+#
+# Purpose:
+#   Builds the BioDreamer FastAPI backend image. Installs Python
+#   dependencies, copies the biodreamer package and server code,
+#   and launches uvicorn.
+#
+# Base image:
+#   python:3.11-slim (CPU) or nvidia/cuda:12.1-runtime-ubuntu22.04 (GPU)
+#
+# Build stages:
+#   1. builder: install pip dependencies into a virtual environment
+#   2. runtime: copy venv + application code, expose port, set entrypoint
+#
+# Environment variables (runtime):
+#   - BIODREAMER_ENV: "production" | "development"
+#   - HF_TOKEN: Hugging Face API token
+#   - MODEL_CACHE_DIR: /app/model_cache
+#   - REDIS_URL: redis://redis:6379/0
+#
+# Exposed ports:
+#   - 8000 (FastAPI)
+#
+# Entrypoint:
+#   uvicorn server.main:create_app --factory --host 0.0.0.0 --port 8000
+#
+# Health check:
+#   GET http://localhost:8000/api/health

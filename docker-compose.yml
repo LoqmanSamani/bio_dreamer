@@ -1,0 +1,14 @@
+# BioDreamer — Docker Compose
+#
+# Orchestrates the full BioDreamer stack:
+#   1. backend   — FastAPI server (serves REST API for all three modules)
+#   2. frontend  — Next.js web app (user-facing interface)
+#   3. worker    — Background task runner (long-running training / inference jobs)
+#   4. redis     — Message broker for job queue (backend <-> worker communication)
+#
+# Usage:
+#   docker-compose up --build           # Start all services
+#   docker-compose up backend frontend  # Start only API + web UI
+#
+# GPU support: The worker service should be configured with NVIDIA runtime
+# for PyTorch GPU training and inference.

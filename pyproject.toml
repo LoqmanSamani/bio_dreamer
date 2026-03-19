@@ -1,0 +1,34 @@
+# BioDreamer — World Models for Biological Design
+#
+# This is the main Python project configuration file.
+# BioDreamer is a PyTorch-based framework that applies world models
+# (model-based RL) to biological systems at three scales:
+#   - MolDreamer:     atomic-level molecular dynamics
+#   - ProteinDreamer: protein fitness landscape navigation
+#   - CellDreamer:    gene regulatory network dynamics
+#
+# The project is structured as:
+#   - `biodreamer/`  — Core Python library (models, training, inference)
+#   - `server/`      — FastAPI backend serving the web interface
+#   - `frontend/`    — Next.js/React web application
+#
+# Key dependencies:
+#   - PyTorch (core ML framework)
+#   - Hugging Face Hub (model hosting, sharing, versioning)
+#   - FastAPI (backend API)
+#   - ESM-2 / transformers (protein language models)
+#   - torch-geometric (graph neural networks for molecules/proteins)
+#   - torchdiffeq (neural ODE/SDE for dynamics models)
+#   - wandb (experiment tracking)
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "biodreamer"
+version = "0.1.0"
+description = "World Models for Biological Design — MolDreamer, ProteinDreamer, CellDreamer"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"

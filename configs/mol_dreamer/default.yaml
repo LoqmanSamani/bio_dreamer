@@ -1,0 +1,15 @@
+# MolDreamer — Default Training Configuration
+#
+# This YAML file defines all hyperparameters for training the MolDreamer
+# world model and RL policy. It is loaded by the training scripts and
+# can be overridden via CLI arguments.
+#
+# Sections:
+#   - data:      Dataset paths, preprocessing options, train/val split
+#   - encoder:   SE(3)-equivariant GNN architecture (type, layers, hidden dim)
+#   - dynamics:  Latent dynamics model (diffusion vs. neural SDE, step size, horizon)
+#   - decoder:   Coordinate reconstruction decoder architecture
+#   - reward:    Property predictor heads (ΔG, Tm, SASA)
+#   - policy:    RL algorithm (SAC/PPO), actor-critic architecture, imagination horizon
+#   - training:  Batch size, learning rate, scheduler, epochs, gradient clipping
+#   - logging:   W&B project, checkpoint frequency, evaluation interval

@@ -1,0 +1,17 @@
+# ProteinDreamer — Default Training Configuration
+#
+# This YAML file defines all hyperparameters for training the ProteinDreamer
+# world model (encoder + dynamics + reward) and RL policy.
+#
+# Sections:
+#   - data:        ProteinGym DMS assay paths, Tsuboyama mega-scale data, structure oracle config
+#   - encoder:     PLM backbone (ESM-2 model size), GVP-GNN layers, joint embedding dim
+#   - dynamics:    World model type (conditional transformer / latent diffusion), latent dim, context length
+#   - decoder:     Fitness prediction heads (ΔΔG, Kd, kcat), structure change predictor
+#   - reward:      Multi-objective weighting, reward scaling, reward shaping
+#   - policy:      RL algorithm (SAC/PPO/MCTS), imagination rollout length, mutation budget
+#   - active_inference:  Free energy components (pragmatic value weight, epistemic value weight), EFE temperature
+#   - uncertainty: Ensemble size or evidential DL config for epistemic uncertainty
+#   - training:    Batch size, LR, warmup steps, KL balancing, gradient clipping, epochs
+#   - active_learning:  Acquisition function, batch size per round, oracle budget
+#   - logging:     W&B project, checkpoint frequency, eval interval, eval DMS assays

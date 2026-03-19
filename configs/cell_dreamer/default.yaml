@@ -1,0 +1,14 @@
+# CellDreamer — Default Training Configuration
+#
+# This YAML file defines all hyperparameters for training the CellDreamer
+# world model and perturbation planning RL policy.
+#
+# Sections:
+#   - data:       Perturb-seq dataset paths (Replogle, Norman, sci-Plex), preprocessing options, highly variable gene selection
+#   - encoder:    scRNA-seq VAE architecture (hidden layers, latent dim, dropout)
+#   - dynamics:   Neural ODE/SDE configuration (solver type, step size, adjoint method), perturbation conditioning mechanism
+#   - decoder:    Gene expression reconstruction architecture, zero-inflation handling
+#   - reward:     Cell state objective definition (target profile, distance metric)
+#   - policy:     RL algorithm for perturbation planning, combinatorial action space handling
+#   - training:   Batch size, LR, KL annealing schedule, epochs, gradient clipping
+#   - logging:    W&B project, checkpoint frequency, evaluation interval
