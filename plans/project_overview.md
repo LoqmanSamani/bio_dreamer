@@ -43,29 +43,47 @@ The shared thesis: **learn a latent-space simulator (world model) of each biolog
 
 **Problem:** Protein engineering today is either *one-shot generative* (ProteinMPNN, RFdiffusion, ESM-3 — generate a sequence, hope it works) or *directed evolution* (random mutagenesis + screening — expensive, slow, combinatorially limited). Neither approach does what a skilled engineer would: **plan a multi-step mutation strategy by mentally simulating outcomes before committing**.
 
-**Approach:** Frame protein design as a Markov Decision Process:
-- **State** = sequence $\mathbf{x} \in \{A,\ldots,Y\}^L$ + predicted structure + property estimates.
-- **Action** = mutation (substitution, insertion, deletion, loop redesign).
-- **Transition model (world model)** = predicts how structure and fitness change after a mutation, learned from deep mutational scanning data + structure predictors.
-- **Reward** = target fitness (stability $\Delta\Delta G$, affinity $K_d$, activity $k_{cat}$, or multi-objective).
+**Approach:** Frame protein design as a Markov Decision Process with a **JEPA-based world model** that operates entirely in latent space:
+- **State** = sequence $\mathbf{x} \in \{A,\ldots,Y\}^L$ + predicted structure + property estimates → encoded into latent state $z_t$.
+- **Action** = mutation (substitution, insertion, deletion, loop redesign) — framed as a **causal intervention** on $z_t$.
+- **Transition model (JEPA world model)** = predicts the post-mutation latent state $\hat{z}_{t+1}$ given $(z_t, a_t)$. All planning happens in latent space — **no decoder needed during imagination rollouts**.
+- **Reward** = target fitness (stability $\Delta\Delta G$, affinity $K_d$, activity $k_{cat}$, or multi-objective) — predicted from $z_t$ by a reward head.
 - **Policy** = RL agent (SAC/PPO in latent space or MCTS over mutation trees) that plans mutation paths in the world model before evaluation.
 
+**World model backends (the library supports multiple architectures):**
+
+| Backend | Type | Predictor | Uncertainty | Speed | Distributional |
+|---|---|---|---|---|---|
+| **Latent Diffusion JEPA** | Generative | Conditional diffusion in latent space ($d \approx 256$–$512$) | Built-in (sample variance) | Medium | ✅ Multi-modal |
+| **Energy-Based JEPA** | Non-generative | Deterministic Transformer/MLP + SIGReg | External (ensembles / evidential DL) | Fast | ❌ Single-mode |
+| **RSSM (DreamerV3)** | Reconstruction-based | Stochastic + deterministic recurrent | KL-based | Medium | Partial (Gaussian) |
+| **Discrete Tokens (IRIS)** | Autoregressive | Transformer over VQ tokens | Predictive entropy | Medium | Partial |
+
+The primary architectures for the PhD are **Latent Diffusion JEPA** (Architecture A) and **Energy-Based JEPA** (Architecture B), with RSSM and discrete-token backends available as baselines.
+
+**Architecture A — Latent Diffusion JEPA (Primary):**
+The JEPA encoder maps protein states (ESM-2 sequence embeddings + GVP-GNN structure features) to latent $z_t$. The predictor is a **conditional denoising diffusion model** that generates samples from $p_\theta(z_{t+1} | z_t, a_t)$ via iterative denoising in the compact latent space. This captures the multi-modal, stochastic nature of protein fitness landscapes — a single mutation can lead to distinct structural/functional outcomes. The diffusion sample variance provides built-in uncertainty estimates that feed directly into the Active Inference exploration term (Expected Free Energy). Training loss: JEPA energy + denoising score matching.
+
+**Architecture B — Energy-Based JEPA (Alternative):**
+Same JEPA encoder, but the predictor is a deterministic Transformer/MLP mapping $(z_t, a_t) \to \hat{z}_{t+1}$, trained with prediction loss + SIGReg (Sketched-Isotropic-Gaussian Regularizer; LeWorldModel, Maes et al., 2026) on the encoder output $z_t$. SIGReg enforces $z_t \sim \mathcal{N}(0, I)$ via random projections + Epps-Pulley normality testing — only 1 hyperparameter ($\lambda$) vs. VICReg's 6-7, much simpler to tune. No decoder. Single forward pass → faster inference, but averages over modes. Suitable for rapid screening or when combined with an external uncertainty module.
+
 **Theoretical backbone — Active Inference:**
-The system is grounded in the *Free Energy Principle* (Friston, 2010): the agent maintains a generative model of the protein fitness landscape and selects mutations that minimise *expected free energy* — a quantity that naturally trades off exploitation (seeking high fitness) and exploration (reducing model uncertainty). This provides:
-- A principled exploration–exploitation balance in the vast, rugged sequence space.
-- A Bayesian framework for active learning: after each batch of real experiments, the world model is updated, uncertainty decreases, and the policy refines.
-- A novel theoretical bridge connecting computational neuroscience, Bayesian inference, RL, and protein biology.
+The system is grounded in the *Free Energy Principle* (Friston, 2010). The deep connection between JEPA and Active Inference: both minimise variational free energy. The JEPA energy $E_\theta(z_t, a_t, z_{t+1})$ scores prediction consistency — mathematically analogous to the prediction error in $F = D_{KL}[q(s) \| p(s)] - \mathbb{E}_q[\ln p(o|s)]$. The agent selects mutations that minimise *expected free energy* $G(\pi)$, which naturally decomposes into:
+- **Pragmatic value** (exploitation): seek high fitness states.
+- **Epistemic value** (exploration): seek states where the world model is uncertain (reduce model uncertainty).
+For Architecture A, the diffusion predictor provides a rich distributional estimate that improves both terms. For Architecture B, external uncertainty modules (ensembles, evidential DL) approximate the epistemic term.
 
 **Data:** ProteinGym (200+ DMS assays), Tsuboyama mega-scale stability data, AlphaFold2/ESMFold as cheap structure oracles, BRENDA/EnzML for enzyme activity.
 
-**Deliverable:** `protein-dreamer` — a framework for model-based RL protein engineering with active learning. User provides wild-type + objective → system dreams optimal mutation paths → ranks candidates → optionally interfaces with wet-lab validation loop.
+**Deliverable:** `protein-dreamer` — a modular framework for model-based RL protein engineering. User provides wild-type + objective → selects world model backend → system dreams optimal mutation paths → ranks candidates → optionally interfaces with wet-lab validation loop. The library design supports swapping any component (encoder, predictor, reward head, policy) independently.
 
 **Why this is the strongest PhD candidate:**
-1. **Clear novelty:** No existing work combines world models + RL + active inference for iterative protein design. One-shot methods dominate; this is the first principled sequential approach.
-2. **Rich theoretical contribution:** The Active Inference framing is publishable on its own and connects to a vibrant neuroscience/AI theory community.
+1. **Clear novelty:** No existing work combines JEPA world models + latent diffusion dynamics + active inference for iterative protein design. The latent diffusion JEPA architecture (Architecture A) is entirely new.
+2. **Rich theoretical contribution:** The JEPA–Active Inference unification is publishable on its own and connects to vibrant neuroscience/AI theory communities.
 3. **Practical impact:** Directly applicable to therapeutic antibody engineering, enzyme design, vaccine development — attractive to both academic and industry labs.
 4. **Data availability:** ProteinGym and mega-scale datasets make training feasible without requiring your own wet lab.
-5. **Scalable scope:** Can start with a simple sequence-only world model and scale up to structure-aware, multi-objective, active-learning variants — natural PhD progression.
+5. **Scalable scope:** Can start with Energy-Based JEPA (simpler) and scale to Latent Diffusion JEPA, then multi-objective, active-learning variants — natural PhD progression.
+6. **Library design:** The multi-backend approach ensures the PhD produces a reusable tool, not just a paper.
 
 ---
 
@@ -88,36 +106,45 @@ The system is grounded in the *Free Energy Principle* (Friston, 2010): the agent
 
 ## 3. Unified Architecture
 
-Although each pillar targets a different biological scale, they share a common computational skeleton:
+Although each pillar targets a different biological scale, they share a common computational skeleton based on the **JEPA (Joint-Embedding Predictive Architecture)** paradigm: encode observations into latent states, predict transitions in latent space, and train policies on imagined trajectories — all without requiring a decoder during planning.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   BioDreamer Core                   │
-│                                                     │
-│  ┌───────────┐   ┌──────────────┐   ┌───────────┐   │
-│  │  Encoder  │──▶│ Latent World │──▶│  Decoder  │   │
-│  │ (domain-  │   │   Model      │   │ (domain-  │   │
-│  │  specific)│   │ (shared arch)│   │  specific)│   │
-│  └───────────┘   └──────┬───────┘   └───────────┘   │
-│                         │                           │
-│                  ┌──────▼───────┐                   │
-│                  │ Reward Model │                   │
-│                  └──────┬───────┘                   │
-│                         │                           │
-│                  ┌──────▼───────┐                   │
-│                  │    Policy    │                   │
-│                  │  (RL Agent)  │                   │
-│                  └──────────────┘                   │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         BioDreamer Core                              │
+│                                                                      │
+│  ┌───────────────┐   ┌─────────────────────┐   ┌───────────────┐    │
+│  │ Context       │   │   JEPA Predictor     │   │ Target        │    │
+│  │ Encoder f_θ   │──▶│ (World Model         │   │ Encoder f_θ̄   │    │
+│  │ (domain-      │   │  Dynamics)           │   │ (EMA of f_θ)  │    │
+│  │  specific)    │   │                      │   │               │    │
+│  └───────────────┘   │ Options:             │   └───────┬───────┘    │
+│         │            │ • Latent Diffusion   │           │            │
+│         │            │ • Deterministic MLP  │           │            │
+│         │            │ • RSSM (legacy)      │           │            │
+│         ▼            │ • Discrete Tokens    │           │            │
+│     z_t, a_t  ──────▶│                      │──▶ ẑ_{t+1}│            │
+│                      └──────────┬───────────┘     vs    │            │
+│                                 │               z̄_{t+1} ◄────────── │
+│                          ┌──────▼───────┐      (JEPA energy)        │
+│                          │ Reward Head  │                            │
+│                          │ (Fitness)    │                            │
+│                          └──────┬───────┘                            │
+│                                 │                                    │
+│                          ┌──────▼───────┐                            │
+│                          │   Policy     │                            │
+│                          │  (RL Agent)  │                            │
+│                          └──────────────┘                            │
+└──────────────────────────────────────────────────────────────────────┘
 
 Instantiated as:
-  • MolWorld:        GNN encoder → Latent diffusion dynamics → Coordinate decoder
-  • ProteinDreamer:  PLM+GVP encoder → Conditional transformer/diffusion → Fitness decoder
-  • CellDreamer:     scRNA VAE encoder → Neural ODE/SDE → Gene expression decoder
+  • MolWorld:        SE(3)-GNN encoder → Latent diffusion/SDE dynamics → Coordinate decoder (needed for MD)
+  • ProteinDreamer:  ESM-2+GVP encoder → Latent Diffusion JEPA or Energy-Based JEPA → Fitness head (no decoder during planning)
+  • CellDreamer:     scRNA VAE encoder → Neural ODE/SDE or Latent Diffusion → Gene expression decoder
 ```
 
 This shared structure means:
-- **Code reuse:** A single `biodreamer` library with pluggable encoders, dynamics models, decoders, and reward heads.
+- **Code reuse:** A single `biodreamer` library with pluggable encoders, dynamics models (JEPA predictors), reward heads, and policies. Each component can be swapped independently.
+- **Architecture flexibility:** Users choose between generative (latent diffusion) and non-generative (energy-based JEPA) world model backends depending on their speed–accuracy tradeoff.
 - **Transfer learning:** Insights from MolWorld (atomic scale) can inform the structure-prediction component of ProteinDreamer; CellDreamer perturbation predictions can serve as downstream validation for protein designs.
 - **Unified publications:** Each pillar is a paper; the framework itself is a systems/software paper.
 
@@ -158,24 +185,24 @@ This is the core of the PhD — a complete, novel contribution that is feasible 
 
 ### Suggested PhD timeline (approximate):
 
-**Year 1 — Foundations**
-- Literature review: world models (DreamerV3, IRIS), protein design (ProteinMPNN, RFdiffusion, ESM-3), fitness prediction, Active Inference.
-- Build the basic pipeline: sequence encoder (ESM-2 embeddings) → simple world model (MLP / small transformer predicting DMS fitness) → policy (PPO on mutation actions).
+**Year 1 — Foundations & Energy-Based JEPA**
+- Literature review: JEPA world models (Causal-JEPA, LeWorldModel), DreamerV3 (historical), protein design (ProteinMPNN, RFdiffusion, ESM-3), fitness prediction, Active Inference.
+- Build Architecture B: ESM-2 + GVP-GNN encoder (both output $\mathbb{R}^{L \times 1280}$) → FusionMLP → $z_t$ with SIGReg → Energy-Based JEPA predictor (deterministic, prediction loss) → fitness reward head → PPO policy in latent space.
 - Benchmark on ProteinGym single-mutant landscapes.
-- **Target output:** Workshop paper or preprint on "world models for protein fitness landscapes."
+- **Target output:** Workshop paper or preprint on "JEPA World Models for Protein Fitness Landscapes."
 
-**Year 2 — Scaling and Structure**
+**Year 2 — Latent Diffusion JEPA & Structure-Awareness**
+- Build Architecture A: Replace deterministic predictor with conditional latent diffusion model. Train with combined JEPA energy + denoising score-matching loss.
 - Integrate structure-aware encoding (GVP-GNN, predicted structures from ESMFold).
-- Upgrade world model to latent diffusion or autoregressive transformer.
-- Implement Active Inference formulation — compare with standard RL baselines.
+- Implement Active Inference formulation — compare EFE-based exploration with standard RL baselines. Leverage diffusion sample variance for epistemic uncertainty.
 - Multi-step mutation planning: benchmark on known evolutionary paths (e.g., TEM-1 β-lactamase evolution).
-- **Target output:** Top-venue paper (NeurIPS / ICML / Nature Methods).
+- **Target output:** Top-venue paper (NeurIPS / ICML / Nature Methods) — "Latent Diffusion JEPA for Model-Based Protein Design."
 
 **Year 3 — Multi-objective, Active Learning, and Validation**
 - Multi-objective optimisation (stability + activity + expressibility).
-- Active learning loop: world model proposes candidates → cheap oracle (ESMFold / ProteinMPNN inverse folding) validates → model updates.
+- Active learning loop: diffusion world model proposes candidates → cheap oracle (ESMFold / ProteinMPNN) validates → model updates → uncertainty-driven exploration refines.
+- Comparative study: Architecture A vs. B vs. DreamerV3 RSSM vs. IRIS discrete tokens — systematic ablation.
 - If wet-lab collaboration available: real experimental validation on a model enzyme or antibody.
-- Optionally extend to MolWorld for MD-based validation of top candidates.
 - **Target output:** Journal paper (Nature Computational Science / PNAS) + framework release.
 
 **Year 4 (if applicable) — Extensions and Thesis**

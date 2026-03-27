@@ -23,37 +23,51 @@
 
 ### ProteinDreamer — Model-Based RL for Protein Design
 
-- **The big idea:** Frame protein design as a sequential decision-making (RL) problem where the "environment" is the protein fitness landscape, and train a world model of that landscape so the agent can plan multi-step design trajectories without querying expensive oracles (wet-lab assays, AlphaFold inference, or MD simulations) at every step.
+- **The big idea:** Frame protein design as a sequential decision-making (RL) problem where the "environment" is the protein fitness landscape, and train a **Joint-Embedding Predictive Architecture (JEPA)** world model of that landscape so the agent can plan multi-step design trajectories "in imagination" — without querying expensive oracles (wet-lab assays, AlphaFold inference, or MD simulations) at every step.
 
     - **State** $s_t$ = current protein sequence $\mathbf{x} \in \{A, C, \ldots, Y\}^L$ and its predicted/known structure (backbone coordinates, pLDDT, contact map).
-    - **Action** $a_t$ = a discrete mutation (single-site substitution, insertion, deletion) or a structured edit (loop redesign, domain swap) on the sequence.
-    - **Transition** $s_{t+1} = f_\theta(s_t, a_t)$ = the world model's prediction of how the structure and properties change after the edit.
-    - **Reward** $r_t$ = predicted fitness score — thermostability ($\Delta\Delta G$), binding affinity ($K_d$), catalytic activity ($k_{cat}$), expressibility, or a multi-objective combination.
+    - **Action** $a_t$ = a discrete mutation (single-site substitution, insertion, deletion) or a structured edit (loop redesign, domain swap) on the sequence — framed as a **causal intervention** on the protein's latent state.
+    - **Transition** $\hat{z}_{t+1} = f_\theta(z_t, a_t)$ = the JEPA predictor's forecast of how the latent state changes after the mutation. The prediction occurs entirely in latent space — no expensive structure reconstruction during planning.
+    - **Reward** $r_t$ = predicted fitness score — thermostability ($\Delta\Delta G$), binding affinity ($K_d$), catalytic activity ($k_{cat}$), expressibility, or a multi-objective combination — read from the latent state by a reward head.
 
-- **The world model learns to predict:** Given a current sequence–structure pair and a proposed mutation → the resulting structure perturbation + fitness change. This allows the agent to *dream* entire evolutionary trajectories (chains of mutations) and evaluate them before committing to expensive ground-truth evaluation.
+- **The world model learns to predict:** Given a current protein's latent representation $z_t$ and a proposed mutation $a_t$ → the resulting latent state $\hat{z}_{t+1}$ encoding the post-mutation structure and fitness changes. This allows the agent to *dream* entire evolutionary trajectories (chains of mutations) and evaluate them before committing to expensive ground-truth evaluation. Crucially, **all planning happens in latent space** — no decoder is needed during imagination rollouts.
 
 - **Why it's novel and timely:**
     - Existing generative protein design methods (ProteinMPNN, RFdiffusion, Chroma, EvoDiff, ESM-3) are predominantly **one-shot**: they generate a single sequence or structure in one forward pass, with no iterative refinement loop and no explicit planning over multi-step mutation paths.
     - Directed evolution in the wet lab *is* sequential search, but current computational tools don't model it as such. **ProteinDreamer bridges this gap** by providing an in-silico directed evolution engine guided by a learned world model.
+    - The JEPA paradigm (LeCun, 2022; Nam et al., 2026; Maes et al., 2026) provides the ideal world model backbone: it operates entirely in latent space without pixel/token reconstruction, learns via an energy-based objective that naturally connects to the Free Energy Principle, and Causal-JEPA specifically models **interventions** — which is exactly what mutations are.
     - The world model can be **fine-tuned online** with a small number of real experimental measurements (active learning), creating a tight compute–experiment loop suitable for real-world protein engineering campaigns.
 
 - **Theoretical backbone — Active Inference / Free Energy Principle:**
     - Draw from the neuroscience-rooted framework of *predictive coding* and *active inference* (Friston, 2010): the agent maintains an internal generative model of the protein fitness landscape and selects actions (mutations) that minimise *expected free energy* — simultaneously seeking reward (exploitation) and reducing model uncertainty (exploration).
+    - **Deep connection to JEPA:** Both JEPA and Active Inference minimise variational free energy. JEPA's energy-based objective $E_\theta(z_t, a_t, z_{t+1})$ scores the consistency of predicted vs. observed latent states — this is mathematically analogous to the prediction error term in variational free energy $F = D_{KL}[q(s) \| p(s)] - \mathbb{E}_q[\ln p(o|s)]$. This unification provides a principled theoretical framework where the world model, the policy, and the exploration strategy all derive from a single objective.
     - This provides a principled way to balance exploration vs. exploitation in sequence space, which is a core challenge in protein engineering (the fitness landscape is vast, rugged, and only partially observed).
-    - Theoretical novelty: formalising protein design under the Free Energy Principle connects computational neuroscience, Bayesian inference, RL, and molecular biology in a unified mathematical framework.
+
+- **World model architectures (the library supports both):**
+
+    **Architecture A — Latent Diffusion JEPA (Generative, Primary):**
+    The JEPA predictor is implemented as a **conditional diffusion model** operating in the latent space. Given $(z_t, a_t)$, the diffusion predictor generates samples from $p_\theta(z_{t+1} | z_t, a_t)$ via iterative denoising in the low-dimensional latent space ($d \approx 256$–$512$). This captures the **multi-modal, stochastic** nature of protein fitness landscapes (a single mutation can lead to distinct structural/functional outcomes). The variance across diffusion samples provides built-in epistemic/aleatoric uncertainty estimates that directly feed the Active Inference exploration term (Expected Free Energy). Training combines the JEPA energy-based objective with a denoising score-matching loss in latent space.
+
+    **Architecture B — Energy-Based JEPA (Non-Generative, Alternative):**
+    The original JEPA formulation: a deterministic or variance-network predictor maps $(z_t, a_t) \to \hat{z}_{t+1}$ via a Transformer or MLP, trained with a prediction loss + SIGReg on the encoder output. SIGReg (Sketched-Isotropic-Gaussian Regularizer; LeWorldModel, Maes et al., 2026) enforces $z_t \sim \mathcal{N}(0, I)$ via random projections + Epps-Pulley normality testing — replacing VICReg's 6-7 hyperparameters with a single $\lambda$. No decoder is needed. Faster inference (single forward pass vs. multi-step denoising), but the deterministic predictor averages over modes in the fitness landscape. Suitable when speed is prioritised over distributional accuracy, or when combined with an external uncertainty module (ensembles, evidential deep learning).
 
 - **Key technical components:**
-    1. **Protein encoder:** Pre-trained protein language model (ESM-2, ProGen2) for sequence embeddings + structure encoder (GVP-GNN, ProteinMPNN encoder) for geometric features → joint latent state $z_t$.
-    2. **World model:** Conditional latent diffusion model or autoregressive transformer that predicts $z_{t+1}$ given $(z_t, a_t)$.
-    3. **Fitness predictor (reward head):** Multi-task head predicting stability, binding, function scores from $z_t$. Trained on experimental fitness landscape datasets.
-    4. **Policy / planner:** Latent-space actor-critic (SAC / PPO variant) or Monte Carlo Tree Search (MCTS) over mutation trajectories in the world model.
-    5. **Uncertainty module:** Ensemble or evidential deep learning for epistemic uncertainty — guides active learning and exploration.
+    1. **Protein encoder (context encoder $f_\theta$):** Pre-trained protein language model (ESM-2 650M) for per-residue sequence embeddings $\mathbf{H}^{\text{seq}} \in \mathbb{R}^{L \times 1280}$ + structure encoder (GVP-GNN) producing per-residue structure embeddings $\mathbf{H}^{\text{struct}} \in \mathbb{R}^{L \times 1280}$ (same dimension as ESM-2) → MeanPool each → concatenate $[\mathbf{h}^{\text{seq}} \| \mathbf{h}^{\text{struct}}] \in \mathbb{R}^{2560}$ → FusionMLP → $z_t \in \mathbb{R}^d$. SIGReg is applied on $z_t$ to enforce $\mathcal{N}(0, I)$ and prevent collapse. The encoder is trained end-to-end with the JEPA objective.
+    2. **Target encoder ($f_{\bar{\theta}}$):** Exponential moving average (EMA) of the context encoder — provides the target latent $z_{t+1}$ during training (prevents collapse). This is the standard JEPA training stabilisation from LeWorldModel (Maes et al., 2026).
+    3. **JEPA predictor (world model dynamics):**
+        - *Diffusion variant (Arch A):* Conditional denoising network $D_\theta(z^\tau_{t+1}, \tau, z_t, a_t) \to z^0_{t+1}$ trained with score-matching loss $\mathcal{L}_{diff} = \mathbb{E}\|D_\theta(z^\tau_{t+1}, \tau, z_t, a_t) - z^0_{t+1}\|^2$.
+        - *Energy-based variant (Arch B):* Deterministic predictor $g_\phi(z_t, a_t) \to \hat{z}_{t+1}$ trained with prediction loss + SIGReg: $\mathcal{L}_{B} = \beta_{\text{jepa}} \cdot \|g_\phi(z_t, a_t) - \bar{z}_{t+1}\|^2 + \lambda \cdot \text{SIGReg}(Z) + \beta_{\text{rew}} \cdot \mathcal{L}_{\text{reward}}$. SIGReg enforces $z_t \sim \mathcal{N}(0, I)$ — only 1 hyperparameter ($\lambda$) vs. VICReg's 6-7.
+    4. **Fitness predictor (reward head):** Multi-task MLP predicting stability, binding, function scores from $z_t$. Trained on experimental fitness landscape datasets (ProteinGym, Tsuboyama mega-scale).
+    5. **Policy / planner:** Latent-space actor-critic (SAC / PPO variant) that plans mutation trajectories entirely within the world model's latent space. Alternatively, Monte Carlo Tree Search (MCTS) over mutation trees scored by the reward head. For Architecture A, the policy can leverage the diffusion predictor's distributional samples for look-ahead planning.
+    6. **Uncertainty module:**
+        - *Arch A:* Built-in — diffusion sample variance quantifies uncertainty; feeds directly into Expected Free Energy.
+        - *Arch B:* Ensemble of JEPA predictors or evidential deep learning head for epistemic uncertainty; guides active learning and exploration.
 
 - **Training data:** Deep mutational scanning (DMS) datasets (ProteinGym benchmark — 200+ assays), mega-scale stability data (Tsuboyama et al., 2023), AlphaFold2/ESMFold predicted structures as cheap oracles, enzyme activity datasets (BRENDA, EnzML).
 
-- **Concrete deliverable:** `protein-dreamer` — a framework for model-based RL protein design where a user specifies a wild-type protein + target property, and the system dreams optimal mutation paths, ranks candidates, and optionally interfaces with a wet-lab active learning loop.
+- **Concrete deliverable:** `protein-dreamer` — a framework for model-based RL protein design where a user specifies a wild-type protein + target property, and the system dreams optimal mutation paths, ranks candidates, and optionally interfaces with a wet-lab active learning loop. The library supports **both** generative (latent diffusion JEPA) and non-generative (energy-based JEPA) world model backends, allowing users to choose the speed–accuracy tradeoff.
 
-- **Potential impact:** Could fundamentally change how protein engineering is done — replacing random mutagenesis + screening with intelligent, model-guided, iterative design. Directly applicable to enzyme engineering, therapeutic antibody optimisation, and vaccine antigen design.
+- **Potential impact:** Could fundamentally change how protein engineering is done — replacing random mutagenesis + screening with intelligent, model-guided, iterative design. Directly applicable to enzyme engineering, therapeutic antibody optimisation, and vaccine antigen design. The dual-architecture approach (generative + non-generative) makes the framework versatile across different computational budgets and design scenarios.
 
 ---
 

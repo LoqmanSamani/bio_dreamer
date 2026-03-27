@@ -1,0 +1,55 @@
+follow the instruction below to write a phd proposal titled: 
+    "Protein Engineering with model-based reingorcement learning via latent space world models"
+
+follow this writing criteria in the entire proposal:
+    - avoid cliche phrases such as "taught me", "not only ... but also", 
+      "sits at the intersection ...", and similar structures
+    - avoid colons ':', semicolons ';', emdash '—', and similar cliche structures in sentences
+    - write in casual academic tone while remaining 100% polite and academic. humanize the text.
+    - be academically grounded and 100% scientifically rigorous.
+    - think like a deepmind researcher with deep intuitions. take a step back, see the big picture,
+      connect the dots implicitly and write based on these deep intuitions. 
+      stay concise and academic and always grounded on real existing research.
+
+review the context of following files to understand the task:
+    - `project_overview.md`: the """2.2 ProteinDreamer — Model-Based RL for Protein Design ⭐ (Core)""" section of the
+       file gives a brief introcudtion to a project which the proposal is written based on it.
+    - `ideas.md`: the """ProteinDreamer — Model-Based RL for Protein Design""" of this file also 
+       introduces the project in a more proposal focused way.
+    - `equation_architecture.md`: this file describes the main architecture and alternatives for each part
+       of the main architecture. it is a comprehensive mathematical explanation of the phd proposal.
+    - `text_architecture.md`: same as equation_architecture.md explains the system architecture but
+       in a more simplify text-based way.
+    - `pro_dream_lits.md`: a list of literature and short explanation of each literature and how it shoud
+       be cited in the proposal labeled by their relativity to the proposal. it defines the narative of the proposal.
+    - `proposal_notes.md`: those papers chosen from `pro_dream_lits.md` and summarized. use those summarization
+       where needed to cite those papers.
+    - /refs/ dir contains all those papers which are studied and summarized in `proposal_notes.md` each summary is connected to its paper
+       as follows: e.g., summary [2] is related to /refs/diamond_2.pdf, the 2 in naming of the paper referes to its citation number.
+
+do the following tasks:
+    1. create `phd_proposal.tex` to write a the proposal.
+    2. the proposal shoud have the following sections:
+       a. abstract: proposal abstract
+       b. introduction: a short introduction. here you may discuss some of thos current research gaps (shortly only to prepare the readers).
+          here files like: `ideas.md`and `project_overview.md` related parts may be helpful.
+       c. literature review: here most of those cited files should be discussed and how they are 
+          related to my work and may mention their problems. most relevant information for here are from: `pro_dream_lits.md` and `proposal_notes.md`.
+       d. research questions and hypothesis: main contributions of the proposal structured in 
+          qestions and hypothesis points. here files like: `ideas.md`and `project_overview.md` related parts may be helpful.
+       e. methodology: explains the architecture of the system briefly (not heavy equations focus on 
+          intuition and the overall structure of the system not detailed of each network, here 
+          objectives/losses are important and how the system will be trained and how it will 
+          work in inference intuitively). here we can reference details explanation of each part to the appendix section.
+          most relevant information for here are from: `text_architecture.md`.
+       f. expected contributions: what we will expect and in which time line
+       g. starting project (optional): we may have this section as the first goal of the project. 
+          a part of the phd program or the first experiment (expected a publication: for example a 
+          simplified version of the system to test different parts of the system in which an overview 
+          of the long term goals will be gained).
+       h. references: use those citation in `proposal_notes.md` in references section.
+       i. appendix: all heavy equations and more explanation where needed and also two or three algorithms (train, inference ...) 
+          explain the pipeline of the system. most relevant information for here are from: `equation_architecture.md`.
+    3. write the propsal in created file `phd_proposal.tex` regarding to all points and sections explained above. note: do not forget the writting criteria discussed above.
+
+    

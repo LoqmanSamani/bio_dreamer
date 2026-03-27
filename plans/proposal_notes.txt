@@ -1,0 +1,831 @@
+
+1. World Models & Model-Based RL
+
+[1] (1.1 DreamerV3 — Mastering Diverse Domains Through World Models)
+---
+Developing  a  general  algorithm  that  learns  to  solve  tasks  across  a  wide  range  of applications  
+has  been  a  fundamental  challenge  in  artificial  intelligence.
+DreamerV3, a general algorithm that outperforms specialized methods across over 150 diverse tasks,with a single configuration. 
+Dreamer learns a model of the environment and improves its behavior by imagining future scenarios. 
+Dreamer is the first algorithm to collect diamonds in Minecraft from scratch without human data or curricula.
+The Dreamer algorithm is based on the idea of learning a world model that equips the agent with rich perception and the ability
+to imagine the future.
+The world model predicts the outcomes of potential actions, a critic neural network judges the value of each outcome, 
+and anactor neural network chooses actions to reach the best outcomes.
+
+The algorithm consists of three neural networks: 
+   1. the world model: predicts the outcomes of potential actions and it is implemented as Recurrent State-Space Model (RSSM)
+      RSSM: a) Sequence model: ht=fφ(ht−1,zt−1,at−1)
+            b) Encoder:        zt∼qφ(zt|ht,xt)
+            c) Dynamics predictor:ˆzt∼pφ(ˆzt|ht)
+            d) Decoder:ˆxt∼pφ(ˆxt|ht,zt)
+   2. the critic model: judges the value of each outcome, Continue predictor:ˆct∼pφ(ˆct|ht,zt)
+   3. the actor chooses actions to reach the most valuable outcomes, Reward predictor:ˆrt∼pφ(ˆrt|ht,zt)
+The components are trained concurrently from replayed experience while the agent interacts with the environment.
+the encoder and decoder use convolutional neural networks (CNN) for image inputs and multi-layer perceptrons (MLPs) forvector inputs. 
+The dynamics, reward, and continue predictors are also MLPs.
+Given a sequence batch of inputs x1:T,  actions a1:T,  rewards r1:T,  and continuation flags c1:T, the world model parameters φ are optimized
+end-to-end to minimize the prediction loss Lpred, the dynamics loss Ldyn, and the representation loss Lrep with corresponding loss weights
+βpred= 1,βdyn= 1, andβrep= 0.1:
+    L(φ).= Eqφ sum_{t=1, T}([(βpred Lpred(φ) + βdyn Ldyn(φ) + βrep Lrep(φ)]) 
+
+The prediction loss trains the decoder and reward predictor via the symlog squared loss and the continue predictor via logistic regression.
+the dynamics loss trains the sequence modelto predict the next representation by minimizing the KL divergence between the predictor pφ(zt|ht)
+and the next stochastic representation qφ(zt|ht,xt).
+The representation loss trains the representations to become more predictable allowing us to use a factorized dynamics predictor for fast sampling
+during imagination training. 
+
+    Lpred(φ).=−lnpφ(xt|zt,ht)−lnpφ(rt|zt,ht)−lnpφ(ct|zt,ht)
+    Ldyn(φ).= max1,KLsg(qφ(zt|ht,xt))pφ(zt|ht)
+    Lrep(φ).= max1,KLqφ(zt|ht,xt)sg(pφ(zt|ht))
+
+The actor and critic neural networks learn behaviors purely from abstract trajectories of representa-tions predicted by the world model.
+Because the critic regresses targets that depend on its own predictions, we stabilize learning by regularizing the critic towards predicting 
+the outputs of an exponentially moving average of itsown parameters.
+
+
+[2] (1.2 DIAMOND — Diffusion for World Modeling)
+---
+World models constitute a promising approach for training reinforcement learning agents in a safe and sample-efficient manner. 
+Recent world models predominantly operate on sequences of discrete latent variables to model environment dynamics.However, this 
+compression into a compact discrete representation may ignorevisual details that are important for reinforcement learning.
+DIAMOND(DIffusion As a Model Of eNvironment Dreams) is a reinforcement learning agent trained in a diffusion world model.  
+World models have shown promise for training reinforcement learning agents across diverse environments, with greatly improved sample-efficiency,
+which can enable learning from experience in the real world.
+Recent world modeling methods often model environment dynamics as a sequence of discretelatent variables. 
+Discretization of the latent space helps to avoid compounding error over multi-steptime horizons. 
+However, this encoding may lose information, resulting in a loss of generality andreconstruction quality. 
+This may be problematic for more real-world scenarios where the information.
+diffusion models are known to be easily conditionable and to flexibly modelcomplex multi-modal distributions without mode collapse. 
+These properties are instrumental to world modeling, since adherence to conditioning should allow a world model to reflect an agent’s 
+actionsmore closely, resulting in more reliable credit assignment, and modeling multi-modal distributionsshould provide greater 
+diversity of training scenarios for an agent.
+We model the environment as a standard Partially Observable Markov Decision Process (POMDP),
+(S,A,O,T,R,O,γ), whereSis a set of states,Ais a set of discreteactions, andOis a set of image observations. 
+The transition function T:S×A×S →[0,1] describesthe environment dynamicsp (st+1|st,at), and the reward function R:S ×A×S →R maps transitions to scalar rewards. 
+Agents cannot directly access states stand only see the environment through image observations xt∈ O, emitted according to observation probabilities p(xt|st),
+described by the observation functionO:S ×O →[0,1].  The goal is to obtain a policy π that maps observations to actions in order to maximize the expected discounted
+ return Eπ[Pt≥0γtrt], where γ∈[0,1] is a discount factor. 
+ The score-based diffusion model provides an unconditional generative model of p_data.  To serve as a world model, we need a conditional generative model 
+ of the environment dynamics, p(xt+1|x≤t,a≤t),  where we consider the general case of a POMDP,  in which the Markovian statestis unknown and can be approximated 
+ from past observations and actions. We can condition a diffusion model on this history, to estimate and generate the next observation directly. 
+ L(θ) =E∥Dθ(xτt+1,τ,x0≤t,a≤t)−x0t+1∥2 
+
+ During training, we sample a trajectory segment x0≤t,a≤t,x0t+1 from the agent’s replay dataset, and we obtain the noised next observation xτt+1∼p0τ(xτt+1|x0t+1)
+ by applying theτ-level perturbation kernel.
+ use equation 6 and 7 on the paper as loss function to train diffusion world model.
+
+
+
+[3] (1.8 DynaPPO — Model-Based RL for Biological Sequence Design)
+---
+We propose a model-based variant of PPO, DyNA PPO, to improve sample efficiency, where the policy for a new round is trained offline using a simulator
+fit on functional measurements from prior rounds.
+On the tasks of designing DNA transcription factor binding sites, designing anti-microbial proteins, and optimizing the energy of Ising models based on
+protein structure, we find that DyNA PPO performs significantly better than existing methods in settings in which modeling is feasible, while still not 
+performing worse in situations in which a reliable model cannot be learned.
+This paper proposes a simple method for improvingthe sample efficiency of policy gradient methods such as PPO for black-box optimization by using surrogate 
+models that are trained online to approximate f(x).  Our method updates the policy’s parameters using sequences x generated by the current policy πθ(x), 
+but evaluated using a learned surrogate f′(x), instead of the true, but unknown, oracle reward function f(x).
+We learn the parameters of the reward model, w, simultaneously with the parameters of the policy.
+tasks:
+    - optimizing binding affinity of DNA sequences of length 8 (search space size 4^8).
+    - optimizing anti-microbial peptide sequences (search space size 20^50).
+    - optimizing binary sequences where f(x)is definedby the energy of an Ising model for protein structure (search space size 20^50).
+
+We formulate the design of a single sequence x as a Markov decision process M= (S,A,p,r) with state space S, action space A, transition function p, 
+and reward function r.  The state space S=∪t=1...T Vt is the set of all possible sequence prefixes and A corresponds to the vocabulary V. A sequence 
+is generated left to right. At time step t, the state st = a0, ..., at−1 corresponds to the t last tokens and the action at ∈ A to the next token.  
+The transition function p(st+ 1|st) =st at is deterministic and corresponds to appending at to st.  The reward r(st,at) is zero except at the last step T, 
+where it corresponds to the functional measurement f(sT−1). For generating variable-lengths equences, we extend the vocabulary by a special end-of-sequence 
+token and terminate sequence generation when this token is selected.
+We train a policy πθ(at|st) to optimize the expected sum of rewards.
+We useproximal policy optimization (PPO) with KL trust-region constraint.
+We employ autoregressive models with one fully-connected layer as policy and value networks since they are faster to train and outperformed 
+recurrent networks in our experiments.
+At time stept, thenetwork takes as input theWlast charactersat−W,...,at−1that are one-hot encoded, where thecontext window sizeWis a hyper-parameter.  
+To provide the network with information about thecurrent position of the context window, it also receives the time stept, which is embedded using asinusoidal 
+positional encoding (Vaswani et al., 2017), and concatenated with the one-hot characters.The policy network outputs a distributionπθ(at|st)over next the tokenat. 
+The value networkV(st),which approximates the expected future reward for being in statest, is used as a baseline to reducethe variance of stochastic estimate
+
+Model-based RL learns a model of the environment that is used as a simulator to provide additionalpseudo-observations.  
+While model-free RL has been successful in domains where interaction withthe environment is cheap, such as those where 
+the environment is defined by a software program,its high sample complexity may be unrealistic for biological sequence design.
+
+We call our method DyNAPPO since it is similar to the DYNA architecture (Sutton (1991); Peng et al. (2018)) and since can be used for DNA sequence design.
+Model-based RL provides the promise of improved sample efficiency when the model is accurate,but it can reduce performance if insufficient data are available 
+for training a trustworthy model.  Inthis case, the policy is prone to exploit regions where the model is inaccurate (Janner et al., 2019). Toreap the benefit 
+of model-based RL when the model is accurate and avoid reduced performance whenit is not, we (i) automatically select the model from a set of candidate models of 
+varying complexity,(ii) only use the selected model if it is accurate, and iii) stop model-based training as soon the themodel uncertainty increases by a certain 
+threshold.  After each round of experiment, we fit a set ofcandidate models on all available data to estimatef(x)via supervised regression.
+
+To increase sequence diversity, we employ a simple exploration reward bonus based on the den-sity of proposed sequences, similar to existing exploration 
+techniques based on state visitation fre-quency (Bellemare et al., 2016). Specifically, we define the final reward asrT=f(x)−λ·dens(x),wheredens(x)∈N+is 
+the weighted number of sequences that have been proposed in previous rounds with a distance of less thanaway fromx, where the weight decays linearly with the distance.
+
+
+
+
+
+2. RL for Protein / Biological Sequence Design — Direct Competitors
+
+
+[4] (2.1 EvoPlay — Self-Play RL Guides Protein Engineering)
+---
+could not access the paper :(
+
+
+
+[5] (2.2 μFormer + μSearch — Accelerating Protein Engineering with Fitness Landscape Modelling and RL)
+---
+Protein  engineering  holds  significant  promise  for  designing  proteinswith  customized  functions,  
+yet  the  vast  landscape  of  potential  muta-tions  versus  limited  lab  capacity  constrains  the  discovery  of  optimal sequences.
+we present the μProtein framework, which accelerates  protein  engineering  by  combining:
+    - μFormer: a  deep  learning  model  for  accurate  mutational  effect  prediction. it leverages  a  pairwise  masked  language  model--PMLM: masks two positions at once-- 
+               (transformer encoder:  During  training,  a  random  subset  of  tokens  (typically15%) in the input sequence are masked, and the model is trained to recover themasked tokens)
+               and three  specialized  scoring  modules  to  model  fitness  landscapes
+               The  loss  functions  we  adopted  for  protein  language  model  pre-traininginclude the following: Lpmlm=Ex∈DEMXi,j∈M,i̸=j−logPθ(xi,xj|x/M)
+               The final loss function for pre-training is defined as the sum of themasked language modeling loss and the pairwise masked language modelingloss: L=L_mlm+L_pmlm
+               Motivated by biological insights, we introduce three scoring modules on top ofthe pre-trained protein LM to predict the fitness score for a protein sequence (they are MLPs)
+               The final fitness scoreS(x) is predicted by: S(x) =Sresi(x) +Smotif(x) +Sseq(x)
+    - μSearch: a reinforcement  learning  algorithm  designed  to  efficiently  navigate  the protein  fitness  landscape  using μFormer  as  an  oracle.
+               it complements this by framing proteinengineering  as  a  decision-making  process,  using  Proximal  Policy  Optimiza-tion (PPO) with 
+               exploration noise to navigate the rugged fitness landscape.
+μProtein  leverages  single  mutation  data  to  predict  optimal  sequences  with  complex, multi-amino  acid  mutations  through  its  modeling  of  epistatic
+interactions  and  a  multi-step  search  strategy.
+While the parametersθof the protein LM is pre-trained using proteins withoutannotations, we need a set of proteins with measured fitness scores to trainthe newly 
+introduced parameters (i.e.,αandβ) and to refineθ.LetDdenote  a  dataset  consisting  of  pairs  (x, y),  wherexrepresents  asequence of the wild-type or mutant protein, 
+andyis the fitness score of thesequence.  All  the  parameters  are  trained  to  minimize  Mean  Absolute  Error(MAE).
+L=X(x,y)∈D∥S(x;θ,α,β)−y∥
+whereS(x;θ,α,β) is the final fitness score obtained by summing three scoringmodules.
+Central to this endeavor is accurately mapping protein sequences totheir functions, a process that forms the foundation for identifying sequenceswith  desired  traits.  
+High-throughput experimental techniques like Deep Mutational Scanning(DMS)  and  Multiplex  Assays  of  Variant  Effects  (MAVEs)  have  signif-icantly  advanced
+our  ability  to  measure  fitness  effects  for  protein  variants,particularly  by  systematically  probing  single  substitutions  at  every  positionin a protein. 
+However, these powerful tools face two major limitations. First,they  are  unable  to  explore  the  full  combinatorial  sequence  space,  whichgrows exponentially 
+with the number of mutations.  This makes it impracti-cal to experimentally measure high-order mutation combinations, leaving vastregions of the fitness landscape 
+unexplored. Second, these methodsrely on experimental readout systems that link protein activity to a measurableoutcome, such as cell growth, fluorescence, 
+or binding affinity. While effectivefor  certain  fitness  traits,  many  protein  functions  cannot  be  easily  measuredusing  such  high-throughput  approaches.  
+These  constraints  further  limit  theversatility and generality of DMS and MAVEs in addressing diverse proteinengineering objectives, underscoring the need for 
+alternative approaches.
+
+Starting  with  a  wild-type  sequence,μSearch, the reinforcement learning framework, autonomously navigates themulti-amino acid mutational landscape, guided byμFormer, 
+a pre-trained ora-cle model that scores the mutational effects of sequences proposed by μSearch.
+
+μSearch frames protein engineering as a Markov Decision Process (MDP),where  the  state  represents  the  current  mutant  sequence,  the  action  corre-sponds to a 
+single amino acid mutation. In each episode of the MDP,μSearchsequentially mutates multiple amino acids from the wild-type sequence beingengineering. 
+The learning objective ofμSearch is to optimize the selection pol-icy for mutation sites and types at each step to achieve the desired properties.
+Using Proximal Policy Optimization (PPO) with Dirichlet noise to avoid localoptima,μSearch navigates the rugged fitness landscape with both a mutationsite 
+policy network and a mutation type policy network, efficiently identifyinghigh-fitness mutations.
+
+μFormer, acting as the oracle, provides reward scores forμSearch.μFormeris  built  from  a  self-supervised  protein  language  model  
+combined  with  threesupervised  scoring  modules  (sequence-level,  motif-level,  and  residue-level.Methods). 
+It first undergoes pre-training on over 30 million protein sequencesfrom UniRef50 [25] (Fig. 1d). Using pairwise masked 
+language modeling [26](Fig. 1d, right), the model learns to predict amino acid identities at maskedpositions  by  leveraging  
+both  local  residue  context  and  pairwise  interactionlikelihoods within the sequence. During fine-tuning, the full-length 
+sequenceembeddings, motif embeddings, and residue probabilities are passed to their respective scoring moduls. 
+The outputs of these modules arethen combined to generate the final fitness prediction for the query sequence.
+
+Several  potential  directions  may  further  enhanceμProtein’s  capabilities.Integrating  3D  structural  data  may  
+improve  its  ability  to  capture  spatiallyproximate epistatic interactions that are not evident from sequence data alone.
+This would be particularly beneficial for applications like antibody engineeringor enzyme optimization, where structural considerations play a key role.
+
+
+
+[6] (2.3 Protein Sequence Design in a Latent Space via Model-Based RL)
+---
+the protein sequence space of possible combinations of 20 amino acids is too largeto search exhaustively in the laboratory, even with high-throughput screening from the diversifiedlibrary.
+in other words, directed evolution becomes trapped at local fitness max-ima where library diversification is insufficient to crossfitness valleysand access neighboring fitnesspeaks.
+Moreover, functional sequences in this vast space of sequences are rare and overwhelmed bynonfunctional sequences.
+We model protein sequence design as a Markov Decision Process (MDP) to optimize a latent rep-resentation.   
+Our method trains the optimization policy using a model-based deep reinforcementlearning (RL) framework.  
+At each timestep,  the policy updates the latent representationby  small  perturbations  to  maximize  protein  
+functionality  or  cellular  fitness,i.e.,  walkinguphillthrough the local landscape until the end of an episode. 
+
+The framework’s overview describes the encoder-decoder architecture trained torepresent protein sequences in a latent space and the RL framework. 
+The state is definedas the representation in the latent space, while the action is the perturbation in this representation.
+The perturbed representation is decoded back to a protein sequence using a sequence decoder. Thereward is based on the functionality predicted by the functionality predictor (oracle).
+
+The sequence encoder is dividedinto two parts: (i) a pre-trained protein language model encoder (ESM-2 model) is used to obtain latent embeddings,
+(ii) a dimensionality reduction step is used to obtain the final representation.
+ESM-2 is utilized to map mutation effects onto a latent space in ourmodel. Given the sequencexas an input, ESM-2 outputs a matrixq∈Qof 
+dimensions(L+ 2,E),whereEis the dimension size of the embeddings,  andQis the embedding space.  In ESM-2,  aCLS (classification) token is prepended to the sequence,  
+and an EOS (end-of-sequence) token isappended to the sequence when generating the embeddings. They serve as sequence-beginning andsequence-ending characters, respectively.
+We hence use 1-dimensional adaptive average pooling tofurther reduce the dimension to(R,)and obtain the final representation.
+Given  a  reduced  representationyof  size(R,),  we  recover  the  amino  acidsequencexusing the sequence decoderd.   
+The representation size is expanded to(E,)using alinear layer. To recover the original(L+ 2,E)dimensions of the embeddings obtained by ESM-2,
+the dimensions of the reduced representation are first expanded.  Then, this matrix is concatenatedwith the wild-type embeddings obtained using ESM-2 of 
+the pre-trained encoder of size(L+2,2E)followed by a linear layer.  After passing to a dropout layer, the recovered representation is passedto the decoder’s 
+language model head, which maps the representation back to the sequence space,i.e., predicting each amino acid in the sequence from their associated embeddings.
+
+The functionality predictor network  is trained as a downstream task of thepre-trained ESM-2 encoder network.  Given an input sequencex, the encoder network 
+produces arepresentationq∈ Qof dimensions(L+ 2,E).  We flatten the representation to a vector of size((L+2)×E,)that is passed to an architecture with two 
+linear layers followed by GeLU (Hendrycks& Gimpel, 2016) non-linear activation. The final linear layer predicts a valuek∈R, wherekis thefunctionality metric 
+to be maximized andRis the set of real numbers representing possible values forthis metric.
+
+We model the environment using a Markov Decision Process (MDP) and assume that the next statest+1is conditioned only on the current statestand actionat. 
+This function calculates the element-wise sum ofstandatso thatst+1=st+at.  As a result of performing the actionat, the agentreceives the rewardrt.  
+The reward is a functionrt=r(st,at),  whereris the reward functionr:Q →R, andRis the set of real numbers representing reward values.  
+This data is later used totrain the policy using an off-policy reinforcement learning algorithm.  
+The agent interacts with theenvironment until reaching a terminal state.
+
+
+
+[7] (2.4 Model-Based RL for Protein Backbone Design)
+---
+Designing protein nanomaterials of predefined shape and characteristics has thepotential to dramatically impact the medical industry.
+Machine learning (ML) hasproven successful in protein design, reducing the need for expensive wet lab ex-periment rounds.  
+However, challenges persist in efficiently exploring the proteinfitness landscapes to identify optimal protein designs.
+e proposethe use of AlphaZero to generate protein backbones, meeting shape and structuralscoring requirements.  
+We extend an existing Monte Carlo tree search (MCTS)framework by incorporating a novel threshold-based 
+reward and secondary ob-jectives to improve design precision.
+We formulate the protein backbone design problem as a MDPM=(S,A,P,r)with state spaceS, action spaceA, transition probabilitiesPand rewardr.  
+Both thestate and action spaces follow the approach of Lutz et al. (2023).  The transition probabilities are1if the agent takes a legal 
+action given its state,  0 else.   The space of possible states is the en-semble of the protein backbones that fit inside of an 
+icosahedron of predefined radius. 
+
+the  reward  is  the  com-bination  of  five  different  structural  protein  scores;  the  core  scoreC(s)quantifies  the  formationof  
+an  hydrophobic  core;  the  helix  scoreH(s)quantifies  if  an  alpha-helix  is  detaching  fromthe  rest  of  the  protein  backbone;  
+the  porosity  scoreP(s)assesses  how  porous  the  structureis;  the  monomer  designability  scoreM(s)and  the  interface  designability  
+scoreI(s)quantifyhow  favorable  the  geometric  interactions  are,  i.e.    between  core  amino-acids  and  between  theprotein  backbone’s  
+images  by  the  icosahedral  symmetries.The  goal  of  the  RL  agents  is  todesign protein backbones that meet score thresholds introduced
+by Lutz et al. (2023), specifically:C0= 0.2, H0= 2.0, P0= 0.45, M0= 0.9, I0= 17.  Combining those scores in a reward is akey step to 
+ensure correct learning of the RL agents.
+
+
+
+
+
+
+3. Generative Protein Design — One-Shot Baselines
+
+
+[8] (ProteinMPNN — Robust Deep Learning–Based Protein Sequence Design), i could not download the paper!
+---
+Dauparas et al. present ProteinMPNN, a deep learning–based inverse-folding model that represents the dominant paradigm in modern protein design: given a fixed backbone structure,
+the model predicts a compatible amino acid sequence in a single forward pass. By learning structural and geometric constraints from large datasets of known proteins, 
+ProteinMPNN efficiently generates sequences likely to fold into the target backbone, achieving strong performance without iterative refinement or explicit search. 
+This one-shot backbone-to-sequence mapping makes it a powerful and fast baseline, but also limits it to static structure-conditioned design. As such, it can naturally 
+serve as a sub-module within iterative or generative frameworks—e.g., for re-scoring or redesigning sequences after each step—highlighting how approaches like ProteinDreamer 
+extend beyond this paradigm by incorporating sequential decision-making and exploration over protein space.
+
+
+[9] (3.2 RFdiffusion — De Novo Protein Design with Diffusion Models)
+---
+Watson et al. introduce RFdiffusion, a generative model that produces novel protein backbones by iteratively denoising 3D 
+coordinate representations starting from random noise . The method demonstrates strong capability across a wide range of 
+design tasks—including de novo monomers, protein binders, symmetric assemblies, and functional motif scaffolds—showing 
+that diffusion-based generative models can successfully learn the distribution of protein structures and produce physically 
+realistic backbones at scale. However, the approach operates as a single generative process per design, without explicit 
+iterative optimization, reinforcement learning, or navigation of a fitness landscape. As such, RFdiffusion provides compelling 
+evidence that generative modeling is effective for protein design, while leaving open the opportunity for frameworks like 
+ProteinDreamer to build on this foundation by introducing iterative planning, sequential decision-making, and adaptive 
+exploration over protein space.
+
+
+[10]
+---
+Here we show that language models trained on tokens generated by evolution can act as evolutionary simulators to gen-erate functional proteins that are far away fromknown proteins.
+We present ESM3, a frontiermultimodal generative language model that rea-sons over the sequence, structure, and functionof proteins.
+We present ESM3, a frontier multimodal generative modelthat reasons over the sequences, structures, and functions ofproteins. ESM3 is trained as a generative masked languagemodel
+over discrete tokens for each modality. Structuralreasoning is achieved by encoding three-dimensional atomicstructure as discrete tokens.
+All-to-all modeling of discrete tokens isscalable, and allows ESM3 to be prompted with any combi-nation of its modalities, enabling 
+controllable generation ofnew proteins that respect combinations of prompts.
+ESM3 at its largest scale was trained with 1.07×1024float-ing point operations (FLOPs) on 2.78 billion proteins and771 billion unique tokens, and has 98 billion 
+parameters.Scaling ESM3 to this 98 billion parameter size results inimprovements in the representation of sequence, structure,and function, as well as on generative evaluations.
+ESM3 achieves a scalable generative model of the threefundamental properties of proteins, sequence, structure, andfunction, through language modeling. 
+The modalities are input andoutput as separate sequence tracks that are fused into a sin-gle latent space within the mode.
+ESM3 is trained with a generative masked language model-ing objective across all its tracks:
+L=−Ex,m[1|m|∑i∈mlogp(xi|x\m)
+ESM3 is a bidirectional transformer. Sequence, structure,and function tokens are embedded and fused at the in-put, then processed through a stack of transformer blocks.
+At the output of the model, shallow multi-layerperceptron (MLP) heads project the final layer representa-tion into token probabilities for each of the tracks. 
+ESM3uses tokenization, rather than specialized architectural com-ponents, to represent the complexity of proteins in a learnedmultimodal feature space.
+Protein structures are tokenized by a discrete autoencoder(35), which is trained to compress three-dimensional struc-ture into discrete tokens. 
+We propose an invariantgeometric attention mechanism to efficiently process three-dimensional structure. The mechanism operates in local reference 
+frames defined by the bond geometry at each aminoacid, and allows local frames to interact globally through atransformation into the global frame . 
+Thelocal structural neighborhoods around each amino acid areencoded into a sequence of discrete tokens, one for eachamino acid.
+When predicting or generating protein structure, the struc-ture tokens output by ESM3 are passed through the decoder,which reconstructs the full atomic structure.
+We train ESM3 models at three scales: 1.4 billion, 7 billion,and 98 billion parameters. In an initial series of experi-ments to evaluate representation learning 
+performance in re-sponse to architecture hyperparameters, we found a greaterresponse to increasing depth than to width. This informedthe choice of relatively 
+deep networks for the final archi-tectures, with the 98 billion parameter model incorporating216 transformer blocks.
+ESM3 can be prompted with in-structions from each of its input tracks: sequence, structurecoordinates, secondary structure (SS8), solvent-accessiblesurface area (SASA), 
+and function keywords. This allowsprompts to be specified at multiple levels of abstraction,from atomic level structure to high level keywords describ-ing the function and fold topology.
+
+
+
+
+4. Protein Language Models & Fitness Prediction
+
+
+[11] (4.1 ESM-2 — Language Models of Protein Evolution) (i could not download the paper !)
+---
+The ESM-2 paper establishes a high-capacity Transformer architecture that serves as a powerful primary sequence encoder 
+by implicitly capturing evolutionary and structural constraints from 65 million diverse sequences. For projects like 
+ProteinDreamer, the ESM-2 650M variant offers an optimal balance between representation depth and computational efficiency, 
+providing dense embeddings where attention maps naturally converge to physical residue-residue contact maps. A key innovation 
+for protein design is the use of masked marginals—a zero-shot fitness heuristic that calculates the log-likelihood ratio between 
+mutant and wild-type residues at masked positions, offering a robust, label-free reward signal for reinforcement learning. Additionally, 
+the paper introduces ESMFold, which leverages these learned internal representations to predict atomic-level 3D structures up to 60x faster 
+than AlphaFold2 by eliminating the need for multiple sequence alignments (MSAs), thereby enabling the real-time structural "world modeling" 
+necessary for iterative de novo design.
+
+
+[12] (4.2 ProteinGym — Large-Scale Benchmarks for Protein Fitness Prediction and Design)
+---
+ProteinGym serves as the primary evaluation benchmark for ProteinDreamer, providing a large-scale, standardized platform to assess protein fitness prediction and design.
+1. Benchmark Scale and Diversity
+The benchmark encompasses over 2.7 million mutated sequences across more than 200 protein families, providing the scale necessary for robust model evaluation. It includes:
+    217 substitution DMS assays: High-throughput assays evaluating the functional impact of single or multiple amino acid replacements.
+    66 indel assays (DMS): Assessing insertions and deletions, which are technically challenging due to sequence length alterations.
+    Assay Diversity: The collection spans diverse taxa (humans, other eukaryotes, prokaryotes, and viruses) and a wide array of functional 
+    properties, including ligand binding, aggregation, thermostability, viral replication, and drug resistance.
+
+2. Evaluation Metrics
+ProteinGym utilizes a structured analytics framework with metrics tailored to specific tasks:
+    Fitness Prediction: Spearman’s rank correlation is the primary metric, as it captures the often non-linear relationship between sequence and fitness. 
+    In bimodal cases, AUC and Matthews Correlation Coefficient (MCC) are used to evaluate binarized labels.
+    Protein Design: Metrics focus on identifying the most functional variants:
+        NDCG (Normalized Discounted Cumulative Gain): Up-weights models that correctly rank high-value sequences at the top.
+        Top-K Recall: Measures the ability to identify the top 10% of high-fitness sequences.
+
+3. Training Regimes and Splits
+The benchmark integrates two complementary settings to evaluate model performance:
+    Zero-Shot Setting: Models predict mutation effects without access to ground-truth labels for the protein of interest during training, testing robust generalization.
+    Supervised Setting: Models leverage labeled subsets for training. To prevent overestimating performance due to data leakage, ProteinGym employs three cross-validation schemes:
+        Random: Mutations are randomly assigned to folds.
+        Contiguous: Splits sequences into five contiguous segments to test extrapolation to unseen regions.
+        Modulo: Assigns positions to folds based on a modulo operator.
+
+
+
+[13] (4.3 Multi-Scale Representation Learning for Protein Fitness Prediction)
+---
+Designing novel functional proteins crucially depends on accurately modeling theirfitness landscape.  
+Given the limited availability of functional annotations fromwet-lab experiments, previous methods have 
+primarily relied on self-supervisedmodels trained on vast, unlabeled protein sequence or structure datasets.  
+Whileinitial protein representation learning studies solely focused on either sequenceor  structural  features,  
+recent  hybrid  architectures  have  sought  to  merge  thesemodalities to harness their respective strengths. 
+However, these sequence-structuremodels have so far achieved only incremental improvements when compared to theleading 
+sequence-only approaches, highlighting unresolved challenges effectivelyleveraging these modalities together.  
+Moreover, the function of certain proteinsis highly dependent on the granular aspects of their surface topology, 
+which havebeen overlooked by prior models.   To address these limitations,  we introducethe  Sequence-Structure-Surface  
+Fitness  (S3F)  model  —  a  novel  multimodalrepresentation learning framework that integrates protein features across 
+severalscales. Our approach combines sequence representations from a protein languagemodel with Geometric Vector Perceptron 
+networks encoding protein backbone anddetailed surface topology. The proposed method achieves state-of-the-art fitnessprediction 
+on the ProteinGym benchmark.
+
+1. Multi-Scale Architecture (S3F)
+S3F achieves SOTA performance by stacking three distinct modalities:
+    Sequence (PLM): It uses ESM-2-650M as a frozen backbone to provide high-dimensional residue embeddings. 
+    These capture broad evolutionary signals but often lack granular structural awareness.
+    Structure (GVP): Residue embeddings from ESM-2 initialize nodes in a Geometric Vector Perceptron (GVP) network. 
+    This structure encoder performs message passing on a radius graph of alpha carbons, capturing spatial relationships within a 10A˚ neighborhood.
+    Surface (dMaSIF): The model uses dMaSIF to generate a differentiable point cloud of the protein surface (6K-20K points). 
+    It extracts geometric features like Gaussian curvatures and Heat Kernel Signatures, which are critical for modeling protein-solvent interactions and binding pockets.
+
+2. Integration of MSA and PLM Features
+While S3F is powerful as a "family-agnostic" model, its performance peaks when combined with family-specific information:
+    S3F-MSA: By ensembling S3F predictions with EVE (an MSA-based VAE), the model improves the SOTA on ProteinGym by 8.5% in Spearman's rank correlation.
+    Complementary Strengths: PLMs excel at general patterns, while MSAs capture nuanced, family-specific evolutionary constraints. 
+    S3F uses structure and surface data to "correct" biases in sequence-only models, particularly for viral proteins or sequences with low MSA depth.
+
+3. Key Insights for ProteinDreamer
+    Zero-Shot Logic: Like ESM-2, S3F uses masked language modeling (MLM) for zero-shot inference. It predicts the likelihood of a 
+    mutant residue at a masked position given the surrounding sequence, structure, and surface context.
+    Fixed Backbone Assumption: To prevent "information leakage" (cheating by seeing the answer in the side chains), 
+    S3F assumes the backbone is fixed post-mutation and omits side-chain atoms during inference.
+    Epistasis: The multi-scale approach is significantly better at capturing epistatic effects (interactions between multiple mutations) 
+    than sequence-only models. This is vital if your agent is designing proteins with many simultaneous changes.
+    Efficiency: Despite its complexity, S3F only has 20M trainable parameters (the GVP layers), allowing it to be pre-trained in days on 
+    commodity hardware—making it a practical choice for a reward head.
+
+
+
+
+
+5. Protein Structure Prediction — Cheap Oracles
+
+
+[14] (5.1 AlphaFold2 — Highly Accurate Protein Structure Prediction)
+---
+AlphaFold2 (AF2) is a Transformer-based model that predicts 3D protein structures with atomic accuracy from raw sequences.
+
+Key Points:
+    Evoformer: A specialized architecture that swaps information between evolutionary data (MSAs) and spatial relationships (distance matrices).
+    Structure Module: A 3D-aware engine that rotates and translates amino acid "units" into their final positions using Invariant Point Attention.
+    pLDDT Score: A built-in confidence metric (0–100). Scores above 70–90 indicate a reliable fold, while low scores suggest disordered regions.
+    Project Role: In ProteinDreamer, AF2 acts as the "Oracle" to verify if your designed sequences actually fold into the target shape and uses 
+    pLDDT to filter out physically impossible "hallucinations."
+
+
+
+
+
+6. Deep Mutational Scanning & Fitness Landscape Data
+
+
+[15] (6.1 Tsuboyama et al. — Mega-Scale Stability Measurements)
+---
+The study by Tsuboyama et al. (2023) introduces cDNA display proteolysis, a massively parallel assay that generated a dataset of 776,298 
+high-quality absolute folding stability (ΔG) measurements. This dataset, significantly richer than previous thermodynamic databases, 
+covers all single amino acid variants (including deletions and insertions) for 331 natural and 148 de novo designed protein domains, 
+along with 210,118 selected double mutants across 190 domains. The domains range from 40 to 72 amino acids in length and represent a 
+diverse structural space, including nearly all suitable small monomeric PDB domains and various de novo topologies like ααα, αββα, 
+and trRosetta hallucinations. The methodology proceeds in four primary steps: 
+    (1) Library Synthesis: Synthetic DNA oligonucleotide pools are used to encode up to 900,000 unique protein sequences; 
+    (2) cDNA Display: These libraries are transcribed and translated in a cell-free system where each protein is covalently
+        linked to its own cDNA at the C-terminus; 
+    (3) Protease Challenge: The protein-cDNA complexes are incubated with varying concentrations of two orthogonal proteases, 
+        trypsin and chymotrypsin, which preferentially cleave unfolded proteins ; and 
+    (4) Quantification: Intact (resistant) proteins are pulled down via an N-terminal tag, and their 
+        relative abundance is measured using next-generation sequencing (NGS). 
+To ensure low noise and high accuracy, the researchers employed a Bayesian kinetic model to infer ΔG from the protease concentration at which 
+half-maximal cleavage occurs (K50​), specifically accounting for sequence-specific protease susceptibility in the unfolded state. 
+This rigorous approach resulted in high reproducibility (R=0.94 between independent protease experiments) and strong agreement 
+with traditional gold-standard purified protein measurements.
+
+
+
+[16] (6.2 Learning Protein Fitness Landscapes with DMS Data from Multiple Sources)
+---
+The study by Chen et al. (2023) addresses the complexity of protein fitness landscapes by leveraging heterogeneous Deep Mutational Scanning (DMS) 
+data from multiple sources to improve model generalization. Recognizing that protein stability is a universal determinant of function, 
+the researchers demonstrated that fitness landscapes across disparate proteins share underlying physicochemical properties, 
+such as the tendency for epistatic residues—those whose combined mutational effect is non-additive—to be structurally proximal. 
+To capture these features, they developed GVP-MSA, a hybrid deep learning architecture that integrates evolutionary context and 3D structural information. 
+Architecturally, the model utilizes a pre-trained MSA Transformer to extract higher-order dependencies from multiple sequence alignments, which is then 
+concatenated with node features in a 3D equivariant graph neural network (GVP-GNN) that operates on rotation-equivariant vectors from protein backbones. 
+This multi-protein framework enables transfer learning by sharing bottom-layer parameters across different proteins while using protein-specific top layers, 
+allowing the model to successfully perform zero-shot fitness predictions and extrapolate higher-order epistatic effects from single-mutation data. Ultimately, 
+GVP-MSA’s internal representations were shown to capture meaningful biophysical properties like solvent accessibility and secondary structure, providing a 
+robust mechanism for generalizable world models in protein design.
+
+
+
+
+
+7. Active Inference & Free Energy Principle — Theoretical Backbone
+
+
+[17] (7.2 Reinforcement Learning Through Active Inference)
+---
+The central tenet of reinforcement learning (RL) is that agents seek to maximizethe sum of cumulative rewards.  In contrast, active inference, 
+an emerging frame-work within cognitive and computational neuroscience, proposes that agents actto maximize the evidence for a biased generative model.
+
+Tschantz et al. (2020) provide a technical bridge between active inference and deep reinforcement learning (RL) by recasting reward maximization 
+as the minimization of the divergence between desired and expected future outcomes. The authors introduce the Free Energy of the Expected Future (FEEF), 
+a novel objective function that serves as a tractable bound on established probabilistic RL objectives while naturally unifying exploration and exploitation. 
+Architecturally, the model is implemented in a model-based RL setting where agents maintain a generative model—parameterized by neural networks and deep 
+ensembles—to evaluate beliefs about future states, observations, and model parameters. Policy selection is treated as an approximate inference process, 
+optimized using the Cross-Entropy Method (CEM) to identify action sequences that minimize the FEEF. The core objective is formulated as:
+
+G(pi) = sum_{t} E_{q(s_t, theta | pi)} [ log q(theta | s_t, pi) - log p(s_t, theta) ]
+
+This FEEF objective decomposes into two critical components that justify its use over standard RL:
+
+G(pi) approx sum_{t} ( - E_{q(s_t | pi)} [ log p(s_t) ] - E_{q(theta)} [ I(s_t; theta) ] )
+
+The first term represents extrinsic value (reward seeking), while the second term represents expected information gain (uncertainty reduction), 
+which promotes directed exploration in both state and parameter space without the need for ad-hoc exploratory terms. This framework is particularly 
+superior for protein design because it inherently addresses the challenge of navigating expensive, partially observed fitness landscapes: 
+by minimizing the FEEF, the agent automatically prioritizes protein sequences that resolve model uncertainty (exploration) while simultaneously driving 
+toward high-fitness regions (exploitation), ensuring efficient optimization when every "query" to the landscape is costly.
+
+
+[18] (7.3 Active Inference: Demystified and Compared)
+---
+Sajid et al. (2020) provide a formal distinction between active inference and reinforcement learning (RL) by shifting the fundamental driver 
+of behavior from external reward signals to internal generative models. While standard RL is defined by the reward hypothesis—where agents 
+maximize a scalar signal—active inference agents minimize variational free energy (F) and expected free energy (G), treating rewards as "prior preferences" 
+over sensory observations. This framework is superior for protein design because it eliminates the need for engineered exploration heuristics; instead, 
+the minimization of expected free energy naturally balances extrinsic value (seeking high-fitness sequences) with intrinsic value (epistemic exploration 
+to reduce model uncertainty). In this paradigm, the generative model and its priors drive behavior rather than an external reward function, allowing the 
+agent to proactively query the most informative regions of a partially observed and expensive fitness landscape. Unlike Bayesian RL, which only seeks information 
+to increase future rewards, active inference justifies exploration as a first-principle requirement for maintaining an accurate world model, ensuring the ProteinDreamer 
+architecture remains robust even when experimental data is sparse.
+
+Core Equations for Implementation
+To implement these distinctions, the following free energy functionals are used:
+1. Variational Free Energy (F) (for perception and state estimation):
+F = D_KL[Q(s|pi) || P(s|pi)] - E_{Q(s|pi)}[log P(o|s)]
+(Decomposes into complexity minus accuracy)
+
+2. Expected Free Energy (G) (for policy selection and planning):
+Plaintext
+G(pi) approx sum_tau ( E_{Q(o_tau, s_tau | pi)} [log Q(s_tau | pi) - log P(o_tau, s_tau)] )
+(Minimizing G ensures the agent seeks outcomes that are both informative and preferred)
+
+3. Prior Preferences as Utility:
+Plaintext
+P(o) = sigma(U(o))
+(Utility is framed as a log-probability distribution over outcomes, making it a feature of the agent rather than the environment)
+
+
+
+
+8. Bayesian Optimisation & Active Learning for Protein Engineering
+
+
+[19] (8.1 Adaptive Machine Learning for Protein Engineering)
+---
+Hie and Yang (2022) review the "adaptive machine learning" framework for protein engineering, which formalizes a closed-loop iterative design 
+process consisting of four key components: a target property, a sequence-to-function surrogate model (e.g., Gaussian processes or neural networks), 
+a generative proposer to navigate the combinatorial sequence space, and an acquisition function to prioritize variants for experimental testing. 
+While the community widely employs greedy acquisition for its simplicity, the authors highlight that the field is increasingly adopting Bayesian 
+optimization to better balance the tradeoff between exploitation (seeking known high-fitness regions) and exploration (querying high-uncertainty regions to improve the model). 
+This loop—where a surrogate predicts function, an acquisition function like Upper Confidence Bound (UCB) or Expected Improvement (EI) selects variants, 
+and the model is retrained on new wet-lab data—parallels the ProteinDreamer architecture. By explicitly discussing the potential to reformulate this 
+objective as a reinforcement learning problem, the authors suggest a path toward more sophisticated decision-making machinery that goes beyond traditional 
+iterative design to proactively manage the uncertainty of expensive fitness landscapes.
+
+
+
+
+
+
+
+9. Equivariant & Geometric Deep Learning for Proteins
+
+
+[20] (9.1 GVP-GNN — Geometric Vector Perceptrons for Protein Structure)
+---
+We do so by introducinggeometric vector perceptrons(GVPs), a drop-in replacement for standardmulti-layer perceptrons (MLPs) in aggregation and feed-forward layers of GNNs.
+
+Jing et al. (2021) introduce Geometric Vector Perceptrons (GVP), a specialized graph neural network architecture designed to perform simultaneous geometric and 
+relational reasoning on 3D macromolecular structures. Unlike standard GNNs that rely on rotation-invariant scalars (like distances), GVP-GNN operates on both 
+scalar and vector features (e.g., relative positions and orientations of backbone atoms) through a novel equivariant layer that extends standard dense layers 
+to Euclidean vectors. This allows the model to maintain structural coordinates in a rotation-equivariant manner without the heavy computational cost of spherical 
+harmonics. As a primary candidate for the ProteinDreamer structure encoder, GVP-GNN will be used to encode predicted structures into geometric features that augment ESM-2 
+sequence embeddings, providing the world model with a high-fidelity representation of the physical constraints—such as packing density and secondary structure orientation—critical 
+for predicting protein stability and fitness.
+
+
+
+
+
+
+
+10. GFlowNets & Alternative Generative Policies
+
+
+[21] (10.1 Biological Sequence Design with GFlowNets)
+---
+Jain et al. (2022) introduce GFlowNets (Generative Flow Networks) as a powerful framework for biological sequence design, 
+specifically designed to address the limitations of standard Reinforcement Learning (RL) in high-dimensional, multi-modal fitness landscapes. 
+Unlike traditional RL agents that seek to maximize a point estimate of reward—often leading to "mode collapse" on a few sequences—GFlowNets 
+are trained to sample diverse candidates with a probability proportional to their reward (or fitness). In benchmarks against existing methods 
+like DynaPPO, GFlowNets consistently generated batches of sequences with higher structural diversity and novelty while maintaining high predicted 
+activity across tasks such as antimicrobial peptide (AMP) and DNA-binding protein design. For the ProteinDreamer proposal, GFlowNets represent 
+a state-of-the-art alternative policy class; while the ProteinDreamer world model provides the predictive "environment" and thermodynamic constraints, 
+GFlowNets can serve as the policy engine to explore this environment, ensuring that the design process does not get trapped in narrow local optima and 
+instead identifies a broad, diverse repertoire of viable protein candidates.
+
+
+
+
+
+11. Reviews & Surveys — Big-Picture Framing
+
+[22] (11.1 Machine Learning for Functional Protein Design) (could not download the papper!)
+---
+Notin et al. (2024) provide a definitive state-of-the-field review by introducing a unifying framework that maps the "exploding diversity" 
+of machine learning approaches to functional protein design. The authors classify models based on their utilization of three core data 
+modalities—sequences (e.g., PLMs), structures (e.g., ProteinMPNN, RFdiffusion), and functional labels (e.g., sequence–label regression)—while distinguishing 
+between supervised, unsupervised, and generative strategies. A critical takeaway for the ProteinDreamer proposal is the review’s identification of iterative 
+optimization and active learning as pivotal but under-explored directions compared to single-step "de novo" generation. While current state-of-the-art methods 
+like RFdiffusion excel at creating stable folds from scratch, they often struggle to navigate the high-dimensional, partially observed fitness landscapes 
+required for fine-tuning specific activities or complex functions. By positioning ProteinDreamer as a model-based RL architecture that leverages a world model 
+for iterative closed-loop design, you address this specific gap: moving beyond static one-shot design toward an autonomous system that proactively manages 
+the exploration-exploitation tradeoff through active inference, essentially operationalizing the "future trends" of laboratory automation and enhanced 
+sampling identified in the review.
+
+
+[23] (11.2 A Model-Centric Review of Deep Learning for Protein Design)
+---
+Kyro et al. (2024) provide a comprehensive "model-centric" review that categorizes the rapidly evolving protein design landscape into specialized architectures: 
+    structure prediction (AlphaFold2, RoseTTAFold, ESMFold), 
+    de novo sequence generation (autoregressive models like ProtGPT2), 
+    inverse folding (graph-based message-passing like ProteinMPNN), 
+    and backbone generation (denoising diffusion probabilistic models like RFdiffusion). 
+More recently, the field has trended toward joint sequence-structure co-design frameworks like ESM3, which use multimodal transformers to unify these modalities. 
+Despite these leaps, the review identifies a critical gap: current models struggle to effectively model the sequence-structure-function relationship and navigate 
+the high-dimensional fitness landscape for robust generalization beyond training data. This identifies ProteinDreamer's niche; while the reviewed models focus on 
+static generation or prediction, ProteinDreamer fills the "under-explored" gap of iterative optimization by using a world-model-based reinforcement learning 
+framework to proactively map and query the functional fitness landscape.
+
+
+
+[24] (1.3 Causal-JEPA — Learning World Models through Object-Level Latent Interventions)
+---
+Nam et al. (2026) introduce Causal-JEPA (C-JEPA), a reconstruction-free world model that extends the Joint-Embedding Predictive Architecture (JEPA) 
+by incorporating causal reasoning through object-level latent interventions. Unlike traditional world models like DreamerV3 that rely on computationally 
+expensive structure reconstruction (RSSM), C-JEPA operates entirely in latent space by using object-level masking as a proxy for causal interventions, 
+forcing the model to infer an entity's trajectory solely from its interactions with other objects. In the ProteinDreamer framework, mutations are treated 
+as causal interventions on the protein state; the JEPA encoder maps a sequence and its predicted structure to a latent representation (zt​), while the 
+predictor forecasts the next state (z^t+1​) conditioned on a specific mutation. The model is trained using an energy-based loss function that minimizes 
+the distance between the predicted embedding and the target embedding of the mutated state, formulated as:
+
+L = || Pred(z_context, mutation) - Enc(z_target) ||^2
+
+This objective, often augmented with variance and covariance regularization (such as VICReg) to prevent informational collapse, 
+ensures that the world model learns a stable, intervention-aware fitness landscape. This framework is highly efficient—achieving 
+comparable performance to patch-based models with only 1% of the total latent input features—and aligns naturally with Active Inference,
+as both paradigms prioritize minimizing the discrepancy (variational free energy) between internal predictions and realized latent states 
+rather than high-fidelity observation-space reconstruction.
+
+
+
+[25] (1.4 LeWorldModel — Stable End-to-End Joint-Embedding Predictive Architecture from Pixels)
+---
+Maes et al. (2026) introduce LeWorldModel (LeWM), a robust Joint-Embedding Predictive Architecture (JEPA) that provides the foundational 
+training methodology for ProteinDreamer by overcoming the inherent stability and collapse challenges of latent-space world models. 
+Unlike reconstruction-based models like DreamerV3 that require computationally expensive decoders to rebuild observations (e.g., full protein structures), 
+LeWM operates entirely in a compact latent space, enabling planning speeds up to 48x faster while matching or exceeding the performance of traditional architectures. 
+The methodology follows a streamlined three-step recipe:
+
+    (1) Joint-Embedding, where an encoder maps the protein state (sequence and structure) into a latent space; 
+    (2) Latent Prediction, where a predictor forecasts the next embedding conditioned on a mutation (action) without any observation-space reconstruction; and 
+    (3) Isotropic Regularization, which ensures a well-behaved, non-collapsed manifold. 
+
+This stability is achieved through a simplified training loss consisting of only a next-embedding prediction error and a Gaussian regularizer (SIGReg) to prevent representation collapse:
+
+L = || Pred(z_t, action) - z_{t+1} ||^2 + lambda * SIGReg(z)
+
+By demonstrating that this end-to-end objective naturally induces "temporal latent straightening"—where latent trajectories become more linear and predictable—LeWM 
+justifies ProteinDreamer’s shift from the complex RSSM machinery of DreamerV3 to a more efficient, intervention-aware JEPA framework. 
+This transition is critical for protein design, as it allows the world model to maintain a stable and queryable fitness landscape without 
+the overhead of generating high-fidelity structural coordinates at every optimization step.
+
+
+
+[26] (1.5 PointWorld — Scaling 3D World Models for In-The-Wild Robotic Manipulation)
+---
+Huang et al. (2026) introduce PointWorld, a large-scale 3D world model that predicts physical dynamics by operating directly in observation space using 3D point clouds and point flows. 
+The methodology follows a four-step pipeline: 
+    (1) State-Action Unification: where both the initial scene and the proposed robot actions are represented as 3D point flows in a shared spatial coordinate system; 
+    (2) Geometric Encoding: utilizing a scalable architecture (such as a 3D-aware Transformer) to process the point-cloud inputs; 
+    (3) Dynamics Forecasting: where the model predicts the full-scene 3D point flows representing the environment's transformation; and 
+    (4) Pre-training: involving large-scale training across diverse real and simulated manipulation datasets to enable zero-shot generalization. 
+In the ProteinDreamer proposal, PointWorld represents a distinct paradigm from the JEPA-based approach; whereas PointWorld performs explicit 3D reasoning in coordinate 
+space—analogous to running an intensive structure predictor for every mutation—ProteinDreamer prioritizes Causal-JEPA’s latent-space prediction for its superior computational efficiency. 
+While PointWorld’s high-fidelity structural modeling is conceptually appealing for structure-aware design, the latent-space route remains more practical given the prohibitive 
+cost of 3D evaluation at each optimization step, though PointWorld serves as a vital blueprint for future high-fidelity ProteinDreamer 
+variants that may prioritize structural accuracy over inference speed.
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+extra info
+---
+
+Joint  Embedding  Predictive  Architecture    JEPA  (Le-Cun, 2022) defines a self-supervised learning paradigm thatlearns to predict in representation 
+space without reconstruct-ing pixels, focusing instead on modeling predictive rela-tionships between latent embeddings that capture semanticstructure in the data.  
+This formulation has been progres-sively extended from image-level masked joint embeddingprediction in I-JEPA (Assran et al., 2023), to spatiotemporaltube-based 
+prediction in video with V-JEPA (Bardes et al.,2024), and further to integrated understanding, prediction,and planning in V-JEPA2 (Assran et al., 2025). 
+By avoidingreconstruction-driven objectives, JEPA-style models learnrepresentations that are directly aligned with prediction andcontrol,  making  them  
+particularly  well  suited  for  worldmodeling and autonomous decision-making (LeCun, 2022;Assran et al., 2023; Bardes et al., 2024; Assran et al., 2025).
+Following prior works (Zhou et al., 2025; Li et al., 2025),we employ frozen target encoders and optimize the predic-tor with a joint embedding prediction 
+objective, aligningpredicted latents to target latents.
+
+
+World models (Ha & Schmidhuber, 2018) provide a unify-ing abstraction for learning, predicting, and reasoning aboutthe dynamics of complex environments, 
+enabling scalableplanning  and  control  directly  in  latent  space  from  high-dimensional observations.
+Notably, the compactness of object-centric representations,when combined with the Joint Embedding Predictive Ar-chitecture (JEPA) (LeCun, 2022), 
+encourages the model toconcentrate on the essential factors governing object dynam-ics within a low-dimensional latent space, 
+thereby reducingboth computational and memory overhead.
+
+
+In our framework, we use Slot Attention to encode each ob-servation into a fixed-size set of object-centric latent states,
+yielding a set representation St= {s1t,...,sNt},  whereeach slot corresponds to a distinct entity in the scene.
+
+World Models (WMs) are apowerful family of methods that learn to predict the consequences of actions in the environment.When successful, 
+WMs allows agents to plan and to improve themselves solely form their model ofthe world, i.e., in imagination space. 
+
+
+A recent popular approach for learning world models is the Joint Embedding Predictive Architecture(JEPA).   
+Instead of attempting to model every aspect of the environment,  JEPA focuses oncapturing the most relevant features needed to predict future states.  
+Concretely, JEPA learns toencode observations into a compact, low-dimensional latent space and models temporal dynamics bypredicting the latent 
+representation of future observations.
+
+despite their conceptual simplicity, existing JEPA methods are highly prone to collapse. Inthis failure mode, the model maps all inputs to nearly identical 
+representations to trivially satisfy thetemporal prediction objective leading to unusable representations. Preventing collapse is thereforeone of the central 
+challenges in training JEPA models. Many influential works have proposed methodsto address this issue. Yet, these approaches typically rely on heuristic regularization, 
+multi-objectiveloss functions, external sources of information, or architectural simplifications such as pre-trainedencoders. In practice, these strategies often 
+introduce additional instability or significantly increasetraining complexity.
+
+
+leworld model focuses on the reward-free setting, corresponding to the setup considered in the JEPA line of work, which aims at learning generic, 
+task-agnostic world models from observational data without relying on reward supervision.
+
+Offline Dataset. We consider a fully offline and reward-free setting.  LeWorldModel is trainedsolely from unannotated trajectories of observations and actions, 
+without access to reward signals ortask specifications. This setup aligns with the JEPA line of work [18,14], which aims to learn generic,task-agnostic world models 
+from observational data. Our objective is not to optimize behavior fora specific task, but to learn representations that capture environment dynamics and can later 
+becontrolled or adapted to a diverse set of tasks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1] Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2023). Mastering diverse domains through world models. arXiv preprint arXiv:2301.04104.
+
+[2] Alonso, E., Jelley, A., Micheli, V., Kanervisto, A., Storkey, A., Pearce, T., & Fleuret, F. (2024). 
+    Diffusion for world modeling: Visual details matter in atari. Advances in Neural Information Processing Systems, 37, 58757-58791.
+
+[3] Angermueller, Christof, David Dohan, David Belanger, Ramya Deshpande, Kevin Murphy, and Lucy Colwell. 
+    "Model-based reinforcement learning for biological sequence design." In International conference on learning representations. 2019.
+
+[4] Wang, Y., Tang, H., Huang, L., Pan, L., Yang, L., Yang, H., ... & Yang, M. (2023). Self-play reinforcement learning guides protein engineering. 
+    Nature Machine Intelligence, 5(8), 845-860.
+
+[5] Sun, H., He, L., Deng, P., Liu, G., Zhao, Z., Jiang, Y., ... & Liu, T. Y. (2025). 
+    Accelerating protein engineering with fitness landscape modelling and reinforcement learning. Nature Machine Intelligence, 7(9), 1446-1460.
+
+[6] Lee, M., Vecchietti, L. F., Jung, H., Ro, H., Cha, M., & Kim, H. M. (2023). Protein sequence design in a latent space via model-based reinforcement learning.
+
+[7] Renard, F., Courtot, C., Reichlin, A., & Bent, O. (2024). Model-based reinforcement learning for protein backbone design. arXiv preprint arXiv:2405.01983.
+
+[8] Dauparas, J., Anishchenko, I., Bennett, N., Bai, H., Ragotte, R. J., Milles, L. F., ... & Baker, D. (2022). 
+    Robust deep learning–based protein sequence design using ProteinMPNN. Science, 378(6615), 49-56. 
+
+[9] Watson, J. L., Juergens, D., Bennett, N. R., Trippe, B. L., Yim, J., Eisenach, H. E., ... & Baker, D. (2023). 
+    De novo design of protein structure and function with RFdiffusion. Nature, 620(7976), 1089-1100.
+
+[10] Hayes, T., Rao, R., Akin, H., Sofroniew, N. J., Oktay, D., Lin, Z., ... & Rives, A. (2025). 
+     Simulating 500 million years of evolution with a language model. Science, 387(6736), 850-858.
+
+[11] Lin, Z., Akin, H., Rao, R., Hie, B., Zhu, Z., Lu, W., ... & Rives, A. (2023). 
+     Evolutionary-scale prediction of atomic-level protein structure with a language model. Science, 379(6637), 1123-1130.
+
+[12] Notin, P., Kollasch, A., Ritter, D., Van Niekerk, L., Paul, S., Spinner, H., ... & Marks, D. (2023). 
+     Proteingym: Large-scale benchmarks for protein fitness prediction and design. Advances in neural information processing systems, 36, 64331-64379.
+
+[13] Zhang, Z., Notin, P., Huang, Y., Lozano, A., Chenthamarakshan, V., Marks, D., ... & Tang, J. (2024). Multi-scale representation learning for protein fitness prediction. 
+     Advances in Neural Information Processing Systems, 37, 101456-101473.
+
+[14] Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger, O., ... & Hassabis, D. (2021). 
+     Highly accurate protein structure prediction with AlphaFold. nature, 596(7873), 583-589.
+
+[15] Tsuboyama, K., Dauparas, J., Chen, J., Laine, E., Mohseni Behbahani, Y., Weinstein, J. J., ... & Rocklin, G. J. (2023). 
+     Mega-scale experimental analysis of protein folding stability in biology and design. Nature, 620(7973), 434-444.
+
+[16] Chen, L., Zhang, Z., Li, Z., Li, R., Huo, R., Chen, L., ... & Zheng, M. (2023). 
+     Learning protein fitness landscapes with deep mutational scanning data from multiple sources. Cell Systems, 14(8), 706-721.
+
+[17] Tschantz, A., Millidge, B., Seth, A. K., & Buckley, C. L. (2020). Reinforcement learning through active inference. arXiv preprint arXiv:2002.12636.
+
+[18] Sajid, N., Ball, P. J., Parr, T., & Friston, K. J. (2021). Active inference: demystified and compared. Neural computation, 33(3), 674-712.
+
+[19] Hie, B. L., & Yang, K. K. (2022). Adaptive machine learning for protein engineering. Current opinion in structural biology, 72, 145-152.
+
+[20] Jing, B., Eismann, S., Suriana, P., Townshend, R. J., & Dror, R. (2020). Learning from protein structure with geometric vector perceptrons. arXiv preprint arXiv:2009.01411.
+
+[21] Jain, M., Bengio, E., Hernandez-Garcia, A., Rector-Brooks, J., Dossou, B. F., Ekbote, C. A., ... & Bengio, Y. (2022, June). Biological sequence design with gflownets. 
+     In International conference on machine learning (pp. 9786-9801). PMLR.
+
+[22] Notin, P., Rollins, N., Gal, Y., Sander, C., & Marks, D. (2024). Machine learning for functional protein design. Nature biotechnology, 42(2), 216-228.
+
+[23] Kyro, G. W., Qiu, T., & Batista, V. S. (2025). A model-centric review of deep learning for protein design. arXiv preprint arXiv:2502.19173.
+
+[24] Nam, H., Lidec, Q. L., Maes, L., LeCun, Y., & Balestriero, R. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. 
+     arXiv preprint arXiv:2602.11389.
+
+[25] ...
+
+[26] Huang, W., Chao, Y. W., Mousavian, A., Liu, M. Y., Fox, D., Mo, K., & Fei-Fei, L. (2026). 
+     PointWorld: Scaling 3D World Models for In-The-Wild Robotic Manipulation. arXiv preprint arXiv:2601.03782.
+
