@@ -21,3 +21,7 @@ Design notes:
       3D structure viewer (Mol*), per-residue pLDDT heatmap.
     - Training loss: sequence cross-entropy + structure coordinate MSE + pLDDT MSE.
 """
+
+import numpy as np
+import torch
+
