@@ -1,3 +1,7 @@
+export default function ProteinDreamerPage() {
+  return <div />;
+}
+
 /**
  * ProteinDreamer Module Page.
  *

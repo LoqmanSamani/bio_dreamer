@@ -1,5 +1,11 @@
-<!-- BioDreamer Logo Placeholder -->
-<!-- Replace with actual SVG logo -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
-  <!-- Placeholder: stylised DNA helix + brain motif representing "dreaming" in biology -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1" />
+      <stop offset="50%" style="stop-color:#10b981" />
+      <stop offset="100%" style="stop-color:#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="40" fill="#020617"/>
+  <text x="100" y="125" font-family="system-ui,sans-serif" font-size="80" font-weight="800" fill="url(#grad)" text-anchor="middle">BD</text>
 </svg>

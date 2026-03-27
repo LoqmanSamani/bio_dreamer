@@ -1,3 +1,7 @@
+export default function MolDreamerPage() {
+  return <div />;
+}
+
 /**
  * MolDreamer Module Page.
  *

@@ -1,22 +1,35 @@
-/**
- * Root Layout — BioDreamer Web Application.
- *
- * Purpose:
- *   The top-level layout component that wraps all pages. Provides:
- *     - Global CSS imports (Tailwind, custom styles)
- *     - HTML metadata (title, description, favicon)
- *     - Persistent layout elements: Navbar (top), Sidebar (left), Footer (bottom)
- *     - Global providers: theme (dark/light), API client context, toast notifications
- *
- * Structure:
- *   <html>
- *     <body>
- *       <Navbar />           — logo, module navigation, model status, dark mode toggle
- *       <div className="flex">
- *         <Sidebar />        — secondary navigation, recent jobs, quick links
- *         <main>{children}</main>  — page content
- *       </div>
- *       <Footer />           — version, links, HF Hub status
- *     </body>
- *   </html>
- */
+import type { Metadata } from "next";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import "@/styles/globals.css";
+
+export const metadata: Metadata = {
+  title: "BioDreamer — World Models for Biological Design",
+  description:
+    "Teaching machines to dream about biology. A unified framework for model-based RL applied to molecular dynamics, protein engineering, and cell reprogramming.",
+  keywords: [
+    "BioDreamer",
+    "world models",
+    "protein design",
+    "model-based RL",
+    "active inference",
+    "molecular dynamics",
+    "cell reprogramming",
+  ],
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </body>
+    </html>
+  );
+}

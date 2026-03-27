@@ -1,3 +1,7 @@
+export default function CellDreamerPage() {
+  return <div />;
+}
+
 /**
  * CellDreamer Module Page.
  *

@@ -1,3 +1,7 @@
+export default function ModelsPage() {
+  return <div />;
+}
+
 /**
  * Model Hub Page.
  *

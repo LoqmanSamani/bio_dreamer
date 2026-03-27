@@ -1,24 +1,124 @@
-/**
- * globals.css — Global Stylesheet for BioDreamer Frontend.
- *
- * Purpose:
- *   Tailwind CSS directives and global custom styles.
- *
- * Contents:
- *   @tailwind base;
- *   @tailwind components;
- *   @tailwind utilities;
- *
- *   Custom layers:
- *   - CSS variables for module accent colours:
- *       --color-mol-dreamer:     emerald-500
- *       --color-protein-dreamer: indigo-500
- *       --color-cell-dreamer:    amber-500
- *
- *   - Dark mode variables (prefers-color-scheme + manual toggle)
- *   - Custom scrollbar styling (thin, matches theme)
- *   - Mol* viewer container styles (prevent overflow, set min-height)
- *   - Heatmap canvas container styles
- *   - Animation keyframes for loading spinners and pulse effects
- *   - Print styles (hide sidebar, navbar; expand main content)
- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-200 font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-protein-500/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-600;
+  }
+}
+
+@layer components {
+  .section-container {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-protein-400 via-mol-400 to-cell-400;
+  }
+
+  .card {
+    @apply bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm
+           hover:border-slate-700 transition-all duration-300;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-protein-500 hover:bg-protein-600
+           text-white font-medium rounded-xl transition-all duration-200
+           hover:shadow-lg hover:shadow-protein-500/25;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-6 py-3 border border-slate-700
+           hover:border-protein-500 text-slate-300 hover:text-white font-medium
+           rounded-xl transition-all duration-200;
+  }
+
+  .tag {
+    @apply inline-block px-3 py-1 text-xs font-medium rounded-full
+           bg-slate-800 text-slate-300 border border-slate-700;
+  }
+
+  /* Blog prose styles */
+  .prose-bio {
+    @apply text-slate-300 leading-relaxed;
+  }
+  .prose-bio h1 {
+    @apply text-3xl font-bold text-white mt-10 mb-4;
+  }
+  .prose-bio h2 {
+    @apply text-2xl font-semibold text-white mt-8 mb-3;
+  }
+  .prose-bio h3 {
+    @apply text-xl font-semibold text-slate-100 mt-6 mb-2;
+  }
+  .prose-bio p {
+    @apply mb-4 text-slate-300;
+  }
+  .prose-bio a {
+    @apply text-protein-400 hover:text-indigo-300 underline underline-offset-2;
+  }
+  .prose-bio strong {
+    @apply text-white font-semibold;
+  }
+  .prose-bio ul {
+    @apply list-disc list-inside mb-4 space-y-1;
+  }
+  .prose-bio ol {
+    @apply list-decimal list-inside mb-4 space-y-1;
+  }
+  .prose-bio blockquote {
+    @apply border-l-4 border-protein-500 pl-4 italic text-slate-400 my-4;
+  }
+  .prose-bio code {
+    @apply bg-slate-800 text-mol-400 px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+  .prose-bio pre {
+    @apply bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto my-6;
+  }
+  .prose-bio pre code {
+    @apply bg-transparent text-slate-300 p-0;
+  }
+  .prose-bio hr {
+    @apply border-slate-800 my-8;
+  }
+  .prose-bio table {
+    @apply w-full border-collapse my-6;
+  }
+  .prose-bio th {
+    @apply bg-slate-800 text-left text-white font-semibold px-4 py-2 border border-slate-700;
+  }
+  .prose-bio td {
+    @apply px-4 py-2 border border-slate-800 text-slate-300;
+  }
+}
+
+/* Highlight.js overrides for dark theme */
+.hljs {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
