@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   Github,
   Mail,
@@ -94,73 +97,94 @@ export default function ContactPage() {
       </div>
 
       {/* Contact form */}
-      <div className="max-w-xl mx-auto mt-14">
-        <div className="card">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
-            Send a Message
-          </h2>
-          <form
-            action="https://formspree.io/f/placeholder"
-            method="POST"
-            className="space-y-4"
-          >
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-              >
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                required
-                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-              >
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="message"
-                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-              >
-                Message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={4}
-                required
-                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors resize-none"
-                placeholder="Your message..."
-              />
-            </div>
-            <button type="submit" className="btn-primary w-full justify-center">
-              Send Message
-            </button>
-            <p className="text-xs text-slate-400 dark:text-slate-600 text-center">
-              Powered by Formspree — update the action URL with your Formspree
-              endpoint.
-            </p>
-          </form>
-        </div>
+      <ContactForm />
+    </div>
+  );
+}
+
+function ContactForm() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const subject = encodeURIComponent(`BioDreamer Contact: ${name}`);
+    const body = encodeURIComponent(
+      `From: ${name}\nEmail: ${email}\n\n${message}`
+    );
+    window.location.href = `mailto:samaniloqman91@gmail.com?subject=${subject}&body=${body}`;
+  }
+
+  const inputClass =
+    "w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors";
+
+  return (
+    <div className="max-w-xl mx-auto mt-14">
+      <div className="card">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+          Send a Message
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+            >
+              Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder="Your name"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="message"
+              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+            >
+              Message
+            </label>
+            <textarea
+              id="message"
+              rows={4}
+              required
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className={`${inputClass} resize-none`}
+              placeholder="Your message..."
+            />
+          </div>
+          <button type="submit" className="btn-primary w-full justify-center">
+            <Mail size={16} />
+            Send via Email
+          </button>
+          <p className="text-xs text-slate-400 dark:text-slate-600 text-center">
+            Opens your default email client with the message pre-filled.
+          </p>
+        </form>
       </div>
     </div>
   );
