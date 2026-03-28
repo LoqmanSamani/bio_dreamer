@@ -10,6 +10,7 @@ export interface BlogPost {
   tags: string[];
   summary: string;
   content: string;
+  externalUrl?: string;
 }
 
 const POSTS_DIR = path.join(process.cwd(), "..", "blog", "posts");
@@ -32,6 +33,7 @@ export function getAllPosts(): BlogPost[] {
       tags: data.tags ?? [],
       summary: data.summary ?? "",
       content,
+      externalUrl: data.externalUrl ?? undefined,
     };
   });
 

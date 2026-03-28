@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, User, ArrowRight } from "lucide-react";
+import { Calendar, User, ArrowRight, ExternalLink } from "lucide-react";
 import { getAllPosts } from "@/lib/blog";
 
 export default function BlogPage() {
@@ -16,43 +16,57 @@ export default function BlogPage() {
         <p className="text-slate-500">No posts yet. Check back soon!</p>
       ) : (
         <div className="max-w-3xl space-y-6">
-          {posts.map((post) => (
-            <Link
-              key={post.slug}
-              href={`/blog/${post.slug}`}
-              className="card block group hover:border-protein-500/30"
-            >
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-3">
-                <span className="inline-flex items-center gap-1">
-                  <Calendar size={12} /> {post.date}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <User size={12} /> {post.author}
-                </span>
-              </div>
+          {posts.map((post) => {
+            const isExternal = !!post.externalUrl;
+            const Wrapper = isExternal ? "a" : Link;
+            const wrapperProps = isExternal
+              ? { href: post.externalUrl!, target: "_blank", rel: "noopener noreferrer" }
+              : { href: `/blog/${post.slug}` };
 
-              <h2 className="text-xl font-semibold text-white mb-2 group-hover:text-protein-400 transition-colors">
-                {post.title}
-              </h2>
-
-              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
-                {post.summary}
-              </p>
-
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <span key={tag} className="tag">
-                      {tag}
+            return (
+              <Wrapper
+                key={post.slug}
+                {...wrapperProps}
+                className="card block group hover:border-protein-500/30"
+              >
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-3">
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar size={12} /> {post.date}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <User size={12} /> {post.author}
+                  </span>
+                  {isExternal && (
+                    <span className="inline-flex items-center gap-1 text-protein-400">
+                      <ExternalLink size={12} /> External article
                     </span>
-                  ))}
+                  )}
                 </div>
-                <span className="text-protein-400 text-sm font-medium inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  Read more <ArrowRight size={14} />
-                </span>
-              </div>
-            </Link>
-          ))}
+
+                <h2 className="text-xl font-semibold text-white mb-2 group-hover:text-protein-400 transition-colors">
+                  {post.title}
+                </h2>
+
+                <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                  {post.summary}
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {post.tags.map((tag) => (
+                      <span key={tag} className="tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-protein-400 text-sm font-medium inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isExternal ? "Read on site" : "Read more"}{" "}
+                    {isExternal ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
+                  </span>
+                </div>
+              </Wrapper>
+            );
+          })}
         </div>
       )}
     </div>
