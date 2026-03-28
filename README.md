@@ -1,13 +1,19 @@
-# BioDreamer: World Models for Biological Design
+<p align="center">
+  <img src="frontend/public/logo.svg" alt="BioDreamer Logo" width="120" />
+</p>
 
-[![Website](https://img.shields.io/badge/Website-BioDreamer-blue?style=flat&logo=github-pages)](https://loqmansamani.github.io/bio_dreamer/)
-[![Blog](https://img.shields.io/badge/Blog-Posts%20%26%20Articles-purple?style=flat&logo=readme)](https://loqmansamani.github.io/bio_dreamer/blog/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
-[![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Hub-FFD21E)](https://huggingface.co/)
-[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/LoqmanSamani/bio_dreamer/deploy.yml?branch=systembiology&label=deploy&logo=github-actions)](https://github.com/LoqmanSamani/bio_dreamer/actions)
+<h1 align="center">BioDreamer: World Models for Biological Design</h1>
+
+<p align="center">
+  <a href="https://loqmansamani.github.io/bio_dreamer/"><img src="https://img.shields.io/badge/Website-BioDreamer-blue?style=flat&logo=github-pages" alt="Website" /></a>
+  <a href="https://loqmansamani.github.io/bio_dreamer/blog/"><img src="https://img.shields.io/badge/Blog-Posts%20%26%20Articles-purple?style=flat&logo=readme" alt="Blog" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" /></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch" /></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js" /></a>
+  <a href="https://huggingface.co/"><img src="https://img.shields.io/badge/🤗%20Hugging%20Face-Hub-FFD21E" alt="Hugging Face" /></a>
+  <a href="https://github.com/LoqmanSamani/bio_dreamer/actions"><img src="https://img.shields.io/github/actions/workflow/status/LoqmanSamani/bio_dreamer/deploy.yml?branch=systembiology&label=deploy&logo=github-actions" alt="GitHub Actions" /></a>
+</p>
 
 > *Teaching machines to dream about biology so we don't have to wait for every experiment.*
 
