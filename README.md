@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/logo.svg" alt="BioDreamer Logo" width="500" />
+  <img src="frontend/public/logo.svg" alt="BioDreamer Logo" width="300" />
 </p>
 
 <h1 align="center">BioDreamer: World Models for Biological Design</h1>
