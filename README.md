@@ -1,7 +1,7 @@
 # BioDreamer: World Models for Biological Design
 
-[![Website](https://img.shields.io/badge/Website-loqmansamani.github.io%2Fbio__dreamer-blue?style=flat&logo=github-pages)](https://loqmansamani.github.io/bio_dreamer/)
-[![Blog](https://img.shields.io/badge/Blog-World%20Models%20Article-purple?style=flat&logo=readme)](https://loqmansamani.github.io/articles/model_based_rl/index.html)
+[![Website](https://img.shields.io/badge/Website-BioDreamer-blue?style=flat&logo=github-pages)](https://loqmansamani.github.io/bio_dreamer/)
+[![Blog](https://img.shields.io/badge/Blog-Posts%20%26%20Articles-purple?style=flat&logo=readme)](https://loqmansamani.github.io/bio_dreamer/blog/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
