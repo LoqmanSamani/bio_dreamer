@@ -36,7 +36,7 @@ export default function HeroAnimation() {
       // Double helix parameters
       const helixPoints = 200;
       const helixHeight = h() * 0.85;
-      const helixRadius = Math.min(w() * 0.14, 90);
+      const helixRadius = Math.min(w() * 0.35, 220);
       const startY = (h() - helixHeight) / 2;
       const turns = 5;
 
@@ -60,15 +60,15 @@ export default function HeroAnimation() {
         color: string,
         backOnly: boolean
       ) {
-        ctx!.lineWidth = 3;
+        ctx!.lineWidth = 9;
         ctx!.lineCap = "round";
         let inSegment = false;
         for (let i = 0; i < strand.length; i++) {
           const isFront = strand[i].depth >= 0;
           const shouldDraw = backOnly ? !isFront : isFront;
           const alpha = backOnly
-            ? 0.15 + (1 + strand[i].depth) * 0.15
-            : 0.5 + strand[i].depth * 0.5;
+            ? 0.25 + (1 + strand[i].depth) * 0.2
+            : 0.7 + strand[i].depth * 0.3;
 
           if (shouldDraw) {
             if (!inSegment) {
@@ -106,7 +106,7 @@ export default function HeroAnimation() {
         const mx = (p1.x + p2.x) / 2;
         const my = (p1.y + p2.y) / 2;
 
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.lineCap = "round";
 
         // Left half
@@ -128,20 +128,20 @@ export default function HeroAnimation() {
         // Small dot at each rung endpoint for nucleotide look
         for (const p of [p1, p2]) {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
           ctx.fillStyle = p === p1 ? "#10b981" : "#6366f1";
-          ctx.globalAlpha = rungAlpha * 1.2;
+          ctx.globalAlpha = rungAlpha * 1.4;
           ctx.fill();
         }
         ctx.globalAlpha = 1;
       }
 
       // Front strands (depth >= 0) — drawn on top with glow
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 18;
       ctx.shadowColor = "#10b981";
-      drawStrandSegment(strand1, "#10b981", false);
+      drawStrandSegment(strand1, "#34d399", false);
       ctx.shadowColor = "#6366f1";
-      drawStrandSegment(strand2, "#6366f1", false);
+      drawStrandSegment(strand2, "#818cf8", false);
       ctx.shadowBlur = 0;
 
       // Floating particles
