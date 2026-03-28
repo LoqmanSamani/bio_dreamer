@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Menu, X, Github } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -30,12 +31,12 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl">
       <div className="section-container flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <Logo size={32} />
-          <span className="text-lg font-bold text-white group-hover:text-protein-400 transition-colors">
+          <span className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-protein-400 transition-colors">
             BioDreamer
           </span>
         </Link>
@@ -48,8 +49,8 @@ export default function Navbar() {
               href={item.href}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50"
               }`}
             >
               {item.label}
@@ -57,19 +58,20 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right: GitHub link + mobile menu button */}
-        <div className="flex items-center gap-3">
+        {/* Right: Theme toggle + GitHub link + mobile menu button */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
           <a
             href="https://github.com/LoqmanSamani/bio_dreamer"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-400 hover:text-white transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             aria-label="GitHub"
           >
             <Github size={20} />
           </a>
           <button
-            className="lg:hidden text-slate-400 hover:text-white"
+            className="lg:hidden text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -80,7 +82,7 @@ export default function Navbar() {
 
       {/* Mobile nav */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-slate-800 bg-slate-950 pb-4">
+        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pb-4">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
@@ -88,8 +90,8 @@ export default function Navbar() {
               onClick={() => setMobileOpen(false)}
               className={`block px-6 py-3 text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50"
               }`}
             >
               {item.label}

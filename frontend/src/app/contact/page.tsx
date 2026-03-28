@@ -50,10 +50,10 @@ const LINKS = [
 export default function ContactPage() {
   return (
     <div className="section-container py-16">
-      <h1 className="text-4xl font-bold text-white mb-4 text-center">
+      <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 text-center">
         Contact
       </h1>
-      <p className="text-lg text-slate-400 text-center max-w-2xl mx-auto mb-14">
+      <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
         Get in touch, follow developments, or contribute to BioDreamer.
       </p>
 
@@ -75,17 +75,17 @@ export default function ContactPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-white text-sm">
+                <span className="font-medium text-slate-900 dark:text-white text-sm">
                   {link.label}
                 </span>
                 {link.href !== "#" && !link.href.startsWith("mailto") && (
                   <ExternalLink
                     size={12}
-                    className="text-slate-600 group-hover:text-protein-400 transition-colors"
+                    className="text-slate-400 dark:text-slate-600 group-hover:text-protein-400 transition-colors"
                   />
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5 truncate">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
                 {link.description}
               </p>
             </div>
@@ -96,7 +96,7 @@ export default function ContactPage() {
       {/* Contact form */}
       <div className="max-w-xl mx-auto mt-14">
         <div className="card">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
             Send a Message
           </h2>
           <form
@@ -107,7 +107,7 @@ export default function ContactPage() {
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-slate-400 mb-1"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
               >
                 Name
               </label>
@@ -116,14 +116,14 @@ export default function ContactPage() {
                 id="name"
                 name="name"
                 required
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
+                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
                 placeholder="Your name"
               />
             </div>
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-slate-400 mb-1"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
               >
                 Email
               </label>
@@ -132,14 +132,14 @@ export default function ContactPage() {
                 id="email"
                 name="email"
                 required
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
+                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors"
                 placeholder="you@example.com"
               />
             </div>
             <div>
               <label
                 htmlFor="message"
-                className="block text-sm font-medium text-slate-400 mb-1"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
               >
                 Message
               </label>
@@ -148,14 +148,14 @@ export default function ContactPage() {
                 name="message"
                 rows={4}
                 required
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors resize-none"
+                className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-protein-500 transition-colors resize-none"
                 placeholder="Your message..."
               />
             </div>
             <button type="submit" className="btn-primary w-full justify-center">
               Send Message
             </button>
-            <p className="text-xs text-slate-600 text-center">
+            <p className="text-xs text-slate-400 dark:text-slate-600 text-center">
               Powered by Formspree — update the action URL with your Formspree
               endpoint.
             </p>

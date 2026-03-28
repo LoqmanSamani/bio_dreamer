@@ -122,10 +122,10 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string }> =
 export default function FeaturesPage() {
   return (
     <div className="section-container py-16">
-      <h1 className="text-4xl font-bold text-white mb-4 text-center">
+      <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 text-center">
         Features
       </h1>
-      <p className="text-lg text-slate-400 text-center max-w-2xl mx-auto mb-14">
+      <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
         Everything you need for intelligent, model-based biological design — from
         world model training to candidate ranking.
       </p>
@@ -140,10 +140,10 @@ export default function FeaturesPage() {
               >
                 <f.icon size={20} className={c.text} />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                 {f.title}
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                 {f.description}
               </p>
             </div>

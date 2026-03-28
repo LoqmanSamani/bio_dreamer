@@ -57,10 +57,10 @@ const STEPS = [
 export default function HowItWorksPage() {
   return (
     <div className="section-container py-16">
-      <h1 className="text-4xl font-bold text-white mb-4 text-center">
+      <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 text-center">
         How It Works
       </h1>
-      <p className="text-lg text-slate-400 text-center max-w-2xl mx-auto mb-14">
+      <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
         BioDreamer replaces brute-force experimentation with intelligent
         planning in a learned latent simulator.
       </p>
@@ -69,25 +69,25 @@ export default function HowItWorksPage() {
       <div className="max-w-2xl mx-auto mb-16">
         <div className="card p-6 sm:p-8 text-center font-mono text-sm">
           <div className="flex flex-col items-center gap-1">
-            <span className="text-slate-300">Observation</span>
-            <ArrowDown size={16} className="text-slate-600" />
+            <span className="text-slate-700 dark:text-slate-300">Observation</span>
+            <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-mol-400 font-semibold">
               Encoder → Latent State (z_t)
             </span>
-            <ArrowDown size={16} className="text-slate-600" />
+            <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-protein-400 font-semibold">
               Dynamics Model (z_t, action → z_&#123;t+1&#125;)
             </span>
-            <ArrowDown size={16} className="text-slate-600" />
+            <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-cell-400 font-semibold">
               Reward Model (z_t → fitness)
             </span>
-            <ArrowDown size={16} className="text-slate-600" />
+            <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-protein-400 font-semibold">
               Policy (RL agent plans in imagination)
             </span>
-            <ArrowDown size={16} className="text-slate-600" />
-            <span className="text-slate-300">Predicted Outcome</span>
+            <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
+            <span className="text-slate-700 dark:text-slate-300">Predicted Outcome</span>
           </div>
         </div>
       </div>
@@ -106,13 +106,13 @@ export default function HowItWorksPage() {
                 {step.number}
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-white mb-1">
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-1">
                   {step.title}
                 </h3>
                 <p className={`text-sm ${step.color} mb-2`}>
                   {step.subtitle}
                 </p>
-                <p className="text-sm text-slate-400 leading-relaxed">
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                   {step.description}
                 </p>
               </div>

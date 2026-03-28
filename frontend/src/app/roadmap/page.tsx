@@ -85,9 +85,9 @@ const STATUS_CONFIG: Record<Status, { icon: typeof CheckCircle2; color: string; 
   },
   planned: {
     icon: Circle,
-    color: "text-slate-500",
-    bg: "bg-slate-800/50",
-    border: "border-slate-700",
+    color: "text-slate-400 dark:text-slate-500",
+    bg: "bg-slate-200/50 dark:bg-slate-800/50",
+    border: "border-slate-300 dark:border-slate-700",
     label: "Planned",
   },
 };
@@ -95,10 +95,10 @@ const STATUS_CONFIG: Record<Status, { icon: typeof CheckCircle2; color: string; 
 export default function RoadmapPage() {
   return (
     <div className="section-container py-16">
-      <h1 className="text-4xl font-bold text-white mb-4 text-center">
+      <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 text-center">
         Roadmap
       </h1>
-      <p className="text-lg text-slate-400 text-center max-w-2xl mx-auto mb-14">
+      <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
         Where we are and where we&apos;re headed. BioDreamer is an active
         research project — milestones are updated regularly.
       </p>
@@ -107,7 +107,7 @@ export default function RoadmapPage() {
         {/* Timeline */}
         <div className="relative">
           {/* Vertical line */}
-          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-slate-800" />
+          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800" />
 
           <div className="space-y-8">
             {ROADMAP.map((milestone) => {
@@ -124,7 +124,7 @@ export default function RoadmapPage() {
 
                   <div className={`card ${cfg.bg} border ${cfg.border}`}>
                     <div className="flex flex-wrap items-center gap-3 mb-3">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                         {milestone.title}
                       </h3>
                       <span
@@ -140,7 +140,7 @@ export default function RoadmapPage() {
                       {milestone.items.map((item) => (
                         <li
                           key={item}
-                          className="text-sm text-slate-400 flex items-start gap-2"
+                          className="text-sm text-slate-500 dark:text-slate-400 flex items-start gap-2"
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
@@ -148,7 +148,7 @@ export default function RoadmapPage() {
                                 ? "bg-mol-500"
                                 : milestone.status === "active"
                                 ? "bg-protein-500"
-                                : "bg-slate-600"
+                                : "bg-slate-400 dark:bg-slate-600"
                             } mt-1.5 shrink-0`}
                           />
                           {item}

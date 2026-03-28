@@ -19,7 +19,7 @@ export default function BlogPostPage({
   if (!post) {
     return (
       <div className="section-container py-16 text-center">
-        <h1 className="text-3xl font-bold text-white mb-4">Post Not Found</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Post Not Found</h1>
         <Link href="/blog" className="btn-outline">
           <ArrowLeft size={16} /> Back to Blog
         </Link>
@@ -33,14 +33,14 @@ export default function BlogPostPage({
         {/* Back link */}
         <Link
           href="/blog"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-protein-400 transition-colors mb-8"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500 hover:text-protein-400 transition-colors mb-8"
         >
           <ArrowLeft size={14} /> All Posts
         </Link>
 
         {/* Header */}
         <header className="mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
             {post.title}
           </h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-4">
@@ -62,7 +62,7 @@ export default function BlogPostPage({
             href={`https://github.com/LoqmanSamani/bio_dreamer/blob/systembiology/blog/posts/${params.slug}.md`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-slate-600 hover:text-protein-400 transition-colors inline-flex items-center gap-1"
+            className="text-xs text-slate-400 dark:text-slate-600 hover:text-protein-400 transition-colors inline-flex items-center gap-1"
           >
             <ExternalLink size={12} /> Edit on GitHub
           </a>
