@@ -103,17 +103,27 @@ export default function ContactPage() {
 }
 
 function ContactForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const subject = encodeURIComponent(`BioDreamer Contact: ${name}`);
-    const body = encodeURIComponent(
-      `From: ${name}\nEmail: ${email}\n\n${message}`
-    );
-    window.location.href = `mailto:samaniloqman91@gmail.com?subject=${subject}&body=${body}`;
+    setStatus("sending");
+    const form = e.currentTarget;
+    try {
+      const res = await fetch("https://formspree.io/f/meeperpk", {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        setStatus("success");
+        form.reset();
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
   }
 
   const inputClass =
@@ -125,66 +135,75 @@ function ContactForm() {
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
           Send a Message
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-            >
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass}
-              placeholder="Your name"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-            >
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="message"
-              className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
-            >
-              Message
-            </label>
-            <textarea
-              id="message"
-              rows={4}
-              required
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className={`${inputClass} resize-none`}
-              placeholder="Your message..."
-            />
-          </div>
-          <button type="submit" className="btn-primary w-full justify-center">
-            <Mail size={16} />
-            Send via Email
-          </button>
-          <p className="text-xs text-slate-400 dark:text-slate-600 text-center">
-            Opens your default email client with the message pre-filled.
+        {status === "success" ? (
+          <p className="text-center text-green-500 py-8 text-sm font-medium">
+            Thanks! Your message has been sent.
           </p>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+              >
+                Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                className={inputClass}
+                placeholder="Your name"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                className={inputClass}
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="message"
+                className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1"
+              >
+                Message
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                rows={4}
+                required
+                className={`${inputClass} resize-none`}
+                placeholder="Your message..."
+              />
+            </div>
+            {status === "error" && (
+              <p className="text-red-500 text-xs text-center">
+                Something went wrong. Please try again.
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={status === "sending"}
+              className="btn-primary w-full justify-center disabled:opacity-50"
+            >
+              <Mail size={16} />
+              {status === "sending" ? "Sending…" : "Send Message"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
