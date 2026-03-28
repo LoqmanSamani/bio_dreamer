@@ -94,7 +94,7 @@ export default function HowItWorksPage() {
 
       {/* Steps */}
       <div className="max-w-3xl mx-auto space-y-6">
-        {STEPS.map((step, i) => (
+        {STEPS.map((step) => (
           <div
             key={step.number}
             className={`card ${step.bg} border ${step.border}`}

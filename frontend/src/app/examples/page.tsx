@@ -1,4 +1,4 @@
-import { FlaskConical, Clock, ArrowRight } from "lucide-react";
+import { Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function ExamplesPage() {

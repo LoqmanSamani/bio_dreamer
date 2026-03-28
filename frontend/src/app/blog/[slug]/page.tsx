@@ -75,6 +75,7 @@ export default function BlogPostPage({
             options={{
               mdxOptions: {
                 remarkPlugins: [remarkGfm],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 rehypePlugins: [rehypeSlug as any],
               },
             }}
