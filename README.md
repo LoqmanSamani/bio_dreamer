@@ -288,6 +288,15 @@ python scripts/export_to_hub.py \
 
 ---
 
+## Contributors
+
+| | Name | Role |
+|---|---|---|
+| <a href="https://github.com/LoqmanSamani"><img src="https://github.com/LoqmanSamani.png" width="50" style="border-radius:50%"></a> | **[Loqman Samani](https://github.com/LoqmanSamani)** | Creator & lead developer |
+| <a href="https://github.com/features/copilot"><img src="https://github.githubassets.com/assets/copilot-logo-chat-a43fb0d0e668.svg" width="50"></a> | **[GitHub Copilot](https://github.com/features/copilot)** | AI pair programmer — frontend, CI/CD, docs |
+
+---
+
 ## License
 
 MIT
