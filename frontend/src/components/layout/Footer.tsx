@@ -1,4 +1,5 @@
 import { Github, Mail, BookOpen } from "lucide-react";
+import Logo from "@/components/Logo";
 
 export default function Footer() {
   return (
@@ -8,9 +9,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-protein-500 via-mol-500 to-cell-500 flex items-center justify-center text-white font-bold text-xs">
-                BD
-              </div>
+              <Logo size={28} />
               <span className="font-bold text-white">BioDreamer</span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">

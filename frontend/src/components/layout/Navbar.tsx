@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Logo from "@/components/Logo";
 import { Menu, X, Github } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -33,9 +34,7 @@ export default function Navbar() {
       <div className="section-container flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-protein-500 via-mol-500 to-cell-500 flex items-center justify-center text-white font-bold text-sm">
-            BD
-          </div>
+          <Logo size={32} />
           <span className="text-lg font-bold text-white group-hover:text-protein-400 transition-colors">
             BioDreamer
           </span>
