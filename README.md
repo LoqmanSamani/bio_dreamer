@@ -1,5 +1,14 @@
 # BioDreamer: World Models for Biological Design
 
+[![Website](https://img.shields.io/badge/Website-loqmansamani.github.io%2Fbio__dreamer-blue?style=flat&logo=github-pages)](https://loqmansamani.github.io/bio_dreamer/)
+[![Blog](https://img.shields.io/badge/Blog-World%20Models%20Article-purple?style=flat&logo=readme)](https://loqmansamani.github.io/articles/model_based_rl/index.html)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
+[![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Hub-FFD21E)](https://huggingface.co/)
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/LoqmanSamani/bio_dreamer/deploy.yml?branch=systembiology&label=deploy&logo=github-actions)](https://github.com/LoqmanSamani/bio_dreamer/actions)
+
 > *Teaching machines to dream about biology so we don't have to wait for every experiment.*
 
 ---
