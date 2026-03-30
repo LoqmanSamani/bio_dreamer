@@ -26,19 +26,50 @@
 
 \title{
     \textbf{ProteinDreamer: Latent Diffusion World Models for Multi-Step Protein Engineering}\\[0.8em]
-    \large PhD Research Proposal
+    \large PhD Research Proposal\\[0.4em]
+    \normalsize Prepared for consideration at AG AI-guided Protein Design, TU München
 }
 
-\author{Loqman Samani\\[0.4em]
-\normalsize Email: \href{mailto:samaniloqman91@gmail.com}{samaniloqman91@gmail.com}\\[0.2em]
-\normalsize Webpage: \url{https://loqmansamani.github.io}
-}
+\author{Loqman Samani}
 \date{March 2026}
 
 \begin{document}
 
 \maketitle
 \thispagestyle{empty}
+\newpage
+
+% ══════════════════════════════════════════════════════════
+% CONTACT & PROJECT CONTEXT
+% ══════════════════════════════════════════════════════════
+\thispagestyle{empty}
+\vspace*{2cm}
+
+\begin{center}
+{\Large \textbf{Contact \& Project Context}}
+\end{center}
+
+\vspace{1.5cm}
+
+\noindent\textbf{Contact}\\[0.4em]
+\begin{tabular}{@{}ll}
+Email: & \href{mailto:samaniloqman91@gmail.com}{samaniloqman91@gmail.com} \\
+Webpage: & \url{https://loqmansamani.github.io} \\
+\end{tabular}
+
+\vspace{1.5cm}
+
+\noindent\textbf{BioDreamer --- World Models for Biological Design}\\[0.4em]
+\noindent ProteinDreamer is the core module of \textbf{BioDreamer}, a broader open-source research programme that applies the world model paradigm from model-based reinforcement learning to biological systems across three scales: \textit{atomic} (MolDreamer --- learned molecular dynamics simulators), \textit{protein} (ProteinDreamer --- multi-step protein engineering, the subject of this proposal), and \textit{cellular} (CellDreamer --- gene regulatory network dynamics and cell reprogramming). All three modules share a unified architecture based on the Joint-Embedding Predictive Architecture (JEPA): encode observations into latent states, predict transitions in latent space, and train policies on imagined trajectories. The common thesis is that learning a latent-space simulator of each biological environment and planning optimal interventions \textit{in imagination} can replace brute-force experimentation with intelligent, amortised, in-silico reasoning.
+
+\vspace{0.8em}
+\noindent The BioDreamer project, including documentation, codebase, and blog, is available at:
+
+\vspace{0.3em}
+\begin{center}
+\url{https://loqmansamani.github.io/bio_dreamer/}
+\end{center}
+
 \newpage
 
 \tableofcontents
