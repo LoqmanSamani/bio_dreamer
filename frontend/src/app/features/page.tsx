@@ -32,7 +32,7 @@ const FEATURES = [
     icon: FlaskConical,
     title: "Active Inference",
     description:
-      "Grounded in the Free Energy Principle — balances exploitation (fitness) and exploration (epistemic uncertainty) automatically.",
+      "Grounded in the Free Energy Principle. Balances exploitation (fitness) and exploration (epistemic uncertainty) automatically via expected free energy minimisation.",
     color: "mol",
   },
   {
@@ -46,14 +46,14 @@ const FEATURES = [
     icon: Network,
     title: "Multiple Backends",
     description:
-      "Choose from Latent Diffusion JEPA, Energy-Based JEPA, RSSM (DreamerV3), or discrete token (IRIS) world model backends.",
+      "Choose from Latent Diffusion JEPA (default) or Energy-Based JEPA with SIGReg regularisation. Both share the same encoder-predictor interface.",
     color: "protein",
   },
   {
     icon: Layers,
     title: "Modular Design",
     description:
-      "Swap any component — encoder, dynamics model, reward head, policy — independently. Built with PyTorch and clean abstractions.",
+      "Swap any component (encoder, dynamics model, reward head, policy) independently. Built with PyTorch and clean abstractions.",
     color: "mol",
   },
   {
@@ -67,7 +67,7 @@ const FEATURES = [
     icon: RefreshCcw,
     title: "Active Learning Loop",
     description:
-      "Dream → Propose → Evaluate → Update. Iteratively refines the world model with each round of experimental feedback.",
+      "Dream, propose, evaluate, update. Iteratively refines the world model with each round of experimental feedback.",
     color: "mol",
   },
   {
@@ -126,8 +126,8 @@ export default function FeaturesPage() {
         Features
       </h1>
       <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
-        Everything you need for intelligent, model-based biological design — from
-        world model training to candidate ranking.
+        Everything you need for intelligent, model-based biological design. From
+        JEPA world model training to Active Inference policy learning and candidate ranking.
       </p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

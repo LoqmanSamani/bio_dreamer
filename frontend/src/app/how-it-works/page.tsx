@@ -7,7 +7,7 @@ const STEPS = [
     title: "Observe",
     subtitle: "Encode biological state into latent space",
     description:
-      "The domain-specific encoder (ESM-2 for proteins, SE(3)-GNN for molecules, scVI-VAE for cells) maps raw biological data — sequences, coordinates, gene expression — into a compact latent representation z_t.",
+      "The domain-specific encoder (ESM-2 for proteins, SE(3)-GNN for molecules, scVI-VAE for cells) maps raw biological data such as sequences, coordinates, and gene expression into a compact latent representation z_t.",
     color: "text-mol-400",
     border: "border-mol-500/30",
     bg: "bg-mol-500/5",
@@ -17,7 +17,7 @@ const STEPS = [
     title: "Dream",
     subtitle: "Simulate outcomes in imagination",
     description:
-      "The JEPA dynamics model predicts what happens after an intervention: given the current state z_t and a proposed action (mutation, force change, gene knockout), it generates the predicted next state ẑ_{t+1} — entirely in latent space, no decoder needed.",
+      "The JEPA predictor estimates the next latent state directly. Given the current state z_t and a proposed action (mutation, force change, gene knockout), it produces ż_{t+1} entirely in latent space without ever reconstructing observations.",
     color: "text-protein-400",
     border: "border-protein-500/30",
     bg: "bg-protein-500/5",
@@ -27,7 +27,7 @@ const STEPS = [
     title: "Evaluate",
     subtitle: "Score fitness and uncertainty",
     description:
-      "The reward head predicts target properties (ΔΔG, binding affinity, cell state distance) from the dreamed state. The uncertainty module estimates model confidence — high uncertainty signals promising regions to explore.",
+      "The reward head predicts target properties (ΔΔG, binding affinity, cell state distance) from the dreamed state. The uncertainty module estimates model confidence, and high uncertainty signals promising regions to explore.",
     color: "text-cell-400",
     border: "border-cell-500/30",
     bg: "bg-cell-500/5",
@@ -37,7 +37,7 @@ const STEPS = [
     title: "Plan",
     subtitle: "Select optimal interventions via Active Inference",
     description:
-      "The RL policy (PPO, SAC, or MCTS) rolls out multi-step trajectories inside the world model and selects actions that minimise expected free energy — balancing high fitness (exploitation) with reducing model uncertainty (exploration).",
+      "The policy rolls out multi-step trajectories inside the world model and selects actions that minimise expected free energy, balancing high fitness (exploitation) with reducing model uncertainty (exploration).",
     color: "text-protein-400",
     border: "border-protein-500/30",
     bg: "bg-protein-500/5",
@@ -47,7 +47,7 @@ const STEPS = [
     title: "Act & Update",
     subtitle: "Validate and refine the model",
     description:
-      "Top-ranked candidates are evaluated by a real oracle (MD simulation, ESMFold, or wet-lab assay). The results update the world model, improving its predictions for the next round — closing the active learning loop.",
+      "Top-ranked candidates are evaluated by a real oracle (MD simulation, ESMFold, or wet-lab assay). The results update the world model, improving its predictions for the next round and closing the active learning loop.",
     color: "text-mol-400",
     border: "border-mol-500/30",
     bg: "bg-mol-500/5",
@@ -76,7 +76,7 @@ export default function HowItWorksPage() {
             </span>
             <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-protein-400 font-semibold">
-              Dynamics Model (z_t, action → z_&#123;t+1&#125;)
+              JEPA Predictor (z_t, action → ż_&#123;t+1&#125;)
             </span>
             <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
             <span className="text-cell-400 font-semibold">
@@ -87,7 +87,7 @@ export default function HowItWorksPage() {
               Policy (RL agent plans in imagination)
             </span>
             <ArrowDown size={16} className="text-slate-400 dark:text-slate-600" />
-            <span className="text-slate-700 dark:text-slate-300">Predicted Outcome</span>
+            <span className="text-slate-700 dark:text-slate-300">Proposed Candidates</span>
           </div>
         </div>
       </div>

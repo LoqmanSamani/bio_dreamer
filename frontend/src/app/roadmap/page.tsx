@@ -22,7 +22,7 @@ const ROADMAP: Milestone[] = [
     ],
   },
   {
-    title: "ProteinDreamer v0.1 — Energy-Based JEPA",
+    title: "ProteinDreamer v0.1, Energy-Based JEPA",
     status: "active",
     period: "Q1–Q2 2026",
     items: [
@@ -34,7 +34,7 @@ const ROADMAP: Milestone[] = [
     ],
   },
   {
-    title: "ProteinDreamer v0.2 — Latent Diffusion JEPA",
+    title: "ProteinDreamer v0.2, Latent Diffusion JEPA",
     status: "planned",
     period: "Q3 2026",
     items: [
@@ -50,7 +50,7 @@ const ROADMAP: Milestone[] = [
     period: "Q4 2026",
     items: [
       "Multi-objective Pareto ranking (stability + activity + expression)",
-      "Active learning loop: Dream → Propose → Evaluate → Update",
+      "Active learning loop (dream, propose, evaluate, update)",
       "Uncertainty calibration (ensemble, evidential, MC-dropout)",
       "Hugging Face Hub integration for model sharing",
     ],
@@ -100,7 +100,7 @@ export default function RoadmapPage() {
       </h1>
       <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
         Where we are and where we&apos;re headed. BioDreamer is an active
-        research project — milestones are updated regularly.
+        research project and milestones are updated regularly.
       </p>
 
       <div className="max-w-3xl mx-auto">

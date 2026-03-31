@@ -25,11 +25,10 @@ export default function HomePage() {
             </h1>
 
             <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 leading-relaxed mb-8 max-w-2xl">
-              Teaching machines to dream about biology so we don&apos;t have to
-              wait for every experiment. BioDreamer applies model-based RL to
-              molecular dynamics, protein engineering, and cell reprogramming —
-              replacing brute-force experimentation with intelligent in-silico
-              reasoning.
+              BioDreamer applies JEPA-based world models and Active Inference to
+              biological design. Instead of querying expensive real environments,
+              the agent learns a latent simulator and plans optimal mutations,
+              force-field changes, and gene perturbations in imagination.
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -58,8 +57,8 @@ export default function HomePage() {
           Three Modules, One Architecture
         </h2>
         <p className="text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-12">
-          BioDreamer operates across three biological scales — atomic, protein,
-          and cellular — all sharing a common world-model backbone.
+          BioDreamer operates across three biological scales (atomic, protein,
+          and cellular), all sharing a common JEPA world-model backbone.
         </p>
 
         <div className="grid md:grid-cols-3 gap-6">

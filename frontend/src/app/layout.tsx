@@ -5,9 +5,9 @@ import ThemeProvider from "@/components/ThemeProvider";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "BioDreamer — World Models for Biological Design",
+  title: "BioDreamer. World Models for Biological Design",
   description:
-    "Teaching machines to dream about biology. A unified framework for model-based RL applied to molecular dynamics, protein engineering, and cell reprogramming.",
+    "An open-source framework that applies JEPA-based world models and Active Inference to molecular dynamics, protein engineering, and cell reprogramming.",
   keywords: [
     "BioDreamer",
     "world models",

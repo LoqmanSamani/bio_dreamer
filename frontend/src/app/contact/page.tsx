@@ -28,7 +28,7 @@ const LINKS = [
     icon: BookOpen,
     label: "ReadTheDocs",
     href: "#",
-    description: "Coming soon — full API documentation",
+    description: "Coming soon. Full API documentation",
   },
   {
     icon: User,

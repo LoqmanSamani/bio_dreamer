@@ -13,8 +13,8 @@ export default function Footer() {
               <span className="font-bold text-slate-900 dark:text-white">BioDreamer</span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-              World models for biological design. Teaching machines to dream
-              about biology so we don&apos;t have to wait for every experiment.
+              JEPA-based world models and Active Inference for molecular
+              dynamics, protein engineering, and cell reprogramming.
             </p>
           </div>
 
