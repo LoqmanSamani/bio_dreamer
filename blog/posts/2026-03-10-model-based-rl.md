@@ -3,7 +3,7 @@ title: "World Models: From Tabular Planning to Real-Time World Generation"
 date: 2026-03-10
 author: "Loghman Samani"
 tags: [model-based-rl, world-models, dreamer, theory]
-summary: "A survey of three decades of model-based reinforcement learning — from Sutton's Dyna to DeepMind's Genie 3 — covering 26 papers that trace the evolution of agents that learn to plan by dreaming."
+summary: "A survey of three decades of model-based reinforcement learning, from Sutton's Dyna to DeepMind's Genie 3, covering 26 papers that trace the evolution of agents that learn to plan by dreaming."
 externalUrl: "https://loqmansamani.github.io/articles/model_based_rl/index.html"
 ---
 # World Models
