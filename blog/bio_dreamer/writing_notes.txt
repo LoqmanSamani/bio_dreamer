@@ -1,0 +1,506 @@
+
+1. World Models & JEPA (Backbone Architecture)
+
+
+[1] (project_literature.md: 1.1 Causal-JEPA — Learning World Models through Object-Level Latent Interventions) (refs/causalgepa_1.pdf)
+---
+Causal-JEPA (C-JEPA) serves as a foundational architectural blueprint for world modeling by extending 
+the Joint Embedding Predictive Architecture (JEPA) with a causal inductive bias. By transitioning from 
+image-patch masking to object-level masking, the model is forced to infer an object's latent trajectory 
+from the evolving states of others, effectively inducing latent interventions with counterfactual-like effects. 
+This strategy prevents shortcut solutions like simple temporal interpolation, making interaction reasoning 
+functionally necessary for minimizing the prediction objective. The training objective combines a mask 
+reconstruction term for history and a forward prediction term for the future, which can be viewed through 
+the lens of the Free Energy Principle as minimizing prediction error in a structured latent space. 
+BioDreamer adopts this framework to treat biological perturbations—such as mutations or drug treatments as latent 
+interventions that the world model can "dream" and plan against entirely in representation space.
+
+(imgs/fig1.png) figure 1: Object-level latent interventions in C-JEPA. Selected object slots are masked across time, except for a minimal 
+          identity anchor, forcing the predictor to infer object dynamics from interactions with other objects and 
+          auxiliary variables.
+
+The model minimizes the following masked latent prediction objective:
+Lmask​=E[τ∈T∑​i=1∑N​1[zˉτi​=zτi​]∣∣z^τi​−zτi​∣∣22​]
+
+
+
+[2](project_literature.md: 1.2 LeWorldModel — Stable End-to-End JEPA from Pixels) (refs/leworldmodel_2.pdf)
+---
+LeWorldModel (LeWM) provides the practical training recipe for BioDreamer by solving the notorious instability 
+of Joint-Embedding Predictive Architectures (JEPAs). It replaces complex heuristics with a simple, two-term objective: 
+a mean-squared error (MSE) for next-latent prediction and the SIGReg regularizer, which prevents representation collapse 
+by enforcing an isotropic Gaussian distribution (zt​∼N(0,I)). This streamlined approach allows BioDreamer to learn world 
+models end-to-end from raw data on a single GPU. Crucially, LeWM demonstrates that latent-space prediction is more 
+efficient than reconstruction-based methods like DreamerV3, enabling planning speeds up to 48x faster while maintaining 
+a compact parameter count.
+
+(imgs/fig2.png) figure 2: LeWorldModel Training Pipeline. The encoder maps observations ot​ into low-dimensional latents zt​, 
+          while the predictor autoregressively forecasts the next state zt+1​. To prevent the model from collapsing 
+          into trivial solutions, the SIGReg term enforces feature diversity by projecting latents onto random 
+          directions and applying a normality test to ensure the distribution matches an isotropic Gaussian.
+
+
+[3] (1.3 DIAMOND — Diffusion for World Modeling) (refs/diamond_3.pdf)
+---
+DIAMOND (DIffusion As a Model Of eNvironment Dreams) serves as a key precedent for BioDreamer's Latent Diffusion JEPA variant. 
+It demonstrates that diffusion-based world models can capture critical visual details and complex, multi-modal transitions 
+that are often lost in discrete latent models like DreamerV3. By iteratively reversing a noising process, 
+DIAMOND produces crisp, stable rollouts over long horizons, effectively mitigating the compounding errors 
+typical of deterministic or simple one-step predictors. While DIAMOND operates directly in observation (pixel) 
+space for high-fidelity "neural game engines," BioDreamer adapts this approach into a JEPA latent space. 
+This transition mirrors the evolution from pixel-space diffusion to Latent Diffusion (e.g., Stable Diffusion), 
+providing the massive efficiency gains necessary for simulating complex biological multi-step strategies in imagination.
+
+
+[4] (1.4 DreamerV3 — Mastering Diverse Domains Through World Models) (refs/dreamer_4.pdf)
+---
+DreamerV3 is the flagship RSSM-based world-model RL agent and serves as the primary inspiration for BioDreamer. 
+It proved that a single, robust architecture could master over 150 diverse environments—ranging from the visual 
+complexity of Minecraft to high-precision robotics—using a single set of hyperparameters. While BioDreamer retains 
+DreamerV3’s core principles of imagination-based policy training and symlog-based robustness, it replaces the 
+reconstruction-heavy RSSM backbone with a JEPA-based world model. This shift eliminates the need for a decoder during 
+planning and integrates an energy-based objective that aligns with Active Inference and intervention-aware prediction. 
+In the BioDreamer library, DreamerV3 stands as the essential historical baseline against which these newer latent-space 
+innovations are measured.
+
+(imgs/fig3.png) figure 3: Training process of Dreamer.
+                          The world model (a) encodes sensory inputs into discrete representations zt​ which are reconstructed
+                          to ensure they contain informative features, while a sequence model ht​ learns to predict these 
+                          representations given past actions. Simultaneously, the actor and critic (b) learn optimal behaviors 
+                          by predicting actions at​ and values vt​ from trajectories of abstract representations "dreamed" or 
+                          imagined by the world model.
+
+
+
+[5] (1.5 Ha & Schmidhuber — World Models (Original)) (refs/worldmodel_5.pdf)
+---
+This is the seminal paper that popularized "world models" in the modern deep reinforcement learning sense, 
+establishing the core conceptual framework that BioDreamer inherits. It introduces a tripartite architecture 
+consisting of a VAE for spatial compression, an MDN-RNN for temporal dynamics, and a compact controller for decision-making. 
+By demonstrating that an agent can be trained entirely within its own "hallucinated dream" and then successfully transferred 
+to the real environment, it proved the viability of in-silico planning. While BioDreamer swaps the VAE for a JEPA and the RNN 
+for more advanced transformers, it maintains this fundamental philosophy: learn to compress the world, dream of its possibilities, 
+and only then act.
+
+
+
+
+
+2. Active Inference & Free Energy Principle (Theoretical Backbone)
+
+
+[6] (2.1 Active Inference: The Free Energy Principle in Mind, Brain, and Behavior) (could not download the text book!)
+---
+could not read the book!
+
+**Why it matters:** The definitive textbook. Covers expected free energy (EFE) decomposition into pragmatic value 
+(reward) + epistemic value (information gain). BioDreamer adapts this framework: the world model is the generative model, 
+mutations/perturbations are policies, and EFE drives action selection across all three pillars.
+
+
+[7] (2.2 Reinforcement Learning Through Active Inference) (refs/activeinf_7.pdf)
+---
+This paper provides the technical bridge between theoretical Active Inference and practical deep reinforcement learning. 
+It demonstrates how minimizing the Expected Free Energy (EFE) naturally subsumes both reward maximization and information 
+gain into a single objective, providing a principled "recipe" for implementing active inference with neural networks. 
+For BioDreamer, this framework is transformative: it allows the model to prioritize mutations or perturbations that not 
+only move the system toward a desired state (like higher binding affinity) but also target regions of the biological 
+landscape where the world model is most uncertain. By treating biological design as an inference problem rather than a 
+simple optimization task, BioDreamer achieves a sophisticated balance of exploration and exploitation directly applicable 
+to complex, high-dimensional cellular and molecular environments.
+
+The agent selects policies π by minimizing the Expected Free Energy G(π), which can be decomposed into an epistemic (information-seeking) 
+term and an extrinsic (goal-seeking) term:
+
+G(\pi) \approx \sum_{\tau} \mathbb{E}_{q(s_\tau, o_\tau|\pi)} [\underbrace{\ln q(s_\tau|\pi) - \ln q(s_\tau|o_\tau, \pi)}_{\text{Epistemic Value}} - \underbrace{\ln p(o_\tau)}_{\text{Extrinsic Value}}]
+
+
+
+
+
+
+3. Protein Foundation Models & Structure Prediction
+
+
+[8](3.1 ESM-2 — Language Models of Protein Evolution) (could not download the paper!)
+---
+The ESM-2 paper establishes a high-capacity Transformer architecture that serves as a powerful primary sequence encoder 
+by implicitly capturing evolutionary and structural constraints from 65 million diverse sequences. For projects like 
+ProteinDreamer, the ESM-2 650M variant offers an optimal balance between representation depth and computational efficiency, 
+providing dense embeddings where attention maps naturally converge to physical residue-residue contact maps. A key innovation 
+for protein design is the use of masked marginals—a zero-shot fitness heuristic that calculates the log-likelihood ratio between 
+mutant and wild-type residues at masked positions, offering a robust, label-free reward signal for reinforcement learning. Additionally, 
+the paper introduces ESMFold, which leverages these learned internal representations to predict atomic-level 3D structures up to 60x faster 
+than AlphaFold2 by eliminating the need for multiple sequence alignments (MSAs), thereby enabling the real-time structural "world modeling" 
+necessary for iterative de novo design.
+
+
+[9] (3.2 AlphaFold2 — Highly Accurate Protein Structure Prediction) (refs/alphafold_9.pdf)
+---
+AlphaFold represents a paradigm shift in structural biology, solving the long-standing protein-folding problem by predicting 3D 
+structures with atomic accuracy from amino acid sequences. For BioDreamer, this technology is a critical infrastructure component: 
+these high-fidelity predicted structures serve as "cheap" computational stand-ins for expensive experimental data. They are used 
+both as the foundational training data for ProteinDreamer’s world model—allowing it to learn the mapping between sequence mutations 
+and structural shifts—and as a rapid validation tool to assess the viability of novel proteins designed in imagination before they 
+ever reach a wet lab.
+
+
+[10](3.3 ESM-3 — Simulating 500 Million Years of Evolution with a Language Model) (refs/esm-3_10.pdf)
+---
+ESM3 represents the current frontier of multimodal protein foundation models, capable of reasoning simultaneously across sequence, 
+structure, and function tokens. It serves as a powerful "evolutionary simulator" that can generate novel, functional proteins 
+through complex, one-shot prompting. For BioDreamer, ESM3 defines the state-of-the-art in generative design; 
+while ESM3 excels at generating high-quality candidates in a single pass, ProteinDreamer’s world-model-guided 
+approach is designed to be complementary—providing the iterative, closed-loop reasoning and "mental simulation" 
+needed to refine these candidates through multi-step latent interventions.
+
+(imgs/vid_1.mp4) Video: Multimodal Generative Design with ESM3.
+The video demonstrates ESM3 designing a scaffold for the PETase active site. 
+The model is guided by a complex prompt that integrates specific active site 
+coordinates and amino acids with a functional keyword for α/β hydrolase—a characteristic 
+fold of hydrolytic enzymes—to generate a structurally viable and functional protein.
+
+
+
+
+
+
+
+4. Generative Protein Design (One-Shot Baselines)
+
+
+[11] (4.1 ProteinMPNN — Robust Deep Learning–Based Protein Sequence Design) (could not download the paper)
+---
+Dauparas et al. present ProteinMPNN, a deep learning–based inverse-folding model that represents the dominant paradigm in modern protein design: given a fixed backbone structure,
+the model predicts a compatible amino acid sequence in a single forward pass. By learning structural and geometric constraints from large datasets of known proteins, 
+ProteinMPNN efficiently generates sequences likely to fold into the target backbone, achieving strong performance without iterative refinement or explicit search. 
+This one-shot backbone-to-sequence mapping makes it a powerful and fast baseline, but also limits it to static structure-conditioned design. As such, it can naturally 
+serve as a sub-module within iterative or generative frameworks—e.g., for re-scoring or redesigning sequences after each step—highlighting how approaches like ProteinDreamer 
+extend beyond this paradigm by incorporating sequential decision-making and exploration over protein space.
+
+
+[12] (4.2 RFdiffusion — De Novo Protein Design with Diffusion Models) (rfdiff_12.pdf)
+---
+Watson et al. introduce RFdiffusion, a generative model that produces novel protein backbones by iteratively denoising 3D 
+coordinate representations starting from random noise . The method demonstrates strong capability across a wide range of 
+design tasks—including de novo monomers, protein binders, symmetric assemblies, and functional motif scaffolds—showing 
+that diffusion-based generative models can successfully learn the distribution of protein structures and produce physically 
+realistic backbones at scale. However, the approach operates as a single generative process per design, without explicit 
+iterative optimization, reinforcement learning, or navigation of a fitness landscape. As such, RFdiffusion provides compelling 
+evidence that generative modeling is effective for protein design, while leaving open the opportunity for frameworks like 
+ProteinDreamer to build on this foundation by introducing iterative planning, sequential decision-making, and adaptive 
+exploration over protein space.
+
+
+[13] (4.3 EvoDiff — Protein Generation via Sequence Diffusion) (refs/evodiff_13.pdf)
+---
+EvoDiff introduces a powerful paradigm for protein engineering by demonstrating that high-quality, 
+functional proteins can be generated using diffusion models directly in sequence space. While most 
+generative models rely on 3D structural coordinates, EvoDiff proves that "sequence is all you need" 
+to capture the underlying constraints of the protein fitness landscape. By treating protein generation 
+as a discrete diffusion process over amino acids, it provides a highly efficient alternative for designing 
+proteins where experimental structures are unavailable. In the BioDreamer framework, this validates the 
+feasibility of navigating the protein world model using discrete latent transitions, ensuring that the 
+system remains robust even when structural data is sparse or computationally expensive to resolve.
+
+
+
+
+
+5. RL for Biological Sequence Design
+
+
+[14] (5.1 Accelerating Protein Engineering with Fitness Landscape Modelling and RL (μFormer + μSearch)) (refs/uformer_14.pdf)
+---
+μProtein represents the current state-of-the-art in combining static fitness predictors with reinforcement learning for protein engineering. 
+The framework uses a specialized deep learning model, μFormer, to map sequences to functional scores, which then serves as a stationary 
+"oracle" reward for μSearch, a PPO-based RL algorithm. While effective at identifying high-gain multi-point mutants by navigating 
+the rugged fitness landscape, μProtein operates as a traditional "generate-and-test" search in observation space rather than dreaming 
+in a latent world model. It lacks the causal latent-space interventions and predictive "imagination" of BioDreamer, positioning 
+it as a powerful point-prediction baseline that BioDreamer extends by adding internal world-simulation and Active Inference-driven exploration.
+
+
+
+
+
+[15] (5.3 Biological Sequence Design with GFlowNets) (refs/gflownets_15.pdf)
+---
+Jain et al. (2022) introduce GFlowNets (Generative Flow Networks) as a powerful framework for biological sequence design, 
+specifically designed to address the limitations of standard Reinforcement Learning (RL) in high-dimensional, multi-modal fitness landscapes. 
+Unlike traditional RL agents that seek to maximize a point estimate of reward—often leading to "mode collapse" on a few sequences—GFlowNets 
+are trained to sample diverse candidates with a probability proportional to their reward (or fitness). In benchmarks against existing methods 
+like DynaPPO, GFlowNets consistently generated batches of sequences with higher structural diversity and novelty while maintaining high predicted 
+activity across tasks such as antimicrobial peptide (AMP) and DNA-binding protein design. For the ProteinDreamer proposal, GFlowNets represent 
+a state-of-the-art alternative policy class; while the ProteinDreamer world model provides the predictive "environment" and thermodynamic constraints, 
+GFlowNets can serve as the policy engine to explore this environment, ensuring that the design process does not get trapped in narrow local optima and 
+instead identifies a broad, diverse repertoire of viable protein candidates.
+
+
+
+
+
+
+6. MolDreamer Foundations (Molecular Dynamics ML)
+
+[16] (6.1 MACE — Higher Order Equivariant Message Passing for Force Fields) (refs/mace_16.pdf)
+---
+MACE (Multi-ACE) is a state-of-the-art equivariant graph neural network (GNN) that provides the high-precision interatomic potentials 
+required for MolDreamer’s force-field calculations. It addresses a major limitation of traditional message-passing neural networks (MPNNs)—which 
+typically rely on simple two-body messages—by introducing higher-order body messages (e.g., four-body). This architectural innovation allows MACE 
+to achieve superior accuracy and generalization with only two message-passing iterations, significantly reducing computational cost and increasing 
+parallelizability compared to models requiring five or six layers. By leveraging an efficient tensor-product structure to circumvent exponential scaling, 
+MACE provides a systematic and fast framework for learning equivariant mappings in complex molecular environments.
+The core innovation is the efficient construction of higher-order features Bi​ from two-body features Ai​ using a product of tensor expansions:
+
+Bi,ην​,kLM(t)​=lm∑​Cην​,lmLM​ξ=1∏ν​k^∑​wkk^lξ​(t)​Ai,k^lξ​mξ​(t)​
+
+
+
+[17] (6.2 Timewarp — Transferable Acceleration of Molecular Dynamics) (refs/timewrap_17.pdf)
+---
+Molecular  dynamics(MD)  simulation is  a  widely used  technique to  simulatemolecular systems, 
+most commonly at the all-atom resolution where equations ofmotion are integrated with timesteps on 
+the order of femtoseconds (1fs= 10−15s).MD is often used to compute equilibrium properties, 
+which requires samplingfrom an equilibrium distribution such as the Boltzmann distribution.  
+However, many important processes, such as binding and folding, occur over timescalesof milliseconds or beyond, 
+and cannot be efficiently sampled with conventionalMD. Furthermore, new MD simulations need to be performed for 
+each molecularsystem studied.
+We presentTimewarp, an enhanced sampling method which uses anormalising flow as a proposal distribution in a Markov chain Monte Carlo 
+methodtargeting the Boltzmann distribution. The flow is trained offline on MD trajectoriesand learns to make large steps in time,  
+simulating the molecular dynamics of105−106fs. Crucially, Timewarp istransferablebetween molecular systems: oncetrained, 
+we show that it generalises to unseen small peptides (2-4 amino acids)at all-atom resolution, exploring their metastable 
+states and providing wall-clockacceleration of sampling compared to standard MD. Our method constitutes animportant step towards general, 
+transferable algorithms for accelerating MD.
+
+Timewarp provides the technical proof-of-concept for MolDreamer’s variable-length latent dynamics. Traditional Molecular Dynamics (MD) is bottlenecked 
+by tiny femtosecond timesteps, but Timewarp uses normalizing flows to learn "time-coarsened" jumps, allowing the model to transition directly 
+between distant conformational states. By training on MD trajectories, it learns a proposal distribution for a Markov chain Monte Carlo (MCMC) 
+sampler that targets the Boltzmann distribution, ensuring physical correctness while accelerating exploration by orders of magnitude. 
+This demonstrates that we can move away from integrating Newton's equations step-by-step and instead "dream" significant molecular structural changes, 
+making the simulation of long-horizon processes like protein folding or ligand binding computationally tractable.
+
+(imgs/fig4.png) figure 4: Acceleration of Molecular Dynamics via Timewarp.
+                          While conventional MD (top) must compute thousands of sequential small steps (δt) to observe a change in molecular conformation, 
+                          Timewarp (bottom) learns a stochastic propagator that generates large, discrete "jumps" (Δt) in state space. This learned model 
+                          acts as a transferable proposal distribution that significantly speeds up the sampling of equilibrium properties.
+
+To ensure the jumps remain physically valid, the model utilizes a Metropolis-Hastings acceptance step based on the potential energy U(x):
+
+A(x′∣x)=min(1,p(x)q(x′∣x)p(x′)q(x∣x′)​)
+
+where p(x)∝exp(−U(x)/kB​T) is the Boltzmann distribution and q is the learned transition distribution.
+
+
+
+
+
+
+7. CellDreamer Foundations (Cellular Perturbation Models)
+
+
+[18] (7.1 GEARS — Predicting Transcriptional Outcomes of Novel Multigene Perturbations) (refs/gears_18.pdf)
+---
+For CellDreamer, GEARS (Graph-Enhanced Gene Activation and Repression Simulator) represents the state-of-the-art in predicting transcriptional responses to multigene perturbations. 
+It is the first model to successfully predict the outcomes of perturbing gene combinations where one or both genes have never been experimentally perturbed before. 
+It achieves this by integrating single-cell RNA-sequencing data with a biological knowledge graph, allowing the model to generalize across the gene interaction network. 
+However, GEARS is fundamentally a steady-state predictor; it maps a perturbation to a final expression profile without modeling the underlying temporal 
+dynamics or allowing for the multi-step planning required for cellular reprogramming. CellDreamer aims to surpass this by treating the gene regulatory network as a 
+dynamic environment, using the predictive power of a world model to "dream" and plan sequences of interventions over time.
+
+
+(imgs/fig5.png) figure 4: GEARS Architecture for Perturbation Prediction.
+The model takes a set of gene perturbations as input and uses a multidimensional gene-gene interaction graph to propagate these signals. By combining a perturbational autoencoder with a knowledge graph, GEARS predicts how the expression of thousands of non-perturbed genes will shift, effectively simulating the transcriptional "fingerprint" of novel genetic interventions.
+
+The model represents the expression of gene i after perturbation of genes a and b as:
+yi​=f(zi​+gi,a​+gi,b​)
+
+where zi​ is the basal gene embedding and gi,a​ represents the specific effect of perturbing gene a on gene i, aggregated through the graph.
+
+
+[19] (7.2 Replogle et al. — Genome-Wide Perturb-seq) (refs/seqdata_19.pdf)
+---
+This paper presents the first genome-scale Perturb-seq screens, providing the foundational training dataset for CellDreamer. 
+By combining CRISPR interference (CRISPRi) with single-cell RNA sequencing, the study maps the transcriptional effects of genetic perturbations 
+across >2.5 million human cells. This "information-rich genotype-phenotype map" covers nearly all expressed genes, enabling the identification 
+of gene functions and the dissection of complex cellular phenomena like aneuploidy and mitochondrial stress. While previous screens were limited 
+to a few hundred targets, this dataset’s massive scale allows CellDreamer to learn the global "rules" of gene regulatory dynamics and plan 
+multi-step interventions in a high-dimensional latent space.
+
+
+The utility of the dataset for unsupervised classification of gene function is highlighted by the fact that while the number of perturbations N 
+scales linearly with cost, the potential for discovery scales quadratically:
+
+Utility∝N2 (pairwise comparisons) [cite: 591]
+
+
+
+
+
+
+8. Fitness Landscapes & Key Data Sources
+
+
+[20] (8.1 ProteinGym — Large-Scale Benchmarks for Protein Fitness Prediction and Design) (refs/proteingym_20.pdf)
+---
+ProteinGym serves as the primary evaluation benchmark for ProteinDreamer, providing a large-scale, standardized platform to assess protein fitness prediction and design.
+1. Benchmark Scale and Diversity
+The benchmark encompasses over 2.7 million mutated sequences across more than 200 protein families, providing the scale necessary for robust model evaluation. It includes:
+    217 substitution DMS assays: High-throughput assays evaluating the functional impact of single or multiple amino acid replacements.
+    66 indel assays (DMS): Assessing insertions and deletions, which are technically challenging due to sequence length alterations.
+    Assay Diversity: The collection spans diverse taxa (humans, other eukaryotes, prokaryotes, and viruses) and a wide array of functional 
+    properties, including ligand binding, aggregation, thermostability, viral replication, and drug resistance.
+
+2. Evaluation Metrics
+ProteinGym utilizes a structured analytics framework with metrics tailored to specific tasks:
+    Fitness Prediction: Spearman’s rank correlation is the primary metric, as it captures the often non-linear relationship between sequence and fitness. 
+    In bimodal cases, AUC and Matthews Correlation Coefficient (MCC) are used to evaluate binarized labels.
+    Protein Design: Metrics focus on identifying the most functional variants:
+        NDCG (Normalized Discounted Cumulative Gain): Up-weights models that correctly rank high-value sequences at the top.
+        Top-K Recall: Measures the ability to identify the top 10% of high-fitness sequences.
+
+3. Training Regimes and Splits
+The benchmark integrates two complementary settings to evaluate model performance:
+    Zero-Shot Setting: Models predict mutation effects without access to ground-truth labels for the protein of interest during training, testing robust generalization.
+    Supervised Setting: Models leverage labeled subsets for training. To prevent overestimating performance due to data leakage, ProteinGym employs three cross-validation schemes:
+        Random: Mutations are randomly assigned to folds.
+        Contiguous: Splits sequences into five contiguous segments to test extrapolation to unseen regions.
+        Modulo: Assigns positions to folds based on a modulo operator.
+
+
+
+[21] (8.2 Mega-Scale Stability Data — Tsuboyama et al.) (refs/stabdata_21.pdf)
+---
+The study by Tsuboyama et al. (2023) introduces cDNA display proteolysis, a massively parallel assay that generated a dataset of 776,298 
+high-quality absolute folding stability (ΔG) measurements. This dataset, significantly richer than previous thermodynamic databases, 
+covers all single amino acid variants (including deletions and insertions) for 331 natural and 148 de novo designed protein domains, 
+along with 210,118 selected double mutants across 190 domains. The domains range from 40 to 72 amino acids in length and represent a 
+diverse structural space, including nearly all suitable small monomeric PDB domains and various de novo topologies like ααα, αββα, 
+and trRosetta hallucinations. The methodology proceeds in four primary steps: 
+    (1) Library Synthesis: Synthetic DNA oligonucleotide pools are used to encode up to 900,000 unique protein sequences; 
+    (2) cDNA Display: These libraries are transcribed and translated in a cell-free system where each protein is covalently
+        linked to its own cDNA at the C-terminus; 
+    (3) Protease Challenge: The protein-cDNA complexes are incubated with varying concentrations of two orthogonal proteases, 
+        trypsin and chymotrypsin, which preferentially cleave unfolded proteins ; and 
+    (4) Quantification: Intact (resistant) proteins are pulled down via an N-terminal tag, and their 
+        relative abundance is measured using next-generation sequencing (NGS). 
+To ensure low noise and high accuracy, the researchers employed a Bayesian kinetic model to infer ΔG from the protease concentration at which 
+half-maximal cleavage occurs (K50​), specifically accounting for sequence-specific protease susceptibility in the unfolded state. 
+This rigorous approach resulted in high reproducibility (R=0.94 between independent protease experiments) and strong agreement 
+with traditional gold-standard purified protein measurements.
+
+
+
+
+
+
+9. Reviews (Big-Picture Framing)
+
+
+[22] (9.2 Adaptive Machine Learning for Protein Engineering) (refs/rew_22.pdf)
+---
+This paper provides a high-level synthesis of the adaptive machine learning loop that has become the standard for protein engineering: 
+a cycle of training a sequence-to-function surrogate model, using it to navigate combinatorial complexity to propose new designs, 
+and retraining the model with experimental results. While this iterative design process is already widely practiced by the community, 
+BioDreamer provides a rigorous formalization of this loop. By replacing static surrogate models with dynamic world models and replacing 
+simple optimization with Active Inference, BioDreamer moves beyond "one-shot" predictions. This framework enables the agent to explicitly 
+account for model uncertainty and plan multi-step experimental strategies that maximize both information gain and functional performance.
+
+(imgs/fig6.png) figure 6: The Iterative Machine Learning-Guided Protein Engineering Loop.
+                          The schematic illustrates the closed-loop process where protein sequence data is used to train a surrogate model. 
+                          This model then guides the selection of novel candidates from a vast combinatorial space for experimental measurement, 
+                          the results of which are fed back into the system to refine the model’s accuracy and predictive power in subsequent rounds.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+references
+---
+[1] Nam, H., Lidec, Q. L., Maes, L., LeCun, Y., & Balestriero, R. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. 
+    arXiv preprint arXiv:2602.11389.
+
+[2] Maes, L., Lidec, Q. L., Scieur, D., LeCun, Y., & Balestriero, R. (2026). LeWorldModel:Stable End-to-End Joint-Embedding Predictive Architecture from Pixels.  
+    arXivpreprint arXiv:2603.19312.
+
+[3] Alonso, E., Jelley, A., Micheli, V., Kanervisto, A., Storkey, A., Pearce, T., & Fleuret, F. (2024). 
+    Diffusion for world modeling: Visual details matter in atari. Advances in Neural Information Processing Systems, 37, 58757-58791.
+
+[4] Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2023). Mastering diverse domains through world models. arXiv preprint arXiv:2301.04104.
+
+[5] Ha, D., & Schmidhuber, J. (2018). World models. arXiv preprint arXiv:1803.10122, 2(3), 440.
+
+[6] Parr, T., Pezzulo, G., & Friston, K. J. (2022). Active inference: the free energy principle in mind, brain, and behavior. MIT Press.
+
+[7] Tschantz, A., Millidge, B., Seth, A. K., & Buckley, C. L. (2020). Reinforcement learning through active inference. arXiv preprint arXiv:2002.12636.
+
+[8] Lin, Z., Akin, H., Rao, R., Hie, B., Zhu, Z., Lu, W., ... & Rives, A. (2023). 
+    Evolutionary-scale prediction of atomic-level protein structure with a language model. Science, 379(6637), 1123-1130.
+
+[9] Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger, O., ... & Hassabis, D. (2021). 
+    Highly accurate protein structure prediction with AlphaFold. nature, 596(7873), 583-589.
+
+[10] Hayes, T., Rao, R., Akin, H., Sofroniew, N. J., Oktay, D., Lin, Z., ... & Rives, A. (2025). 
+     Simulating 500 million years of evolution with a language model. Science, 387(6736), 850-858.
+
+[11] Dauparas, J., Anishchenko, I., Bennett, N., Bai, H., Ragotte, R. J., Milles, L. F., ... & Baker, D. (2022). 
+     Robust deep learning–based protein sequence design using ProteinMPNN. Science, 378(6615), 49-56.
+
+[12] Watson, J. L., Juergens, D., Bennett, N. R., Trippe, B. L., Yim, J., Eisenach, H. E., ... & Baker, D. (2023). 
+     De novo design of protein structure and function with RFdiffusion. Nature, 620(7976), 1089-1100.
+
+[13] Alamdari, S., Thakkar, N., Van Den Berg, R., Tenenholtz, N., Strome, R., Moses, A. M., ... & Yang, K. K. (2023). 
+     Protein generation with evolutionary diffusion: sequence is all you need. BioRxiv, 2023-09.
+
+[14] Sun, H., He, L., Deng, P., Liu, G., Zhao, Z., Jiang, Y., ... & Liu, T. Y. (2025). 
+     Accelerating protein engineering with fitness landscape modelling and reinforcement learning. 
+     Nature Machine Intelligence, 7(9), 1446-1460.
+
+[15] Jain, M., Bengio, E., Hernandez-Garcia, A., Rector-Brooks, J., Dossou, B. F., Ekbote, C. A., ... & Bengio, Y. (2022, June). Biological sequence design with gflownets. 
+     In International conference on machine learning (pp. 9786-9801). PMLR.
+
+[16] Batatia, I., Kovacs, D. P., Simm, G., Ortner, C., & Csányi, G. (2022). 
+     MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. 
+     Advances in neural information processing systems, 35, 11423-11436.
+
+[17] Klein, L., Foong, A., Fjelde, T., Mlodozeniec, B., Brockschmidt, M., Nowozin, S., ... & Tomioka, R. (2023). 
+     Timewarp: Transferable acceleration of molecular dynamics by learning time-coarsened dynamics. 
+     Advances in Neural Information Processing Systems, 36, 52863-52883.
+
+
+[18] Roohani, Y., Huang, K., & Leskovec, J. (2022). GEARS: Predicting transcriptional outcomes of novel multi-gene perturbations. BioRxiv, 2022-07.
+
+
+[19] Replogle, J. M., Saunders, R. A., Pogson, A. N., Hussmann, J. A., Lenail, A., Guna, A., ... & Weissman, J. S. (2022). 
+     Mapping information-rich genotype-phenotype landscapes with genome-scale Perturb-seq. Cell, 185(14), 2559-2575.
+
+
+[20] Notin, P., Kollasch, A., Ritter, D., Van Niekerk, L., Paul, S., Spinner, H., ... & Marks, D. (2023). 
+     Proteingym: Large-scale benchmarks for protein fitness prediction and design. 
+     Advances in neural information processing systems, 36, 64331-64379.
+
+
+[21] Tsuboyama, K., Dauparas, J., Chen, J., Laine, E., Mohseni Behbahani, Y., Weinstein, J. J., ... & Rocklin, G. J. (2023). 
+     Mega-scale experimental analysis of protein folding stability in biology and design. Nature, 620(7973), 434-444.
+
+[22] Hie, B. L., & Yang, K. K. (2022). Adaptive machine learning for protein engineering. Current opinion in structural biology, 72, 145-152.

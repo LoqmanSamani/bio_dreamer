@@ -1,0 +1,44 @@
+The goal of this instruction is to write a blog post on `BioDreamer`, which introduces the project. before writing anything you should analyze the project structure (current root folder) 
+and also review the files below to have an informative understanding of the project and collect useful info to write the post.
+
+note: inside the files below you may see in some cases the directories/addresses do not exist. it is because the blog post files were located in `plans/.` which were relocated
+to `blog/bio_dreamer/` and the `plans` dir is deleted so do not get confusse with those wrong addresses inside the files.
+
+files and links to review:
+    - project webpage: https://loqmansamani.github.io/bio_dreamer/
+    - all three modules of biodreamer are introduced here: `blog/bio_dreamer/project_overview.md`
+    - an overall file which introduces some idea for the project, just to get some general info about the projet: `blog/bio_dreamer/project_ideas.md`
+    - all those references summaried and cited (here: `blog/bio_dreamer/writing_notes.txt1) are available here, if you need any extra information on each ref, just use its corresponding pdf file: `blog/bio_dreamer/refs/`
+    - images in this dir are mentioned in summarizes (here: `blog/bio_dreamer/writing_notes.txt`) and should be used in blog: `blog/bio_dreamer/imgs/`
+    - for each reference studied a summary and its reference cite is available here and it should be used as the main source info for writing the blog post: `blog/bio_dreamer/writing_notes.txt`
+    - another post use as a format template to write the blog: https://loqmansamani.github.io/articles/model_based_rl/index.html
+    - you may also look at this dir which is a template of a simple representation of how a post should looks like and i am not sure it is used for blogs written but feel free to look at it: `blog/bio_dreamer/posts/`
+    - the entire project dir (root directory), just to get familiarized with the project structure.
+    - my phd proposal which is written on protein dreamer (one of the third modules of bio dreamer): `blog/protein_dreamer/phd_proposal.tex`
+
+note: there might be some inconsistency between what it's been represented in `blog/protein_dreamer/phd_proposal.tex` and what other files represent about the project architecure. in these cases the 
+`blog/protein_dreamer/phd_proposal.tex` is the main and trusted source of info (namely: dreamerv3 architecture is replaced with jepa architecture as the main architecture for the project)
+
+how the blog post writting flow should be:
+    - before writing review these highly important writing criteria and apply them in you writting:
+        a) avoid cliche phrases such as "taught me", "not only ... but also", "sits at the intersection ...", and similar structures
+        b) avoid colons ':', semicolons ';', emdash '—', and similar cliche structures in sentences
+        c) write in casual academic tone while remaining 100% polite and academic. humanize the text.
+        d) be academically grounded and 100% scientifically rigorous.
+        e) think like a deepmind researcher with deep intuitions. take a step back, see the big picture, connect the dots implicitly and write based on these deep intuitions. stay concise and academic and always grounded on real existing research.
+    - start with an introduction in which the follwings are clearized:
+        a) what is biodreamer?
+        b) why biodreamer? (which knowlege gap/s is/are addressed here)
+        c) which procedure biodreamer will use to address those current knowlege gaps (proposed architecture and which subjects are combined here: e.g., molecular biology, model-based rl, world models and so on)
+        d) you may use a visualization here to explain the main/general architecture which will be respected by all modules (mol-dreamer, protein-dreamer and cell-dreamer). feel free to use external tools to visualize it if not possible sketch something like thsoe simple representation used in biodremer webpage.
+        d) briefly introduce modules of biodreamer and which part of biology they will be representing.
+
+    - after the general introduction go through those three modules one by one and write a fairly detailed (keep in mind that the post is a geneal introduction into biodreamer not a phd proposal like my phd proposal so be careful about the level of detail used here)
+      section about each, here use my phd proposal as a general reference and also information about each part in `blog/bio_dreamer/writing_notes.txt`.
+    - a clossing section would be nice to wrapup/summarize/conclude the blog post.
+    - do not forget to create a reference section at the end of the post and here use the references mentioned `blog/bio_dreamer/writing_notes.txt` and use the same format: https://loqmansamani.github.io/articles/model_based_rl/index.html
+    - try to use the same overall format for the blog  as in this article used: https://loqmansamani.github.io/articles/model_based_rl/index.html
+
+commit and push the changes and see if the blog post is created successfully.
+
+
