@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioDreamer | Loghman Samani</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+    <style>
+        :root {
+            --white: #e8ecf1;
+            --bg: #0f1419;
+            --bg-alt: #151b23;
+            --surface: #1c2430;
+            --navy: #e2e8f0;
+            --navy-light: #94a3b8;
+            --accent: #6ba3e8;
+            --accent-hover: #8ab8f0;
+            --text: #cbd5e1;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #2a3441;
+            --border-light: #1e2832;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+            --radius: 6px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--text);
+            background-color: var(--bg);
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15,20,25,0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .top-nav .nav-inner {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 56px;
+        }
+        .nav-name {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--navy);
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--accent); }
+
+        .article-container {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .article-header {
+            padding: 3.5rem 0 1.5rem;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 2rem;
+        }
+        .article-header h1 {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--navy);
+            line-height: 1.25;
+            margin-bottom: 0.6rem;
+        }
+        .article-subtitle {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.25rem;
+            font-weight: 300;
+            font-style: italic;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 640px;
+        }
+        .article-meta {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .cover-video {
+            margin: 0 -2rem 2.5rem;
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .cover-video video {
+            width: 100%;
+            display: block;
+            border-radius: var(--radius);
+        }
+
+        .prose { padding-bottom: 3rem; }
+        .prose p {
+            font-size: 1.02rem;
+            line-height: 1.85;
+            margin-bottom: 1.2rem;
+            color: var(--text);
+        }
+        .prose h2 {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.55rem;
+            font-weight: 600;
+            color: var(--navy);
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            padding-top: 0;
+            letter-spacing: -0.01em;
+        }
+        .prose h2::before {
+            content: "\00B7\2002\2002\00B7\2002\2002\00B7";
+            display: block;
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        .prose h3 {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--navy-light);
+            margin-top: 2rem;
+            margin-bottom: 0.7rem;
+        }
+        .prose a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .prose a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .prose strong { color: var(--navy); font-weight: 600; }
+        .prose em { font-style: italic; color: var(--text-secondary); }
+
+        .figure {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        .figure video {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        .figure figcaption {
+            margin-top: 0.6rem;
+            font-size: 0.87rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+
+        .katex-display { margin: 1.5rem 0; overflow-x: auto; }
+
+        .references {
+            border-top: 1px solid var(--border-light);
+            padding-top: 2rem;
+            margin-top: 3rem;
+        }
+        .references h2 {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--navy);
+            margin-bottom: 1.2rem;
+        }
+        .references ol {
+            list-style: none;
+            counter-reset: ref-counter;
+            padding: 0;
+        }
+        .references li {
+            counter-increment: ref-counter;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 0.6rem;
+            padding-left: 2.2rem;
+            position: relative;
+        }
+        .references li::before {
+            content: "[" counter(ref-counter) "]";
+            position: absolute;
+            left: 0;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        footer {
+            margin-top: 2rem;
+            padding: 2rem 0;
+            background: #0a0e13;
+            text-align: center;
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.4);
+        }
+
+        @media (max-width: 768px) {
+            .article-header h1 { font-size: 1.8rem; }
+            .article-container { padding: 0 1.2rem; }
+            .cover-video { margin: 0 -1.2rem 2rem; }
+            .nav-links { gap: 1rem; }
+            .nav-links a { font-size: 0.82rem; }
+            .prose h2 { font-size: 1.3rem; }
+        }
+
+        .toc {
+            margin: 0 0 2.5rem;
+            padding: 1.2rem 1.5rem 1.2rem 1.8rem;
+            background: var(--bg-alt);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 var(--radius) var(--radius) 0;
+        }
+        .toc-title {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--navy);
+            margin-bottom: 0.6rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .toc-list {
+            padding-left: 1.2rem;
+            margin: 0;
+        }
+        .toc-list li {
+            font-size: 0.92rem;
+            line-height: 1.9;
+        }
+        .toc-list a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .toc-list a:hover {
+            color: var(--accent);
+        }
+
+        .ref-num {
+            color: var(--accent);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82em;
+            position: relative;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .ref-num:hover {
+            color: var(--accent-hover);
+        }
+        .ref-num:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.55rem 0.85rem;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            white-space: normal;
+            width: max-content;
+            max-width: 380px;
+            z-index: 50;
+            box-shadow: var(--shadow-md);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-inner">
+            <a href="https://loqmansamani.github.io/index.html" class="nav-name">Loghman Samani</a>
+            <div class="nav-links">
+                <a href="https://loqmansamani.github.io/index.html#about">About</a>
+                <a href="https://loqmansamani.github.io/index.html#writing">Writing</a>
+                <a href="https://loqmansamani.github.io/index.html#projects">Projects</a>
+                <a href="https://loqmansamani.github.io/index.html#contact">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <article class="article-container">
+        <header class="article-header">
+            <h1>BioDreamer</h1>
+            <p class="article-subtitle">
+                World models for biological design, from atoms to cells.
+            </p>
+            <p class="article-meta">Loghman Samani &middot; March 2026</p>
+        </header>
+
+        <div class="cover-video">
+            <video autoplay loop muted playsinline>
+                <source src="imgs/vid1.mp4" type="video/mp4">
+            </video>
+        </div>
+
+        <nav class="toc">
+            <p class="toc-title">Contents</p>
+            <ol class="toc-list">
+                <li><a href="#the-problem">The Problem</a></li>
+                <li><a href="#dreaming-in-latent-space">Dreaming in Latent Space</a></li>
+                <li><a href="#protein-dreamer">ProteinDreamer</a></li>
+                <li><a href="#mol-dreamer">MolDreamer</a></li>
+                <li><a href="#cell-dreamer">CellDreamer</a></li>
+                <li><a href="#looking-ahead">Looking Ahead</a></li>
+            </ol>
+        </nav>
+
+        <div class="prose">
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- THE PROBLEM                                 -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="the-problem">The Problem</h2>
+
+            <p>
+                Biology is expensive to query. A molecular dynamics simulation of a single protein can
+                take days on a GPU cluster. One round of directed evolution costs months and thousands of
+                dollars. A genome-wide CRISPR screen requires millions of cells and weeks of work. Yet
+                intelligent design at every biological scale demands exploring vast combinatorial spaces.
+                For a protein of typical length $L = 300$, the sequence space is $20^{300}$. The fitness
+                landscape over that space is rugged, epistatic, and only partially observed.
+            </p>
+
+            <p>
+                Two broad computational strategies have emerged. <em>Generative protein design</em>
+                uses deep learning to produce candidate sequences in a single forward pass. ProteinMPNN
+                <a href="#ref-11" class="ref-num" data-tooltip="Dauparas et al. (2022). Robust deep learning-based protein sequence design using ProteinMPNN. Science, 378(6615), 49-56.">[11]</a>
+                designs sequences conditioned on a fixed backbone. RFdiffusion
+                <a href="#ref-12" class="ref-num" data-tooltip="Watson et al. (2023). De novo design of protein structure and function with RFdiffusion. Nature, 620(7976), 1089-1100.">[12]</a>
+                generates novel backbones through 3D denoising diffusion. ESM-3
+                <a href="#ref-10" class="ref-num" data-tooltip="Hayes et al. (2025). Simulating 500 million years of evolution with a language model. Science, 387(6736), 850-858.">[10]</a>
+                provides a multimodal foundation model that jointly reasons over sequence, structure, and
+                function. These methods are powerful, but they are fundamentally one-shot. They generate a candidate
+                and hope it works, with no mechanism for iterative refinement or multi-step
+                planning. <em>Directed evolution</em>, the experimental counterpart, is sequential by
+                nature (mutate, screen, select, repeat), yet current computational tools do not model it
+                as a sequential decision-making problem.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig6.png" alt="The iterative ML-guided protein engineering loop">
+                <figcaption>
+                    <strong>Figure 1.</strong> The iterative ML-guided protein engineering loop. Protein
+                    sequence data trains a surrogate model, which guides the selection of novel candidates
+                    from a vast combinatorial space for experimental measurement. Results are fed back to
+                    refine the model in subsequent rounds. From Hie and Yang
+                    <a href="#ref-22" class="ref-num" data-tooltip="Hie, B. L. &amp; Yang, K. K. (2022). Adaptive machine learning for protein engineering. Current Opinion in Structural Biology, 72, 145-152.">[22]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                Neither approach does what a thoughtful engineer would do. Build an internal model of how
+                mutations reshape the fitness landscape, mentally simulate a sequence of edits, and only
+                then commit to the lab.
+            </p>
+
+            <p>
+                A parallel development in artificial intelligence has produced agents that do exactly this
+                kind of sequential planning. <strong>World model</strong> agents learn an internal
+                simulator of their environment and train policies by imagining future trajectories. Ha and
+                Schmidhuber
+                <a href="#ref-5" class="ref-num" data-tooltip="Ha, D. &amp; Schmidhuber, J. (2018). World models. arXiv preprint arXiv:1803.10122.">[5]</a>
+                established the core idea with their tripartite architecture of spatial compression,
+                temporal dynamics, and a compact controller. DreamerV3
+                <a href="#ref-4" class="ref-num" data-tooltip="Hafner et al. (2023). Mastering diverse domains through world models. arXiv preprint arXiv:2301.04104.">[4]</a>
+                proved that a single world model architecture could master over 150 diverse environments
+                with a single set of hyperparameters. More recently, the Joint-Embedding Predictive
+                Architecture (JEPA) paradigm
+                <a href="#ref-1" class="ref-num" data-tooltip="Nam et al. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. arXiv preprint arXiv:2602.11389.">[1]</a><a href="#ref-2" class="ref-num" data-tooltip="Maes et al. (2026). LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels. arXiv preprint arXiv:2603.19312.">[2]</a>
+                has shown that world models can operate entirely in latent space without reconstructing
+                observations, making them dramatically faster and more scalable.
+            </p>
+
+            <p>
+                Despite these advances, the world model paradigm has not been applied to biology.
+                <strong>BioDreamer</strong> fills this gap. It is a unified research framework that
+                applies world models to biological systems across three scales.
+            </p>
+
+            <p>
+                <strong>ProteinDreamer</strong> navigates protein fitness landscapes through dreaming.
+                Given a wild-type protein and target properties (stability, affinity, catalytic activity),
+                it plans multi-step mutation strategies by simulating their effects in a learned world
+                model, guided by Active Inference for principled exploration.
+            </p>
+
+            <p>
+                <strong>MolDreamer</strong> operates at the atomic scale, learning molecular dynamics in
+                latent space. Instead of integrating Newton's equations one femtosecond at a time, it
+                jumps directly between important conformational states, predicting binding free energy and
+                stability along the way.
+            </p>
+
+            <p>
+                <strong>CellDreamer</strong> plans cellular reprogramming strategies. Given a source cell
+                state and a desired phenotype (say, converting a fibroblast into a cardiomyocyte), it
+                dreams optimal perturbation sequences using a world model of gene regulatory dynamics.
+            </p>
+
+            <p>
+                The shared thesis is simple. Learn a latent-space simulator of each biological
+                environment, then plan optimal interventions in imagination, replacing brute-force
+                experimentation with intelligent in-silico reasoning.
+            </p>
+
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- DREAMING IN LATENT SPACE                    -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="dreaming-in-latent-space">Dreaming in Latent Space</h2>
+
+            <p>
+                All three BioDreamer modules share a common computational skeleton built on the JEPA
+                paradigm. The recipe is direct. Encode observations into latent states, predict
+                transitions in latent space conditioned on actions, and train policies on imagined
+                trajectories. No decoder is needed during planning.
+            </p>
+
+            <p>
+                The architectural foundation comes from Causal-JEPA
+                <a href="#ref-1" class="ref-num" data-tooltip="Nam et al. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. arXiv preprint arXiv:2602.11389.">[1]</a>,
+                which extends JEPA with a causal inductive bias. By moving from image-patch masking to
+                object-level masking, the model is forced to infer an object's latent trajectory from the
+                interactions with others, effectively inducing latent interventions with
+                counterfactual-like effects. This prevents shortcut solutions like simple temporal
+                interpolation, making interaction reasoning functionally necessary for minimizing the
+                prediction objective. For BioDreamer, the analogy is natural. A mutation to a protein
+                sequence is a causal intervention on the latent state, and the world model learns to
+                predict how that intervention reshapes the protein's representation.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig1.png" alt="Object-level latent interventions in C-JEPA">
+                <figcaption>
+                    <strong>Figure 2.</strong> Object-level latent interventions in Causal-JEPA. Selected
+                    object slots are masked across time, except for a minimal identity anchor, forcing the
+                    predictor to infer object dynamics from interactions with other objects and auxiliary
+                    variables. From Nam et al.
+                    <a href="#ref-1" class="ref-num" data-tooltip="Nam et al. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. arXiv preprint arXiv:2602.11389.">[1]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                The practical training recipe comes from LeWorldModel
+                <a href="#ref-2" class="ref-num" data-tooltip="Maes et al. (2026). LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels. arXiv preprint arXiv:2603.19312.">[2]</a>,
+                which solved the notorious instability of JEPAs with a clean two-term objective. A
+                mean-squared error for next-latent prediction combined with the <strong>SIGReg</strong>
+                regularizer, which prevents representation collapse by enforcing an isotropic Gaussian
+                distribution on the latent space ($z_t \sim \mathcal{N}(0, I)$). SIGReg projects the
+                batch of embeddings onto random unit-norm directions, tests univariate normality on each
+                projection via the Epps-Pulley test, and aggregates via the Cram&eacute;r-Wold theorem.
+                It replaces VICReg's six-to-seven hyperparameters with a single scalar
+                $\lambda_{\text{reg}}$, enabling end-to-end training on a single GPU with planning speeds
+                up to 48 times faster than reconstruction-based methods.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig2.png" alt="LeWorldModel training pipeline with SIGReg regularization">
+                <figcaption>
+                    <strong>Figure 3.</strong> LeWorldModel training pipeline. The encoder maps
+                    observations $o_t$ into low-dimensional latents $z_t$, while the predictor
+                    autoregressively forecasts the next state $z_{t+1}$. SIGReg enforces feature diversity
+                    by projecting latents onto random directions and applying a normality test to match an
+                    isotropic Gaussian. From Maes et al.
+                    <a href="#ref-2" class="ref-num" data-tooltip="Maes et al. (2026). LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels. arXiv preprint arXiv:2603.19312.">[2]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                BioDreamer offers two world model backends. The primary is a <strong>Latent Diffusion
+                JEPA</strong>, which places a conditional denoising diffusion model inside the JEPA
+                latent space. Given the current latent state $z_t$ and a mutation embedding
+                $a_t^{\text{emb}}$, the diffusion predictor generates samples from
+                $p_\theta(z_{t+1} | z_t, a_t)$ through iterative denoising. This captures the
+                multi-modal, stochastic nature of biological fitness landscapes, where a single mutation
+                can lead to distinct structural or functional outcomes depending on context. The
+                architecture extends the insight from DIAMOND
+                <a href="#ref-3" class="ref-num" data-tooltip="Alonso et al. (2024). Diffusion for world modeling: Visual details matter in Atari. NeurIPS 2024, 37, 58757-58791.">[3]</a>,
+                which showed that diffusion-based world models produce more accurate long-horizon rollouts
+                than deterministic alternatives. Moving this diffusion process from observation space to
+                JEPA latent space yields the massive efficiency gains behind Latent Diffusion Models in
+                image generation.
+            </p>
+
+            <p>
+                The alternative is an <strong>Energy-Based JEPA</strong>, a deterministic Transformer
+                that maps $(z_t, a_t^{\text{emb}})$ to $\hat{z}_{t+1}$ in a single forward pass,
+                trained with prediction loss and SIGReg. It is faster for rapid screening but averages
+                over modes. In practice, the natural progression is to start with the Energy-Based variant
+                for initial experiments and upgrade to the Latent Diffusion variant for final design
+                campaigns.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig3.png" alt="DreamerV3 world model training process">
+                <figcaption>
+                    <strong>Figure 4.</strong> The DreamerV3 training process, which serves as a
+                    historical baseline. The world model (a) encodes sensory inputs into discrete
+                    representations $z_t$ which are reconstructed to ensure they contain informative
+                    features, while a sequence model $h_t$ learns to predict these representations given
+                    past actions. The actor and critic (b) learn optimal behaviors from trajectories
+                    imagined by the world model. BioDreamer replaces this reconstruction-heavy RSSM
+                    backbone with JEPA, discarding the decoder during planning. From Hafner et al.
+                    <a href="#ref-4" class="ref-num" data-tooltip="Hafner et al. (2023). Mastering diverse domains through world models. arXiv preprint arXiv:2301.04104.">[4]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                The theoretical backbone is <strong>Active Inference</strong>
+                <a href="#ref-6" class="ref-num" data-tooltip="Parr, T., Pezzulo, G. &amp; Friston, K. J. (2022). Active inference: the free energy principle in mind, brain, and behavior. MIT Press.">[6]</a>,
+                a framework from computational neuroscience where agents select actions to minimize
+                <em>expected free energy</em> $G(\pi)$. This objective decomposes naturally into two
+                terms. <strong>Pragmatic value</strong> drives the agent toward high-fitness states,
+                serving as exploitation. <strong>Epistemic value</strong> drives the agent toward
+                mutations about which the world model is most uncertain, serving as exploration.
+            </p>
+
+            $$G(\pi) = \underbrace{\mathbb{E}_{q}\left[\sum_{t=1}^{H} -r_t\right]}_{\text{Pragmatic value}} + \underbrace{\mathbb{E}_{q}\left[\sum_{t=1}^{H} -\eta \cdot \text{Unc}(z_t, a_t)\right]}_{\text{Epistemic value}}$$
+
+            <p>
+                Tschantz et al.
+                <a href="#ref-7" class="ref-num" data-tooltip="Tschantz et al. (2020). Reinforcement learning through active inference. arXiv preprint arXiv:2002.12636.">[7]</a>
+                showed how minimizing expected free energy naturally subsumes both reward maximization and
+                information gain into a single objective, providing a practical recipe for implementing
+                active inference with neural networks. The deep connection to JEPA is that both frameworks
+                minimize variational free energy. The JEPA energy $E_\theta(z_t, a_t, z_{t+1})$ scores
+                prediction consistency in latent space, which is mathematically analogous to the
+                prediction error in variational free energy. This means the world model, the policy, and
+                the exploration strategy all derive from a single variational principle.
+            </p>
+
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- PROTEIN DREAMER                             -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="protein-dreamer">ProteinDreamer</h2>
+
+            <p>
+                ProteinDreamer is the core module of BioDreamer. It frames protein design as a Markov
+                Decision Process where an agent proposes mutations (actions), observes changes in a
+                learned latent representation of the protein (state transitions), receives fitness
+                predictions (rewards), and plans entire mutation trajectories in imagination before
+                committing to evaluation.
+            </p>
+
+            <p>
+                The state $s_t$ consists of the current amino acid sequence
+                $\mathbf{x}_t \in \{A, C, D, \ldots, Y\}^L$, its predicted 3D structure from ESMFold
+                (C$\alpha$ coordinates), and associated property estimates like pLDDT confidence and
+                contact maps. The action $a_t$ is a single-site substitution $(i, \text{AA}_{\text{new}})$
+                at position $i$. Multi-mutant designs emerge from chaining multiple single-step
+                substitutions over a trajectory of horizon $H$. The reward $r_t$ comes from a multi-task
+                fitness head predicting stability ($\Delta\Delta G$), binding affinity ($K_d$), and
+                catalytic activity ($k_{\text{cat}}$).
+            </p>
+
+            <p>
+                The encoder combines two complementary streams. A pre-trained ESM-2
+                <a href="#ref-8" class="ref-num" data-tooltip="Lin et al. (2023). Evolutionary-scale prediction of atomic-level protein structure with a language model. Science, 379(6637), 1123-1130.">[8]</a>
+                (650M parameters) processes the amino acid sequence to produce per-residue embeddings
+                $\mathbf{H}^{\text{seq}} \in \mathbb{R}^{L \times 1280}$, which are mean-pooled to a
+                global vector. A trainable GVP-GNN processes the predicted 3D structure, capturing
+                geometric constraints through rotationally equivariant message passing on the protein
+                graph. The two global vectors are concatenated and projected through a fusion MLP into the
+                final latent state $z_t \in \mathbb{R}^d$ (with $d \approx 256$&ndash;$512$), regularized
+                by SIGReg to enforce $z_t \sim \mathcal{N}(0, I)$. A target encoder, an exponential
+                moving average copy of the context encoder, provides stable prediction targets during
+                training.
+            </p>
+
+            <p>
+                The world model then predicts what happens after a mutation. Given $z_t$ and a continuous
+                mutation embedding $a_t^{\text{emb}}$ (encoding the position and amino acid identity), the
+                Latent Diffusion JEPA generates samples from $p_\theta(z_{t+1} | z_t, a_t)$ via iterative
+                denoising in the compact latent space. By sampling $N$ denoising trajectories, the model
+                produces a distributional estimate whose variance directly quantifies prediction
+                uncertainty. This built-in uncertainty feeds the Active Inference exploration mechanism
+                without requiring external modules. The training loss combines a denoising score-matching
+                objective, SIGReg regularization, and a supervised reward loss grounded in experimental
+                fitness measurements.
+            </p>
+
+            $$\mathcal{L}_A = \beta_{\text{diff}} \cdot \mathbb{E}_{\tau, \varepsilon}\left[\left\|D_{\hat{\theta}}(\bar{z}_{t+1}^{\tau}, \tau, z_t, a_t^{\text{emb}}) - \bar{z}_{t+1}\right\|_2^2\right] + \lambda_{\text{reg}} \cdot \text{SIGReg}(z_t) + \beta_{\text{rew}} \cdot \mathcal{L}_{\text{rew}}$$
+
+            <p>
+                For the policy, an actor-critic system is trained entirely on imagined trajectories. Every
+                $N_{\text{imagine}}$ steps, the policy rolls out $H$ mutation steps inside the world
+                model, collecting predicted rewards and uncertainty estimates. The actor outputs a
+                categorical distribution over mutations. The critic estimates the expected negative free
+                energy from each state, with targets computed via TD($\lambda$) returns on the imagined
+                data.
+            </p>
+
+            <p>
+                During inference, the system encodes a wild-type protein, dreams $C$ candidate mutation
+                trajectories of length $T$, scores each endpoint through the reward head, and returns a
+                ranked set of designed sequences. All planning occurs in latent space. No decoder or
+                structure predictor is invoked during imagination.
+            </p>
+
+            <p>
+                The key distinction from existing approaches is this. Generative models like ProteinMPNN
+                <a href="#ref-11" class="ref-num" data-tooltip="Dauparas et al. (2022). Robust deep learning-based protein sequence design using ProteinMPNN. Science, 378(6615), 49-56.">[11]</a>,
+                RFdiffusion
+                <a href="#ref-12" class="ref-num" data-tooltip="Watson et al. (2023). De novo design of protein structure and function with RFdiffusion. Nature, 620(7976), 1089-1100.">[12]</a>,
+                EvoDiff
+                <a href="#ref-13" class="ref-num" data-tooltip="Alamdari et al. (2023). Protein generation with evolutionary diffusion: sequence is all you need. BioRxiv, 2023-09.">[13]</a>,
+                and ESM-3
+                <a href="#ref-10" class="ref-num" data-tooltip="Hayes et al. (2025). Simulating 500 million years of evolution with a language model. Science, 387(6736), 850-858.">[10]</a>
+                produce candidates in one forward pass with no iterative planning. RL-based methods like
+                &mu;Protein
+                <a href="#ref-14" class="ref-num" data-tooltip="Sun et al. (2025). Accelerating protein engineering with fitness landscape modelling and reinforcement learning. Nature Machine Intelligence, 7(9), 1446-1460.">[14]</a>
+                use fitness predictors as black-box rewards with no learned dynamics and no latent-space
+                planning. GFlowNets
+                <a href="#ref-15" class="ref-num" data-tooltip="Jain et al. (2022). Biological sequence design with GFlowNets. ICML 2022, pp. 9786-9801.">[15]</a>
+                offer diversity-seeking sampling proportional to reward, and within
+                ProteinDreamer's modular framework they represent an alternative policy class for
+                applications prioritizing sequence diversity. ProteinDreamer fills the remaining gap by
+                learning a full world model that predicts how mutations reshape the landscape and a policy
+                that plans trajectories toward desired properties.
+            </p>
+
+            <p>
+                Training data comes from ProteinGym
+                <a href="#ref-20" class="ref-num" data-tooltip="Notin et al. (2023). ProteinGym: Large-scale benchmarks for protein fitness prediction and design. NeurIPS 2023, 36, 64331-64379.">[20]</a>
+                (217 substitution deep mutational scanning assays across diverse protein families), the
+                Tsuboyama mega-scale stability dataset
+                <a href="#ref-21" class="ref-num" data-tooltip="Tsuboyama et al. (2023). Mega-scale experimental analysis of protein folding stability in biology and design. Nature, 620(7973), 434-444.">[21]</a>
+                (over 776,000 $\Delta G$ measurements across 479 domains), ESMFold-predicted structures
+                as cheap structure oracles
+                <a href="#ref-8" class="ref-num" data-tooltip="Lin et al. (2023). Evolutionary-scale prediction of atomic-level protein structure with a language model. Science, 379(6637), 1123-1130.">[8]</a>,
+                and AlphaFold2
+                <a href="#ref-9" class="ref-num" data-tooltip="Jumper et al. (2021). Highly accurate protein structure prediction with AlphaFold. Nature, 596(7873), 583-589.">[9]</a>
+                predicted structures for validation. Evaluation will use held-out ProteinGym assays, and
+                multi-step planning will be validated on known evolutionary paths like TEM-1
+                &beta;-lactamase resistance evolution.
+            </p>
+
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- MOL DREAMER                                 -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="mol-dreamer">MolDreamer</h2>
+
+            <p>
+                At the atomic scale, classical molecular dynamics simulations remain the standard tool for
+                understanding protein motion, ligand binding, and conformational change. The bottleneck is
+                computational. Simulating microseconds of biologically relevant dynamics can take days on
+                GPU clusters, and many important processes like folding and binding occur over timescales
+                of milliseconds or beyond. ML surrogates like MACE
+                <a href="#ref-16" class="ref-num" data-tooltip="Batatia et al. (2022). MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. NeurIPS 2022, 35, 11423-11436.">[16]</a>
+                have accelerated force evaluation through higher-order equivariant message passing,
+                achieving high precision with only two message-passing iterations. But even with fast
+                force fields, the simulation still integrates Newton's equations one femtosecond at a
+                time.
+            </p>
+
+            <p>
+                MolDreamer takes a different approach. Instead of replacing the force field alone, it
+                replaces the entire simulation pipeline with a learned world model in latent space.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig4.png" alt="Timewarp acceleration of molecular dynamics">
+                <figcaption>
+                    <strong>Figure 5.</strong> Acceleration of molecular dynamics via Timewarp. While
+                    conventional MD (top) computes thousands of sequential small steps ($\delta t$),
+                    Timewarp (bottom) learns a stochastic propagator that generates large jumps
+                    ($\Delta t$) in state space, acting as a transferable proposal distribution that
+                    significantly speeds up sampling. From Klein et al.
+                    <a href="#ref-17" class="ref-num" data-tooltip="Klein et al. (2023). Timewarp: Transferable acceleration of molecular dynamics by learning time-coarsened dynamics. NeurIPS 2023, 36, 52863-52883.">[17]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                The scientific precedent comes from Timewarp
+                <a href="#ref-17" class="ref-num" data-tooltip="Klein et al. (2023). Timewarp: Transferable acceleration of molecular dynamics by learning time-coarsened dynamics. NeurIPS 2023, 36, 52863-52883.">[17]</a>,
+                which demonstrated that normalizing flows can learn "time-coarsened" jumps, transitioning
+                directly between distant conformational states while maintaining physical correctness
+                through a Metropolis-Hastings acceptance step against the Boltzmann distribution.
+            </p>
+
+            $$A(x' | x) = \min\left(1, \frac{p(x') \, q(x | x')}{p(x) \, q(x' | x)}\right)$$
+
+            <p>
+                MolDreamer generalizes this idea into a full world model framework. An
+                SE(3)-equivariant GNN encoder compresses atomic coordinates into a latent state $z_t$. A
+                latent diffusion or neural SDE dynamics model evolves $z_t \to z_{t+1}$, potentially
+                with variable step sizes and time-coarsened jumps. A decoder reconstructs coordinates and
+                observables (unlike ProteinDreamer, MolDreamer requires a decoder because MD applications
+                often need explicit 3D coordinates). A reward model predicts properties of interest like
+                binding free energy ($\Delta G$), thermostability ($T_m$), and solvent-accessible surface
+                area. A policy then proposes mutations or simulation parameters to optimize the reward,
+                all within the learned latent simulator.
+            </p>
+
+            <p>
+                The promise is this. By dreaming significant molecular structural changes rather than
+                integrating every femtosecond, MolDreamer could make long-timescale molecular insights
+                accessible to labs without supercomputer budgets.
+            </p>
+
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- CELL DREAMER                                -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="cell-dreamer">CellDreamer</h2>
+
+            <p>
+                At the cellular scale, understanding and controlling gene regulatory dynamics is essential
+                for drug discovery, cell therapy, and synthetic biology. Classical approaches to modeling
+                gene regulatory networks, from Boolean networks to ODE systems, struggle to scale to the
+                thousands of genes that interact in real cells. Recent ML models like GEARS
+                <a href="#ref-18" class="ref-num" data-tooltip="Roohani et al. (2022). GEARS: Predicting transcriptional outcomes of novel multi-gene perturbations. BioRxiv, 2022-07.">[18]</a>
+                have made important progress, becoming the first model to successfully predict the
+                transcriptional outcomes of perturbing gene combinations that were never seen during
+                training. GEARS achieves this by integrating single-cell RNA-sequencing data with a
+                biological knowledge graph, allowing the model to generalize across the gene interaction
+                network.
+            </p>
+
+            <figure class="figure">
+                <img src="imgs/fig5.png" alt="GEARS architecture for perturbation prediction">
+                <figcaption>
+                    <strong>Figure 6.</strong> GEARS architecture for perturbation prediction. The model
+                    takes gene perturbations as input and uses a multi-dimensional gene-gene interaction
+                    graph to propagate signals. By combining a perturbational autoencoder with a knowledge
+                    graph, GEARS predicts how the expression of thousands of non-perturbed genes will
+                    shift, simulating the transcriptional fingerprint of novel genetic interventions. From
+                    Roohani et al.
+                    <a href="#ref-18" class="ref-num" data-tooltip="Roohani et al. (2022). GEARS: Predicting transcriptional outcomes of novel multi-gene perturbations. BioRxiv, 2022-07.">[18]</a>.
+                </figcaption>
+            </figure>
+
+            <p>
+                Yet GEARS and related models are fundamentally steady-state predictors. They map a
+                perturbation to a final expression profile without modeling the temporal trajectory of how
+                the cell transitions between states. This matters because cellular reprogramming and drug
+                response are dynamic, time-dependent processes. Knowing the endpoint is useful, but
+                planning the optimal sequence of interventions to get there requires modeling the
+                dynamics.
+            </p>
+
+            <p>
+                CellDreamer frames gene regulatory dynamics as a sequential environment. The encoder maps
+                a single-cell transcriptomic snapshot to a latent cell state $z_t$ through a variational
+                autoencoder. A dynamics model, implemented as a neural ODE or SDE conditioned on
+                perturbation actions, evolves $z_t \to z_{t+\Delta t}$ over time. Actions include gene
+                knockouts via CRISPRi/a, drug treatments at specific doses and timepoints, and multi-gene
+                combinations. The reward captures distance to a user-defined target cell state.
+            </p>
+
+            <p>
+                The key training resource is Replogle et al.'s genome-scale Perturb-seq dataset
+                <a href="#ref-19" class="ref-num" data-tooltip="Replogle et al. (2022). Mapping information-rich genotype-phenotype landscapes with genome-scale Perturb-seq. Cell, 185(14), 2559-2575.">[19]</a>,
+                which mapped the transcriptional effects of genetic perturbations across over 2.5 million
+                human cells by combining CRISPR interference with single-cell RNA sequencing. This
+                information-rich genotype-phenotype map covers nearly all expressed genes, providing
+                CellDreamer with the data to learn global rules of gene regulatory dynamics. Where GEARS
+                predicts a single steady-state outcome, CellDreamer dreams entire perturbation
+                trajectories, planning optimal multi-step intervention strategies to drive cells toward
+                desired phenotypes.
+            </p>
+
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- LOOKING AHEAD                               -->
+            <!-- ═══════════════════════════════════════════ -->
+            <h2 id="looking-ahead">Looking Ahead</h2>
+
+            <p>
+                BioDreamer is still early. The core hypotheses remain to be validated empirically. Can a
+                JEPA world model learn an accurate simulator of protein fitness landscapes? Does the
+                latent diffusion variant outperform the deterministic predictor on rugged, epistatic
+                landscapes? Does Active Inference provide a principally better exploration strategy than
+                standard RL heuristics for biological design? These are open experimental questions.
+            </p>
+
+            <p>
+                The immediate plan for ProteinDreamer follows a natural progression. Year one builds the
+                Energy-Based JEPA on ProteinGym benchmarks and mega-scale stability data. Year two
+                replaces the deterministic predictor with the Latent Diffusion JEPA, integrates the full
+                Active Inference policy, and validates multi-step planning on known evolutionary paths
+                like TEM-1 &beta;-lactamase resistance evolution. Year three extends to multi-objective
+                optimization and closes the loop between computation and experiment through active
+                learning, where the world model is fine-tuned on small batches of new experimental data.
+            </p>
+
+            <p>
+                The broader vision is a framework where computational biologists specify a target (a more
+                stable enzyme, a stronger binder, a desired cell fate) and the system plans a sequence of
+                interventions in imagination, then proposes the most promising candidates for experimental
+                validation. Each round of experimental data refines the world model, closing the loop
+                between in-silico reasoning and wet-lab reality
+                <a href="#ref-22" class="ref-num" data-tooltip="Hie, B. L. &amp; Yang, K. K. (2022). Adaptive machine learning for protein engineering. Current Opinion in Structural Biology, 72, 145-152.">[22]</a>.
+            </p>
+
+            <p>
+                Biological systems are complex, high-dimensional, and expensive to query. But they are
+                also governed by learnable physical and statistical regularities. World models have
+                demonstrated across dozens of domains that learning an internal simulator and planning in
+                imagination can replace brute-force interaction with intelligent reasoning. BioDreamer is
+                a bet that the same principle applies to the most complex systems we know.
+            </p>
+
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- REFERENCES                                  -->
+        <!-- ═══════════════════════════════════════════ -->
+        <section class="references">
+            <h2>References</h2>
+            <ol>
+                <li id="ref-1">Nam, H., Lidec, Q. L., Maes, L., LeCun, Y. &amp; Balestriero, R. (2026). Causal-JEPA: Learning World Models through Object-Level Latent Interventions. <em>arXiv preprint arXiv:2602.11389</em>.</li>
+                <li id="ref-2">Maes, L., Lidec, Q. L., Scieur, D., LeCun, Y. &amp; Balestriero, R. (2026). LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels. <em>arXiv preprint arXiv:2603.19312</em>.</li>
+                <li id="ref-3">Alonso, E., Jelley, A., Micheli, V., Kanervisto, A., Storkey, A., Pearce, T. &amp; Fleuret, F. (2024). Diffusion for world modeling: Visual details matter in Atari. <em>Advances in Neural Information Processing Systems</em>, 37, 58757&ndash;58791.</li>
+                <li id="ref-4">Hafner, D., Pasukonis, J., Ba, J. &amp; Lillicrap, T. (2023). Mastering diverse domains through world models. <em>arXiv preprint arXiv:2301.04104</em>.</li>
+                <li id="ref-5">Ha, D. &amp; Schmidhuber, J. (2018). World models. <em>arXiv preprint arXiv:1803.10122</em>.</li>
+                <li id="ref-6">Parr, T., Pezzulo, G. &amp; Friston, K. J. (2022). <em>Active inference: the free energy principle in mind, brain, and behavior.</em> MIT Press.</li>
+                <li id="ref-7">Tschantz, A., Millidge, B., Seth, A. K. &amp; Buckley, C. L. (2020). Reinforcement learning through active inference. <em>arXiv preprint arXiv:2002.12636</em>.</li>
+                <li id="ref-8">Lin, Z., Akin, H., Rao, R., Hie, B., Zhu, Z., Lu, W., &hellip; &amp; Rives, A. (2023). Evolutionary-scale prediction of atomic-level protein structure with a language model. <em>Science</em>, 379(6637), 1123&ndash;1130.</li>
+                <li id="ref-9">Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger, O., &hellip; &amp; Hassabis, D. (2021). Highly accurate protein structure prediction with AlphaFold. <em>Nature</em>, 596(7873), 583&ndash;589.</li>
+                <li id="ref-10">Hayes, T., Rao, R., Akin, H., Sofroniew, N. J., Oktay, D., Lin, Z., &hellip; &amp; Rives, A. (2025). Simulating 500 million years of evolution with a language model. <em>Science</em>, 387(6736), 850&ndash;858.</li>
+                <li id="ref-11">Dauparas, J., Anishchenko, I., Bennett, N., Bai, H., Ragotte, R. J., Milles, L. F., &hellip; &amp; Baker, D. (2022). Robust deep learning&ndash;based protein sequence design using ProteinMPNN. <em>Science</em>, 378(6615), 49&ndash;56.</li>
+                <li id="ref-12">Watson, J. L., Juergens, D., Bennett, N. R., Trippe, B. L., Yim, J., Eisenach, H. E., &hellip; &amp; Baker, D. (2023). De novo design of protein structure and function with RFdiffusion. <em>Nature</em>, 620(7976), 1089&ndash;1100.</li>
+                <li id="ref-13">Alamdari, S., Thakkar, N., Van Den Berg, R., Tenenholtz, N., Strome, R., Moses, A. M., &hellip; &amp; Yang, K. K. (2023). Protein generation with evolutionary diffusion: sequence is all you need. <em>BioRxiv</em>, 2023-09.</li>
+                <li id="ref-14">Sun, H., He, L., Deng, P., Liu, G., Zhao, Z., Jiang, Y., &hellip; &amp; Liu, T. Y. (2025). Accelerating protein engineering with fitness landscape modelling and reinforcement learning. <em>Nature Machine Intelligence</em>, 7(9), 1446&ndash;1460.</li>
+                <li id="ref-15">Jain, M., Bengio, E., Hernandez-Garcia, A., Rector-Brooks, J., Dossou, B. F., Ekbote, C. A., &hellip; &amp; Bengio, Y. (2022). Biological sequence design with GFlowNets. <em>ICML 2022</em>, pp. 9786&ndash;9801.</li>
+                <li id="ref-16">Batatia, I., Kovacs, D. P., Simm, G., Ortner, C. &amp; Cs&aacute;nyi, G. (2022). MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. <em>Advances in Neural Information Processing Systems</em>, 35, 11423&ndash;11436.</li>
+                <li id="ref-17">Klein, L., Foong, A., Fjelde, T., Mlodozeniec, B., Brockschmidt, M., Nowozin, S., &hellip; &amp; Tomioka, R. (2023). Timewarp: Transferable acceleration of molecular dynamics by learning time-coarsened dynamics. <em>Advances in Neural Information Processing Systems</em>, 36, 52863&ndash;52883.</li>
+                <li id="ref-18">Roohani, Y., Huang, K. &amp; Leskovec, J. (2022). GEARS: Predicting transcriptional outcomes of novel multi-gene perturbations. <em>BioRxiv</em>, 2022-07.</li>
+                <li id="ref-19">Replogle, J. M., Saunders, R. A., Pogson, A. N., Hussmann, J. A., Lenail, A., Guna, A., &hellip; &amp; Weissman, J. S. (2022). Mapping information-rich genotype-phenotype landscapes with genome-scale Perturb-seq. <em>Cell</em>, 185(14), 2559&ndash;2575.</li>
+                <li id="ref-20">Notin, P., Kollasch, A., Ritter, D., Van Niekerk, L., Paul, S., Spinner, H., &hellip; &amp; Marks, D. (2023). ProteinGym: Large-scale benchmarks for protein fitness prediction and design. <em>Advances in Neural Information Processing Systems</em>, 36, 64331&ndash;64379.</li>
+                <li id="ref-21">Tsuboyama, K., Dauparas, J., Chen, J., Laine, E., Mohseni Behbahani, Y., Weinstein, J. J., &hellip; &amp; Rocklin, G. J. (2023). Mega-scale experimental analysis of protein folding stability in biology and design. <em>Nature</em>, 620(7973), 434&ndash;444.</li>
+                <li id="ref-22">Hie, B. L. &amp; Yang, K. K. (2022). Adaptive machine learning for protein engineering. <em>Current Opinion in Structural Biology</em>, 72, 145&ndash;152.</li>
+            </ol>
+        </section>
+
+    </article>
+
+    <footer>
+        <div class="article-container">
+            &copy; 2026 Loghman Samani &middot; <a href="https://loqmansamani.github.io/index.html" style="color: rgba(255,255,255,0.5); text-decoration: none;">Home</a>
+        </div>
+    </footer>
+</body>
+</html>
