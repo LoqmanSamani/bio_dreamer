@@ -15,17 +15,15 @@
   <a href="https://github.com/LoqmanSamani/bio_dreamer/actions"><img src="https://img.shields.io/github/actions/workflow/status/LoqmanSamani/bio_dreamer/deploy.yml?branch=systembiology&label=deploy&logo=github-actions" alt="GitHub Actions" /></a>
 </p>
 
-> *Teaching machines to dream about biology so we don't have to wait for every experiment.*
-
 ---
 
 ## Why BioDreamer?
 
-Biological design, engineering proteins, simulating molecular dynamics, reprogramming cells, faces a fundamental bottleneck: **real experiments are slow and expensive**. An MD simulation of one protein can take days on a GPU cluster. A single round of directed evolution costs months and thousands of dollars. A genome-wide CRISPR screen requires millions of cells and weeks of work.
+Biological design at every scale, from molecular dynamics to protein engineering to cellular reprogramming, runs into the same bottleneck. Real experiments are slow and expensive. An MD simulation of one protein can burn days on a GPU cluster. A round of directed evolution takes months and thousands of dollars. A genome-wide CRISPR screen consumes millions of cells and weeks of bench time.
 
-Current ML approaches are mostly **one-shot**: generate a candidate, hope it works, repeat. No existing system does what a skilled engineer would, **mentally simulate outcomes before committing**, plan multi-step strategies, and learn from each round of feedback.
+Most ML approaches to these problems are one-shot. They generate a candidate, evaluate it, and repeat without any internal model of how the system actually behaves. No existing framework does what a good experimentalist would. A good experimentalist mentally simulates outcomes, plans multi-step strategies, and updates their intuition after each round of feedback.
 
-**BioDreamer** solves this by applying *world models* from model-based reinforcement learning to biology. Instead of querying the real environment (MD simulator, wet lab, CRISPR screen), the agent learns a latent-space simulator and plans optimal interventions *in imagination*, replacing brute-force experimentation with intelligent, amortised, in-silico reasoning.
+BioDreamer applies **world models** from model-based reinforcement learning to biology. The agent learns a latent-space simulator (a JEPA-based world model) of the biological environment and then plans optimal interventions *in imagination* before committing to expensive real-world queries. The planning is grounded in **Active Inference** and the Free Energy Principle, giving the agent a principled way to balance exploitation (pursuing high-fitness regions) with exploration (reducing model uncertainty).
 
 ---
 
@@ -37,21 +35,23 @@ Current ML approaches are mostly **one-shot**: generate a candidate, hope it wor
 | **Protein** | **ProteinDreamer** | Navigates protein fitness landscapes via dreaming | Sequence mutations / edits | ΔΔG, Kd, kcat, expression |
 | **Cellular** | **CellDreamer** | Plans cell reprogramming perturbation strategies | Gene knockouts, drug treatments | Distance to target cell state |
 
-All three modules share a common skeleton:
+All three modules share a common backbone built on the **Joint-Embedding Predictive Architecture (JEPA)**.
 
 ```
 Observation → Encoder → Latent State (z_t)
                             ↓
-                    Dynamics Model (z_t, action → z_{t+1})
+                    JEPA Predictor (z_t, action → ẑ_{t+1})
                             ↓
-                    Reward Model (z_t → fitness)
+                    Reward Head (z_t → fitness)
                             ↓
-                    Policy (RL agent plans actions in imagination)
-                            ↓
-                    Decoder → Predicted Outcome
+                    Active Inference Policy (plans in imagination)
 ```
 
-The policy *dreams* multi-step trajectories inside the world model before proposing candidates, guided by **Active Inference** (Free Energy Principle) for principled exploration–exploitation trade-off.
+The key insight is that JEPA operates entirely in latent space. There is no decoder in the planning loop. The predictor maps the current latent state and a proposed action to a predicted next-state embedding, and the reward head scores that embedding directly. This makes imagination rollouts fast, because the agent never reconstructs full observations during planning.
+
+The library supports two primary JEPA backends. **Latent Diffusion JEPA** uses a conditional denoising diffusion model as the predictor, capturing the multi-modal stochastic nature of biological transitions (a single mutation can lead to distinct structural outcomes). The diffusion sample variance provides built-in uncertainty estimates that feed directly into the Active Inference exploration term. **Energy-Based JEPA** uses a deterministic Transformer predictor with SIGReg regularization, trading distributional expressiveness for inference speed. Both backends share the same encoder, reward head, and policy interface, so they can be swapped without changing the rest of the pipeline.
+
+The policy selects actions by minimising **expected free energy**, which naturally decomposes into pragmatic value (seek high fitness) and epistemic value (seek states where the model is uncertain). This is a direct application of Active Inference (Friston, 2010) to biological design, and the mathematical connection between JEPA energy and variational free energy makes the framework theoretically coherent rather than ad hoc.
 
 ---
 
@@ -63,18 +63,18 @@ bio_dreamer/
 ├── biodreamer/                          # Core Python library (PyTorch)
 │   ├── __init__.py
 │   ├── core/                            # Shared base classes
-│   │   ├── world_model.py               #   WorldModel (encoder+dynamics+decoder+reward)
+│   │   ├── world_model.py               #   WorldModel (encoder + JEPA predictor + reward)
 │   │   ├── encoder.py                   #   BaseEncoder interface
-│   │   ├── dynamics.py                  #   BaseDynamics interface
-│   │   ├── decoder.py                   #   BaseDecoder interface
+│   │   ├── dynamics.py                  #   BaseDynamics (JEPA predictor backends)
+│   │   ├── decoder.py                   #   BaseDecoder (optional, for evaluation only)
 │   │   ├── reward.py                    #   BaseRewardHead (multi-objective)
 │   │   ├── policy.py                    #   BasePolicy (PPO, SAC, MCTS, GFlowNet)
-│   │   └── active_inference.py          #   Active Inference / FEP engine
+│   │   └── active_inference.py          #   Active Inference / Expected Free Energy
 │   │
 │   ├── protein_dreamer/                 # Protein fitness landscape module
 │   │   ├── encoder.py                   #   ESM-2 (sequence) + GVP-GNN (structure)
-│   │   ├── dynamics.py                  #   Mutation-conditioned transitions
-│   │   ├── decoder.py                   #   Sequence + structure + pLDDT
+│   │   ├── dynamics.py                  #   JEPA predictor (diffusion or energy-based)
+│   │   ├── decoder.py                   #   Sequence + structure + pLDDT (eval only)
 │   │   ├── reward.py                    #   ΔΔG, Kd, kcat multi-objective
 │   │   ├── policy.py                    #   ProteinPPO / SAC / MCTS
 │   │   ├── environment.py               #   DMS lookup, ESMFold, wet-lab oracles
@@ -107,7 +107,7 @@ bio_dreamer/
 │   │
 │   ├── training/                        # Training infrastructure
 │   │   ├── trainer.py                   #   BaseTrainer (DDP, mixed precision, wandb)
-│   │   ├── world_model_trainer.py       #   DreamerV3-style training loop
+│   │   ├── world_model_trainer.py       #   JEPA world model training loop
 │   │   ├── policy_trainer.py            #   Imagination-based actor-critic training
 │   │   ├── active_learning.py           #   Dream → Propose → Evaluate → Update loop
 │   │   ├── callbacks.py                 #   Wandb, checkpointing, early stopping
@@ -146,23 +146,21 @@ bio_dreamer/
 │   ├── src/lib/                         #   API client, TypeScript types
 │   └── src/styles/                      #   Tailwind globals
 │
-├── blog/                                # Blog (Markdown — readable on GitHub + web app)
+├── blog/                                # Blog (Markdown + standalone HTML articles)
 │   ├── README.md                        #   Blog index and writing guide
 │   ├── posts/                           #   Markdown posts with YAML frontmatter
-│   │   └── 2026-03-19-introducing-biodreamer.md
 │   └── assets/                          #   Images and media for posts
 │
 ├── configs/                             # YAML configs per module + server
 ├── docs/                                # Architecture, API reference, tutorials, model cards
 ├── tests/                               # Unit, integration, e2e tests
-├── scripts/                             # CLI: download_data, train, evaluate, export_to_hub
-├── notebooks/                           # Jupyter: exploration, training, active learning, hub
-├── docker/                              # Dockerfiles: backend, frontend, GPU worker
+├── scripts/                             # CLI for download, train, evaluate, export_to_hub
+├── notebooks/                           # Jupyter notebooks for exploration and training
+├── docker/                              # Dockerfiles for backend, frontend, GPU worker
 │
 ├── pyproject.toml                       # Python project config + dependencies
-├── docker-compose.yml                   # Full stack: backend + frontend + worker + Redis
+├── docker-compose.yml                   # Full stack (backend + frontend + worker + Redis)
 ├── Makefile                             # Dev commands (install, train, test, docker-up)
-├── .env.example                         # Environment variable template
 └── README.md
 ```
 

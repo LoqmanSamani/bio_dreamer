@@ -8,9 +8,9 @@ Posts are written in Markdown and are readable both here on GitHub and on the [B
 
 ## Posts
 
-| Date | Post | Topic |
-|---|---|---|
-| 2026-03-19 | [Introducing BioDreamer](posts/2026-03-19-introducing-biodreamer.md) | Vision, motivation, and roadmap |
+| Date       | Post                                                              | Topic                           |
+| ---------- | ----------------------------------------------------------------- | ------------------------------- |
+| 2026-04-02 | [Introducing BioDreamer](posts/2026-03-19-introducing-biodreamer.md) | Vision, motivation, and roadmap |
 
 ---
 
@@ -27,7 +27,7 @@ Posts are written in Markdown and are readable both here on GitHub and on the [B
 ```yaml
 ---
 title: "Your Post Title"
-date: 2026-03-19
+date: 2026-04-02
 author: "Your Name"
 tags: [protein-dreamer, world-models, active-inference]
 summary: "One-sentence summary shown in the blog index."
