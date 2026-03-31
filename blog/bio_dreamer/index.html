@@ -717,11 +717,13 @@
             <figure class="figure">
                 <img src="imgs/fig4.png" alt="Timewarp acceleration of molecular dynamics">
                 <figcaption>
-                    <strong>Figure 5.</strong> Acceleration of molecular dynamics via Timewarp. While
-                    conventional MD (top) computes thousands of sequential small steps ($\delta t$),
-                    Timewarp (bottom) learns a stochastic propagator that generates large jumps
-                    ($\Delta t$) in state space, acting as a transferable proposal distribution that
-                    significantly speeds up sampling. From Klein et al.
+                    <strong>Figure 5.</strong> (a) Initial state $x(t)$ (Left) and accepted proposal
+                    state $x(t+\tau) \sim p_\theta(x(t+\tau)|x(t))$ (Right) sampled with Timewarp for
+                    the dipeptide HT (unseen during training). (b) TICA projections of simulation
+                    trajectories, showing transitions between metastable states, for a short MD
+                    simulation (Left) and Timewarp MCMC (Right), both run for 30 minutes of wall-clock
+                    time. Timewarp MCMC achieves a speed-up factor of $\approx 33$ over MD in terms of
+                    effective sample size per second. From Klein et al.
                     <a href="#ref-17" class="ref-num" data-tooltip="Klein et al. (2023). Timewarp: Transferable acceleration of molecular dynamics by learning time-coarsened dynamics. NeurIPS 2023, 36, 52863-52883.">[17]</a>.
                 </figcaption>
             </figure>
@@ -828,16 +830,6 @@
                 latent diffusion variant outperform the deterministic predictor on rugged, epistatic
                 landscapes? Does Active Inference provide a principally better exploration strategy than
                 standard RL heuristics for biological design? These are open experimental questions.
-            </p>
-
-            <p>
-                The immediate plan for ProteinDreamer follows a natural progression. Year one builds the
-                Energy-Based JEPA on ProteinGym benchmarks and mega-scale stability data. Year two
-                replaces the deterministic predictor with the Latent Diffusion JEPA, integrates the full
-                Active Inference policy, and validates multi-step planning on known evolutionary paths
-                like TEM-1 &beta;-lactamase resistance evolution. Year three extends to multi-objective
-                optimization and closes the loop between computation and experiment through active
-                learning, where the world model is fine-tuned on small batches of new experimental data.
             </p>
 
             <p>
