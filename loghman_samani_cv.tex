@@ -1,0 +1,353 @@
+\documentclass[a4paper,11pt]{article}
+
+% Package imports
+\usepackage{latexsym}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{ragged2e}
+\usepackage[empty]{fullpage}
+\usepackage{wrapfig}
+\usepackage{lipsum}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{geometry}
+\usepackage{marvosym}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{cfr-lm}
+\usepackage[T1]{fontenc}
+\usepackage{fontawesome5}
+
+% Color definitions
+\definecolor{darkblue}{RGB}{0,0,139}
+
+% Page layout
+\setlength{\multicolsep}{0pt} 
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\geometry{left=1.4cm, top=0.8cm, right=1.2cm, bottom=1cm}
+\setlength{\footskip}{5pt}
+
+% Hyperlink setup
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=darkblue,
+    filecolor=darkblue,
+    urlcolor=darkblue,
+}
+
+% Custom box settings
+\usepackage[most]{tcolorbox}
+\tcbset{
+    frame code={},
+    center title,
+    left=0pt,
+    right=0pt,
+    top=0pt,
+    bottom=0pt,
+    colback=gray!20,
+    colframe=white,
+    width=\dimexpr\textwidth\relax,
+    enlarge left by=-2mm,
+    boxsep=4pt,
+    arc=0pt,outer arc=0pt,
+}
+
+% URL style
+\urlstyle{same}
+
+% Text alignment
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Section formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-7pt}]
+
+% Custom commands
+\newcommand{\resumeItem}[2]{
+  \item{
+    \textbf{#1}{\hspace{0.5mm}#2 \vspace{-0.5mm}}
+  }
+}
+
+\newcommand{\resumePOR}[3]{
+\vspace{0.5mm}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1}\hspace{0.3mm}#2 & \textit{\small{#3}} 
+    \end{tabular*}
+    \vspace{-2mm}
+}
+
+\newcommand{\resumeSubheading}[4]{
+\vspace{0.5mm}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#4}} \\
+        \textit{\footnotesize{#3}} &  \footnotesize{#2}\\
+    \end{tabular*}
+    \vspace{-2.4mm}
+}
+
+\newcommand{\resumeProject}[4]{
+\vspace{0.5mm}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#3}} \\
+        \footnotesize{\textit{#2}} & \footnotesize{#4}
+    \end{tabular*}
+    \vspace{-2.4mm}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-4pt}}
+
+\renewcommand{\labelitemi}{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand{\labelitemii}{$\vcenter{\hbox{\tiny$\circ$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*,labelsep=1mm]}
+\newcommand{\resumeHeadingSkillStart}{\begin{itemize}[leftmargin=*,itemsep=1.7mm, rightmargin=2ex]}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=*,labelsep=1mm,itemsep=0.5mm]}
+
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{2mm}}
+\newcommand{\resumeHeadingSkillEnd}{\end{itemize}\vspace{-2mm}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-2mm}}
+\newcommand{\cvsection}[1]{%
+\vspace{2mm}
+\begin{tcolorbox}
+    \textbf{\large #1}
+\end{tcolorbox}
+    \vspace{-4mm}
+}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}%
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}%
+\newcolumntype{C}{>{\centering\arraybackslash}X}%
+
+% Commands for icon sizing and positioning
+\newcommand{\socialicon}[1]{\raisebox{-0.05em}{\resizebox{!}{1em}{#1}}}
+\newcommand{\ieeeicon}[1]{\raisebox{-0.3em}{\resizebox{!}{1.3em}{#1}}}
+
+% Font options
+\newcommand{\headerfonti}{\fontfamily{phv}\selectfont}
+\newcommand{\headerfontii}{\fontfamily{ptm}\selectfont}
+\newcommand{\headerfontiii}{\fontfamily{ppl}\selectfont}
+\newcommand{\headerfontiv}{\fontfamily{pbk}\selectfont}
+\newcommand{\headerfontv}{\fontfamily{pag}\selectfont}
+\newcommand{\headerfontvi}{\fontfamily{cmss}\selectfont}
+\newcommand{\headerfontvii}{\fontfamily{qhv}\selectfont}
+\newcommand{\headerfontviii}{\fontfamily{qpl}\selectfont}
+\newcommand{\headerfontix}{\fontfamily{qtm}\selectfont}
+\newcommand{\headerfontx}{\fontfamily{bch}\selectfont}
+
+\begin{document}
+\headerfontiii
+
+% Header
+\begin{center}
+    {\Huge\textbf{Loghman Samani}}
+\end{center}
+\vspace{-2mm}
+
+\begin{center}
+    \small{
+    \socialicon{\faEnvelope} \href{mailto:samaniloqman91@gmail.com}{samaniloqman91@gmail.com} | 
+    \socialicon{\faGlobe} \href{https://loqmansamani.github.io/}{loqmansamani.github.io}
+    }
+\end{center}
+\vspace{-5mm}
+
+\begin{center}
+    \small{
+    \socialicon{\faLinkedin} \href{https://www.linkedin.com/in/loghman-samani-8a5208199/}{loghman-samani} | 
+    \socialicon{\faGithub} \href{https://github.com/LoqmanSamani}{LoqmanSamani} | 
+    \socialicon{\faMapMarker} Ludwigsburg, Baden-Württemberg, Germany
+    }
+\end{center}
+
+
+
+\vspace{-4mm}
+
+\section{\textbf{Professional Summary}}
+\vspace{1mm}
+\small{
+Machine learning engineer with a Master's degree in Technical Biology from the University of Stuttgart. I have hands-on experience building deep learning frameworks in C++ and Python, implementing generative models for scientific applications, and developing numerical simulation tools. I have worked on model development, GPU-accelerated training, and computational biology pipelines. I am looking for applied roles in machine learning, data science, or computational biology within industry.
+}
+
+
+\vspace{-2mm}
+
+
+\section{\textbf{Experience}}
+\vspace{-0.4mm}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+  {Bioinformatics Specialist}{Tehran, Iran}
+  {Parsian BioTech}{2019 -- 2021}
+\resumeItemListStart
+  \item Genomic data analysis and bioinformatics support for molecular biology projects.
+\resumeItemListEnd
+
+\resumeSubheading
+  {IT Support (Intern $\to$ Part-Time)}{Sanandaj, Iran}
+  {Rayan Ravesh ICT Company}{2017 -- 2019}
+\resumeItemListStart
+  \item Troubleshooting, system setup, and user support.
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+\vspace{-6mm}
+
+
+\section{\textbf{Technical Skills}}
+\vspace{-0.4mm}
+ \resumeHeadingSkillStart
+  \resumeSubItem{Programming:}
+    {C++, Python, R, SQL}
+  \resumeSubItem{ML and DL Frameworks:}
+    {PyTorch, TensorFlow, scikit-learn}
+  \resumeSubItem{Scientific Libraries:}
+    {NumPy, Pandas, SciPy, Eigen}
+  \resumeSubItem{Parallel and High-Performance Computing:}
+    {OpenMP, CUDA}
+  \resumeSubItem{Development Tools:}
+    {Git, Linux, CMake, \LaTeX}
+  \resumeSubItem{Domains:}
+    {Deep Learning, Generative Models, NLP, Computer Vision, Computational Biology}
+ \resumeHeadingSkillEnd
+
+
+\section{\textbf{Education}}
+\vspace{-0.4mm}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+{University of Stuttgart}{Stuttgart, Germany}
+{Master of Science in Technical Biology}{Apr 2023 -- Jun 2025}
+\resumeItemListStart
+\item \textbf{Thesis:} \textit{Automated Design and Analysis of Gene Regulatory Networks}
+\item \textbf{GPA:} 1.6
+\resumeItemListEnd
+
+\resumeSubheading
+{University of Kurdistan}{Sanandaj, Iran}
+{Bachelor of Science in Cell and Molecular Biology}{Sep 2014 -- Jun 2018}
+
+\resumeSubHeadingListEnd
+\vspace{-6mm}
+
+
+\section{\textbf{Projects}}
+\vspace{-0.4mm}
+\resumeSubHeadingListStart
+
+
+\resumeProject
+   {CppNet: A High-Performance C++ Deep Learning Library}
+   {C++, Eigen, OpenMP, CUDA} 
+   {May 2025 -- Present} {[\href{https://loqmansamani.github.io/CppNet/}{\textcolor{darkblue}{\faGlobe}}][\href{https://github.com/LoqmanSamani/CppNet}{\textcolor{darkblue}{\faGithub}}]} 
+   
+   \resumeItemListStart 
+   \item Built a modular deep learning library in C++ supporting dense, convolutional, recurrent, and attention layers along with common losses, optimizers, and metrics.
+   \item Achieved high-performance computation using Eigen for tensor operations and OpenMP for parallel training.
+   \item Added CUDA-based GPU acceleration for training large-scale models.
+\resumeItemListEnd
+
+
+\resumeProject
+   {TorchDiff: A PyTorch Library for Diffusion Models}
+   {Python, PyTorch} 
+   {Feb 2025 -- Present} {[\href{https://loqmansamani.github.io/torchdiff/}{\textcolor{darkblue}{\faGlobe}}][\href{https://github.com/LoqmanSamani/TorchDiff}{\textcolor{darkblue}{\faGithub}}]} 
+   
+   \resumeItemListStart 
+   \item Implemented a PyTorch-based toolkit covering five major diffusion model families (DDPM, DDIM, SDE-based, Latent Diffusion, unCLIP).
+   \item Supported both conditional and unconditional image generation, including text-to-image pipelines.
+   \item Packaged the code into modular components for noise scheduling, sampling strategies, and model configuration.
+\resumeItemListEnd
+
+
+\resumeProject
+  {GRN-Designer: Automated Design of Gene Regulatory Networks}
+  {Python, PyTorch, Evolutionary Algorithms, PDEs}
+  {Apr 2024 -- Feb 2025}
+  {[\href{https://loqmansamani.github.io/grn-designer/}{\textcolor{darkblue}{\faGlobe}}][\href{https://github.com/LoqmanSamani/grn-designer}{\textcolor{darkblue}{\faGithub}}]}  
+
+\resumeItemListStart
+  \item Developed a computational pipeline combining evolutionary algorithms and gradient-based optimization to automatically design gene regulatory networks.
+  \item Modeled spatial gene expression dynamics using PDE-based reaction-diffusion equations.
+  \item Tuned network parameters to match target spatial expression patterns with high accuracy.
+\resumeItemListEnd
+
+
+
+\resumeProject
+  {Deep Learning: Models, Articles, and Implementations}
+  {Python, PyTorch, TensorFlow}
+  {Jan 2024 -- May 2025}
+  {{}[\href{https://github.com/LoqmanSamani/deep-learning}{\textcolor{darkblue}{\faGithub}}]}  
+
+\resumeItemListStart
+  \item Built over 15 deep learning models spanning CNNs, RNNs, Transformers, and a GPT-2-scale language model from scratch.
+  \item Implemented and benchmarked various optimizers and training strategies across tasks.
+  \item Published two technical articles on Towards Data Science covering deep learning implementations.
+\resumeItemListEnd
+
+
+\resumeProject
+  {Biostoch: Stochastic and Deterministic Biological Simulations}
+  {Python, NumPy, SciPy}
+  {Apr 2023 -- Jun 2024}
+  {{}[\href{https://github.com/LoqmanSamani/biostoch}{\textcolor{darkblue}{\faGithub}}]}  
+
+\resumeItemListStart
+  \item Developed a Python library for simulating biological systems using both stochastic (SSA, Tau-Leaping, CLE) and deterministic (Euler, Runge-Kutta) methods.
+\resumeItemListEnd
+
+
+\resumeSubHeadingListEnd
+
+
+\section{\textbf{Technical Writing}}
+\vspace{0.5mm}
+\small{
+\begin{itemize}[leftmargin=*,labelsep=1mm,itemsep=0.5mm]
+  \item \textbf{World Models: Learning to Predict, Imagine, and Act} \hfill \textit{Mar 2026}~[\href{https://loqmansamani.github.io/articles/model_based_rl/index.html}{\textcolor{darkblue}{\faGlobe}}]
+  \item \textbf{When Diffusion Models Learn the Wrong Physics} \hfill \textit{Feb 2026}~[\href{https://medium.com/@samaniloqman91/when-diffusion-models-learn-the-wrong-physics-fa66a8fea0f2}{\textcolor{darkblue}{\faMedium}}]
+  \item \textbf{Latent Diffusion Models and Their Implementation in TorchDiff} \hfill \textit{Jul 2025}~[\href{https://medium.com/@samaniloqman91/latent-diffusion-models-and-their-implementation-in-torchdiff-7dc04c33c4f7}{\textcolor{darkblue}{\faMedium}}]
+  \item \textbf{Score-Based Generative Modeling with SDEs} \hfill \textit{Jun 2025}~[\href{https://medium.com/@samaniloqman91/score-based-generative-modeling-with-sdes-theory-and-implementation-in-torchdiff-db9a20a84978}{\textcolor{darkblue}{\faMedium}}]
+  \item \textbf{TorchDiff: A PyTorch Library for DDPM and Beyond} \hfill \textit{May 2025}~[\href{https://medium.com/@samaniloqman91/torchdiff-a-pytorch-library-for-denoising-diffusion-probabilistic-models-and-beyond-d15156e9e3b5}{\textcolor{darkblue}{\faMedium}}]
+  \item \textbf{From Biology to Computation: Exploring Genetic Algorithms} \hfill \textit{Jul 2024}~[\href{https://medium.com/@samaniloqman91/from-biology-to-computation-exploring-genetic-algorithms-5b090213351f}{\textcolor{darkblue}{\faMedium}}]
+  \item \textbf{Introducing BioStoch: A Python Library for Simulating Biological Systems} \hfill \textit{Mar 2024}~[\href{https://medium.com/@samaniloqman91/introducing-biostoch-a-python-library-for-simulating-biological-systems-5d38df9b6991}{\textcolor{darkblue}{\faMedium}}]
+\end{itemize}
+}
+
+
+\section{\textbf{Certifications}}
+\vspace{-0.2mm}
+\resumeSubHeadingListStart
+\resumePOR{}{\href{https://www.coursera.org/account/accomplishments/specialization/certificate/Y5P9ET2XZS5I}{\textbf{Deep Learning Specialization}}}{Aug 2024}
+\resumePOR{}{\href{https://www.coursera.org/account/accomplishments/specialization/certificate/ZJGVGWJ4HVMX}{\textbf{Machine Learning Specialization}}}{Feb 2024}
+\resumePOR{}{\href{https://www.coursera.org/account/accomplishments/specialization/certificate/TDRS2JEHG53W}{\textbf{Mathematics for Machine Learning and Data Science Specialization}}}{Jan 2024}
+\resumePOR{}{\href{https://www.coursera.org/account/accomplishments/specialization/certificate/ZGPX9CM32BAR}{\textbf{Genomic Data Science Specialization}}}{Nov 2023}
+\resumeSubHeadingListEnd
+
+\vspace{-6mm}
+
+
+\section{\textbf{Additional Information}}
+\vspace{-0.4mm}
+\small{
+\textbf{Languages:} Kurdish (Native), Persian (Fluent), English (Fluent), German (Fluent)
+
+\textbf{Interests:} Open-source development, scientific computing, generative AI}
+
+
+\end{document}
