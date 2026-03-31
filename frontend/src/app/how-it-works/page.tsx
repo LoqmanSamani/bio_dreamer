@@ -61,8 +61,8 @@ export default function HowItWorksPage() {
         How It Works
       </h1>
       <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
-        BioDreamer replaces brute-force experimentation with intelligent
-        planning in a learned latent simulator.
+        Rather than sampling every candidate in a real environment, BioDreamer
+        learns a latent simulator and plans multi-step interventions inside it.
       </p>
 
       {/* Pipeline diagram */}

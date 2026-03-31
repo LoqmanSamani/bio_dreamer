@@ -53,7 +53,7 @@ const FEATURES = [
     icon: Layers,
     title: "Modular Design",
     description:
-      "Swap any component (encoder, dynamics model, reward head, policy) independently. Built with PyTorch and clean abstractions.",
+      "Swap any component (encoder, JEPA predictor, reward head, policy) independently. Built with PyTorch and clean abstractions.",
     color: "mol",
   },
   {
@@ -126,8 +126,8 @@ export default function FeaturesPage() {
         Features
       </h1>
       <p className="text-lg text-slate-500 dark:text-slate-400 text-center max-w-2xl mx-auto mb-14">
-        Everything you need for intelligent, model-based biological design. From
-        JEPA world model training to Active Inference policy learning and candidate ranking.
+        The full stack for model-based biological design, from JEPA world model
+        training to Active Inference policy learning and candidate ranking.
       </p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

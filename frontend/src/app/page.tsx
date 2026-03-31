@@ -131,11 +131,11 @@ export default function HomePage() {
       <section className="section-container pb-20">
         <div className="card text-center py-12 bg-gradient-to-br from-slate-100 to-slate-100/40 dark:from-slate-900 dark:to-slate-900/40 border-slate-300/50 dark:border-slate-700/50">
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-            Ready to explore?
+            Where to start
           </h2>
           <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-lg mx-auto">
-            Dive into the documentation, check out the codebase, or read about
-            the science behind BioDreamer.
+            Read the documentation, browse the codebase, or walk through the
+            architecture and training pipeline.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/quickstart" className="btn-primary">
