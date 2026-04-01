@@ -168,20 +168,20 @@ bio_dreamer/
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| ML framework | PyTorch 2.x |
-| Protein language models | ESM-2 via Hugging Face `transformers` |
-| Graph neural networks | PyTorch Geometric (`torch-geometric`) |
-| Neural ODEs/SDEs | `torchdiffeq` |
-| scRNA-seq processing | `scanpy`, `anndata` |
-| Model hosting | Hugging Face Hub (`huggingface_hub`) |
-| Experiment tracking | Weights & Biases (`wandb`) |
-| Backend API | FastAPI + Uvicorn |
-| Job queue | Redis |
-| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS |
-| 3D molecular viewer | Mol* (Molstar) |
-| Containerisation | Docker + docker-compose |
+| Layer | Technology | Version |
+|---|---|---|
+| ML framework | PyTorch (CUDA 12.6) | 2.11.0 |
+| Protein language models | ESM-2 via Hugging Face `transformers` | 5.4.0 |
+| Graph neural networks | PyTorch Geometric (`torch-geometric`) | 2.7.0 |
+| Neural ODEs/SDEs | `torchdiffeq` | 0.2.5 |
+| scRNA-seq processing | `scanpy`, `anndata` | 1.12, 0.12.10 |
+| Model hosting | Hugging Face Hub (`huggingface_hub`) | 1.8.0 |
+| Experiment tracking | Weights & Biases (`wandb`) | 0.25.1 |
+| Backend API | FastAPI + Uvicorn | 0.135.2, 0.42.0 |
+| Job queue | Redis | 7.0.15 (server) |
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS | — |
+| 3D molecular viewer | Mol* (Molstar) | — |
+| Containerisation | Docker + docker-compose | 28.2.2, 2.37.1 |
 
 ---
 
@@ -190,43 +190,63 @@ bio_dreamer/
 ### Python (ML + Backend)
 
 ```
-torch >= 2.1
-torch-geometric >= 2.4
-torchdiffeq >= 0.2
-transformers >= 4.35
-huggingface-hub >= 0.19
-safetensors >= 0.4
-fastapi >= 0.104
-uvicorn >= 0.24
-redis >= 5.0
-pydantic >= 2.5
-pydantic-settings >= 2.1
-wandb >= 0.16
-scanpy >= 1.9
-anndata >= 0.10
-scipy >= 1.11
-numpy >= 1.24
-pandas >= 2.1
-pyyaml >= 6.0
-jinja2 >= 3.1
-biopython >= 1.82
-markdown-it-py >= 3.0
-pygments >= 2.17
+torch                 2.11.0+cu126
+torchvision           0.26.0+cu126
+torch-geometric       2.7.0
+pyg-lib              0.6.0+pt210cu126
+torch-scatter         2.1.2+pt210cu126
+torch-sparse          0.6.18+pt210cu126
+torch-cluster         1.6.3+pt210cu126
+torchdiffeq           0.2.5
+transformers          5.4.0
+huggingface-hub       1.8.0
+safetensors           0.7.0
+fastapi               0.135.2
+uvicorn               0.42.0
+redis                 7.4.0
+pydantic              2.12.5
+pydantic-settings     2.13.1
+wandb                 0.25.1
+scanpy                1.12
+anndata               0.12.10
+scipy                 1.17.1
+numpy                 2.4.3
+pandas                3.0.2
+pyyaml                6.0.3
+jinja2                3.1.6
+biopython             1.87
+markdown-it-py        4.0.0
+pygments              2.20.0
 ```
 
 ### Frontend (Node.js)
 
+Requires Node.js >= 18 (tested with v22.22.0, npm 10.9.4).
+
 ```
-next >= 14.0
-react >= 18.2
-typescript >= 5.3
-tailwindcss >= 3.4
-molstar >= 4.0
-recharts >= 2.10 (or plotly.js)
-react-markdown >= 9.0
-rehype-highlight >= 7.0
-rehype-katex >= 7.0
-remark-math >= 6.0
+next              ^14.1.0
+react             ^18.2.0
+typescript        ^5.3.3
+tailwindcss       ^3.4.1
+gray-matter       ^4.0.3
+next-mdx-remote   ^4.4.1
+remark-gfm        ^3.0.1
+rehype-highlight  ^7.0.0
+rehype-slug       ^6.0.0
+lucide-react      ^0.344.0
+```
+
+### System Dependencies
+
+```
+Redis server      7.0.15     (apt: redis-server)
+Docker            28.2.2     (apt: docker.io)
+Docker Compose    2.37.1     (apt: docker-compose-v2)
+Python            3.12.3
+Node.js           22.22.0
+npm               10.9.4
+CUDA              12.6
+GPU               NVIDIA GeForce GTX 1650
 ```
 
 ---
