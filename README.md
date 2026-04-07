@@ -166,74 +166,59 @@ bio_dreamer/
 
 ---
 
-## Tech Stack
+## Package Table
 
-| Layer | Technology | Version |
+| Layer | Package | Version |
 |---|---|---|
-| ML framework | PyTorch (CUDA 12.6) | 2.11.0 |
-| Protein language models | ESM-2 via Hugging Face `transformers` | 5.4.0 |
-| Graph neural networks | PyTorch Geometric (`torch-geometric`) | 2.7.0 |
-| Neural ODEs/SDEs | `torchdiffeq` | 0.2.5 |
-| scRNA-seq processing | `scanpy`, `anndata` | 1.12, 0.12.10 |
-| Model hosting | Hugging Face Hub (`huggingface_hub`) | 1.8.0 |
-| Experiment tracking | Weights & Biases (`wandb`) | 0.25.1 |
-| Backend API | FastAPI + Uvicorn | 0.135.2, 0.42.0 |
-| Job queue | Redis | 7.0.15 (server) |
-| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS | — |
-| 3D molecular viewer | Mol* (Molstar) | — |
-| Containerisation | Docker + docker-compose | 28.2.2, 2.37.1 |
+| Python | `torch` | 2.11.0 |
+| Python | `numpy` | 2.4.3 |
+| Frontend | `next` | ^14.1.0 |
+| Frontend | `react` | ^18.2.0 |
+| Frontend | `react-dom` | ^18.2.0 |
+| Frontend | `gray-matter` | ^4.0.3 |
+| Frontend | `next-mdx-remote` | ^4.4.1 |
+| Frontend | `remark-gfm` | ^3.0.1 |
+| Frontend | `rehype-highlight` | ^7.0.0 |
+| Frontend | `rehype-slug` | ^6.0.0 |
+| Frontend | `lucide-react` | ^0.344.0 |
+| Frontend dev | `tailwindcss` | ^3.4.1 |
+| Frontend dev | `typescript` | ^5.3.3 |
+| Frontend dev | `postcss` | ^8.4.33 |
+| Frontend dev | `autoprefixer` | ^10.4.17 |
+| Frontend dev | `eslint` | ^8.56.0 |
+| Frontend dev | `eslint-config-next` | ^14.1.0 |
 
 ---
 
 ## Dependencies
 
-### Python (ML + Backend)
+### Python
 
 ```
-torch                 2.11.0+cu126
-torchvision           0.26.0+cu126
-torch-geometric       2.7.0
-pyg-lib              0.6.0+pt210cu126
-torch-scatter         2.1.2+pt210cu126
-torch-sparse          0.6.18+pt210cu126
-torch-cluster         1.6.3+pt210cu126
-torchdiffeq           0.2.5
-transformers          5.4.0
-huggingface-hub       1.8.0
-safetensors           0.7.0
-fastapi               0.135.2
-uvicorn               0.42.0
-redis                 7.4.0
-pydantic              2.12.5
-pydantic-settings     2.13.1
-wandb                 0.25.1
-scanpy                1.12
-anndata               0.12.10
-scipy                 1.17.1
+torch                 2.11.0
 numpy                 2.4.3
-pandas                3.0.2
-pyyaml                6.0.3
-jinja2                3.1.6
-biopython             1.87
-markdown-it-py        4.0.0
-pygments              2.20.0
 ```
 
 ### Frontend (Node.js)
 
-Requires Node.js >= 18 (tested with v22.22.0, npm 10.9.4).
+Requires Node.js >= 18.
 
 ```
 next              ^14.1.0
 react             ^18.2.0
-typescript        ^5.3.3
-tailwindcss       ^3.4.1
+react-dom         ^18.2.0
 gray-matter       ^4.0.3
+lucide-react      ^0.344.0
 next-mdx-remote   ^4.4.1
 remark-gfm        ^3.0.1
 rehype-highlight  ^7.0.0
 rehype-slug       ^6.0.0
-lucide-react      ^0.344.0
+tailwindcss       ^3.4.1
+typescript        ^5.3.3
+postcss           ^8.4.33
+autoprefixer      ^10.4.17
+eslint            ^8.56.0
+eslint-config-next ^14.1.0
 ```
 
 ### System Dependencies

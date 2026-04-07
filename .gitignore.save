@@ -207,14 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 
-
-# .refs folders contain pdf of references
-.refs
-
-
-# specific files/folders
-loghman_samani_cv.tex
-loghman_samani_cv.pdf
-init.txt
-.codex
-
+# for each written blog post there is a '.refs' dir
+# which contains pdf files of references read to write
+# the article, so those references should stay locally.
+.refs      
