@@ -1,0 +1,91 @@
+site_name: BioDreamer
+site_description: World Models for Biological Design — API Reference & Documentation
+site_url: https://loqmansamani.github.io/bio_dreamer/
+repo_url: https://github.com/LoqmanSamani/bio_dreamer
+repo_name: LoqmanSamani/bio_dreamer
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - search.suggest
+    - toc.integrate
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+            members_order: source
+            docstring_style: google
+            merge_init_into_class: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.arithmatex:
+      generic: true
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Python Library:
+      - Core:
+          - Overview: api/core/index.md
+          - BaseEncoder: api/core/encoder.md
+          - BaseDynamics: api/core/dynamics.md
+          - BaseDecoder: api/core/decoder.md
+          - BaseRewardHead: api/core/reward.md
+          - BasePolicy: api/core/policy.md
+          - Active Inference: api/core/active_inference.md
+          - WorldModel: api/core/world_model.md
+      - ProteinDreamer: api/protein_dreamer.md
+      - MolDreamer: api/mol_dreamer.md
+      - CellDreamer: api/cell_dreamer.md
+      - Training: api/training.md
+      - Inference: api/inference.md
+      - Hub: api/hub.md
+      - Utils: api/utils.md
+  - REST API: rest_api.md
+  - Deployment: deployment.md
+  - Tutorials:
+      - Overview: tutorials.md
+      - Getting Started: tutorials/getting_started.md
+      - Training Guide: tutorials/training_guide.md
+      - Web Interface: tutorials/web_interface_guide.md
+  - Model Cards:
+      - ProteinDreamer: model_cards/protein_dreamer_world_model.md
+      - MolDreamer: model_cards/mol_dreamer_world_model.md
+      - CellDreamer: model_cards/cell_dreamer_world_model.md

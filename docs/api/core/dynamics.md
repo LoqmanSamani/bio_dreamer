@@ -1,0 +1,3 @@
+# BaseDynamics
+
+::: biodreamer.core.dynamics

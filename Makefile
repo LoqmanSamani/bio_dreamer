@@ -13,3 +13,12 @@
 #   make docker-up     — Build and start all services via docker-compose
 #   make lint          — Run linters (ruff, mypy, eslint)
 #   make docs          — Build documentation
+#   make docs-serve    — Live-reload docs dev server
+
+.PHONY: docs docs-serve
+
+docs:
+	mkdocs build
+
+docs-serve:
+	mkdocs serve
