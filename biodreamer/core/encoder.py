@@ -6,7 +6,6 @@ import torch.nn as nn
 
 
 
-
 class BaseEncoder(ABC, nn.Module):
     """Abstract base class for all domain-specific encoders in BioDreamer.
 

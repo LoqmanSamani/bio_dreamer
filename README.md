@@ -29,11 +29,11 @@ BioDreamer applies **world models** from model-based reinforcement learning to b
 
 ## Three Modules, One Architecture
 
-| Scale | Module | What It Does | Actions | Reward |
-|---|---|---|---|---|
-| **Atomic** | **MolDreamer** | Learns molecular dynamics in latent space | Force/parameter changes, mutations | Binding ΔG, stability, SASA |
-| **Protein** | **ProteinDreamer** | Navigates protein fitness landscapes via dreaming | Sequence mutations / edits | ΔΔG, Kd, kcat, expression |
-| **Cellular** | **CellDreamer** | Plans cell reprogramming perturbation strategies | Gene knockouts, drug treatments | Distance to target cell state |
+| Scale              | Module                   | What It Does                                      | Actions                            | Reward                        |
+| ------------------ | ------------------------ | ------------------------------------------------- | ---------------------------------- | ----------------------------- |
+| **Atomic**   | **MolDreamer**     | Learns molecular dynamics in latent space         | Force/parameter changes, mutations | Binding ΔG, stability, SASA  |
+| **Protein**  | **ProteinDreamer** | Navigates protein fitness landscapes via dreaming | Sequence mutations / edits         | ΔΔG, Kd, kcat, expression   |
+| **Cellular** | **CellDreamer**    | Plans cell reprogramming perturbation strategies  | Gene knockouts, drug treatments    | Distance to target cell state |
 
 All three modules share a common backbone built on the **Joint-Embedding Predictive Architecture (JEPA)**.
 
@@ -168,25 +168,25 @@ bio_dreamer/
 
 ## Package Table
 
-| Layer | Package | Version |
-|---|---|---|
-| Python | `torch` | 2.11.0 |
-| Python | `numpy` | 2.4.3 |
-| Frontend | `next` | ^14.1.0 |
-| Frontend | `react` | ^18.2.0 |
-| Frontend | `react-dom` | ^18.2.0 |
-| Frontend | `gray-matter` | ^4.0.3 |
-| Frontend | `next-mdx-remote` | ^4.4.1 |
-| Frontend | `remark-gfm` | ^3.0.1 |
-| Frontend | `rehype-highlight` | ^7.0.0 |
-| Frontend | `rehype-slug` | ^6.0.0 |
-| Frontend | `lucide-react` | ^0.344.0 |
-| Frontend dev | `tailwindcss` | ^3.4.1 |
-| Frontend dev | `typescript` | ^5.3.3 |
-| Frontend dev | `postcss` | ^8.4.33 |
-| Frontend dev | `autoprefixer` | ^10.4.17 |
-| Frontend dev | `eslint` | ^8.56.0 |
-| Frontend dev | `eslint-config-next` | ^14.1.0 |
+| Layer        | Package                | Version  |
+| ------------ | ---------------------- | -------- |
+| Python       | `torch`              | 2.11.0   |
+| Python       | `numpy`              | 2.4.3    |
+| Frontend     | `next`               | ^14.1.0  |
+| Frontend     | `react`              | ^18.2.0  |
+| Frontend     | `react-dom`          | ^18.2.0  |
+| Frontend     | `gray-matter`        | ^4.0.3   |
+| Frontend     | `next-mdx-remote`    | ^4.4.1   |
+| Frontend     | `remark-gfm`         | ^3.0.1   |
+| Frontend     | `rehype-highlight`   | ^7.0.0   |
+| Frontend     | `rehype-slug`        | ^6.0.0   |
+| Frontend     | `lucide-react`       | ^0.344.0 |
+| Frontend dev | `tailwindcss`        | ^3.4.1   |
+| Frontend dev | `typescript`         | ^5.3.3   |
+| Frontend dev | `postcss`            | ^8.4.33  |
+| Frontend dev | `autoprefixer`       | ^10.4.17 |
+| Frontend dev | `eslint`             | ^8.56.0  |
+| Frontend dev | `eslint-config-next` | ^14.1.0  |
 
 ---
 
@@ -229,9 +229,7 @@ Docker            28.2.2     (apt: docker.io)
 Docker Compose    2.37.1     (apt: docker-compose-v2)
 Python            3.12.3
 Node.js           22.22.0
-npm               10.9.4
-CUDA              12.6
-GPU               NVIDIA GeForce GTX 1650
+npm               10.09.04
 ```
 
 ---
@@ -296,7 +294,6 @@ python scripts/export_to_hub.py \
 ```
 
 ---
-
 
 ## License
 
