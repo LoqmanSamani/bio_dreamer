@@ -215,6 +215,9 @@ __marimo__/
 # specific files/folders
 loghman_samani_cv.tex
 loghman_samani_cv.pdf
+loghman_samani_cv.out
+loghman_samani_cv.aux
+loghman_samani_cv.log
 init.txt
 .codex
-
+phd_proposal.tex

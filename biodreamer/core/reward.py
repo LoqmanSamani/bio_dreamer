@@ -1,26 +1,58 @@
-"""
-biodreamer.core.reward — Base reward head interface.
+from abc import ABC, abstractmethod
+from typing import Any, Dict
 
-Purpose:
-    Abstract base class for reward prediction from latent states. The reward
-    head maps a latent state z_t to a scalar (or multi-dimensional) reward
-    signal that the RL policy optimises.
+import torch
+import torch.nn as nn
 
-Components to implement:
-    - BaseRewardHead(nn.Module):
+
+
+
+
+class BaseRewardHead(ABC, nn.Module):
+    """Abstract base class for all domain-specific reward heads in BioDreamer.
+
+    Subclasses must implement:
         - predict(z_t) → reward (scalar tensor)
         - predict_multi(z_t) → dict of named rewards (for multi-objective)
+    """
+    def __init__(self, latent_dim: int) -> None:
+        super().__init__()
+        self._latent_dim = latent_dim
+        
+    @abstractmethod
+    def predict(self, z_t: torch.Tensor) -> torch.Tensor:
+        """Predict a scalar reward from a latent state z_t.
 
-    Domain-specific reward heads:
-        - MolDreamer:     Predicts binding ΔG, thermostability Tm, SASA
-        - ProteinDreamer: Predicts ΔΔG stability, Kd affinity, kcat activity,
-                          expressibility — trained on DMS data
-        - CellDreamer:    Predicts distance to target cell state (cosine similarity,
-                          Wasserstein distance to target expression profile)
+        Args:
+            z_t: Latent state tensor of shape (..., latent_dim).
 
-Design notes:
-    - Multi-objective rewards should support configurable scalarisation
-      (weighted sum, Tchebycheff, hypervolume-based).
-    - Reward heads are trained jointly with the world model on experimental
-      fitness data. They must output calibrated uncertainties for active inference.
-"""
+        Returns:
+            Scalar reward tensor of shape (...,).
+        """
+        ...
+    
+    
+    def predict_multi(self, z_t: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Predict per-objective rewards from a latent state z_t.
+
+        Default implementation returns the scalar prediction under a
+        generic key.  Domain-specific subclasses should override this to
+        return a dict of named reward components (e.g. stability,
+        affinity, activity).
+
+        Args:
+            z_t: Latent state tensor of shape (..., latent_dim).
+
+        Returns:
+            Dict mapping objective names to reward tensors.
+        """
+        return {"reward": self.predict(z_t)}
+
+    def get_latent_dim(self) -> int:
+        """Return the dimensionality of the latent representation."""
+        return self._latent_dim
+
+    def forward(self, z_t: torch.Tensor) -> torch.Tensor:
+        """nn.Module forward pass — delegates to predict()."""
+        return self.predict(z_t)
+

@@ -1,40 +1,73 @@
-"""
-biodreamer.protein_dreamer.policy — Mutation Planning Policy.
+from abc import ABC, abstractmethod
+from typing import Any, Dict
 
-Purpose:
-    RL agent that selects amino acid mutations to optimise protein fitness.
-    Operates entirely within the learned world model ("dreaming") — plans
-    multi-step mutation trajectories before proposing candidates for evaluation.
+import torch 
+import torch.nn as nn
 
-Components to implement:
-    - ProteinPolicy(BasePolicy):
-        Discrete-action RL policy for protein mutations:
-        - Action space: (position ∈ {1..L}, amino_acid ∈ {A..Y}, edit_type ∈ {sub, ins, del})
-        - Encodes action as (positional embedding + AA embedding + edit embedding)
 
-    Concrete policy implementations:
-        1. ProteinPPO: Proximal Policy Optimisation in latent space.
-           Standard choice for discrete action spaces.
 
-        2. ProteinSAC: Soft Actor-Critic with Gumbel-Softmax for discrete actions.
-           Better exploration via maximum entropy objective.
 
-        3. ProteinMCTS: Monte Carlo Tree Search over mutation trees.
-           Uses the world model as the forward simulator and reward head for
-           leaf evaluation. Most aligned with the "planning in imagination" vision.
-           Inspired by EvoPlay (Wang et al., 2023) but uses a full world model
-           instead of a discriminative fitness oracle.
 
-        4. ProteinActiveInferencePolicy: Wraps ActiveInferencePolicy from core.
-           Selects mutations by minimising Expected Free Energy, balancing
-           fitness optimisation (pragmatic value) with uncertainty reduction
-           (epistemic value).
+class BasePolicy(ABC, nn.Module):
+    """Abstract base class for mutation planning policies in ProteinDreamer.
+    
+    """
+    def __init__(self, latent_dim: int) -> None:
+        super().__init__()
+        self._latent_dim = latent_dim
+    
+    @abstractmethod
+    def select_action(self, z_t: torch.Tensor) -> Any:
+        """Select a mutation action given the current latent state z_t.
 
-Design notes:
-    - The policy proposes a full mutation path (sequence of T mutations), not
-      just a single mutation. The world model evaluates the full path.
-    - Candidate filtering: after dreaming N trajectories, rank by predicted
-      fitness and diversity (sequence + structure diversity in latent space).
-    - Curriculum: start with single-mutation planning (T=1), then scale to
-      multi-step trajectories (T=3→5→10) as the world model improves.
-"""
+        Args:
+            z_t: Latent state tensor of shape (..., latent_dim).
+
+        Returns:
+            Action in domain-specific format (e.g., (position, amino_acid, edit_type)).
+        """
+        ...
+        
+    def select_action_with_exploration(self, z_t: torch.Tensor) -> Any:
+        """Select an action with exploration (e.g., epsilon-greedy, sampling from distribution).
+
+        Args:
+            z_t: Latent state tensor of shape (..., latent_dim).
+
+        Returns:
+            Action in domain-specific format.
+        """
+        # Default implementation: just call select_action (no exploration)
+        return self.select_action(z_t)
+    
+    def get_action_distribution(self, z_t: torch.Tensor) -> Any:
+        """Get the action distribution (e.g., logits or probabilities) for a given latent state.
+
+        Args:
+            z_t: Latent state tensor of shape (..., latent_dim).
+        Returns:
+            Action distribution in domain-specific format (e.g., logits for each possible mutation).
+        """
+        # Default implementation: return None (not all policies need this)
+        return None
+      
+    @abstractmethod
+    def update(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+        """Update the policy parameters based on a batch of experience.
+
+        Args:
+            batch: Dictionary containing training data (e.g., states, actions, rewards, next_states).
+
+        Returns:
+            Dictionary of loss values for logging (e.g., {'policy_loss': ..., 'value_loss': ...}).
+        """
+        ...
+        
+    def get_latent_dim(self) -> int:
+        """Return the dimensionality of the latent representation."""
+        return self._latent_dim
+    
+    def forward(self, z_t: torch.Tensor) -> Any:
+        """nn.Module forward pass — delegates to select_action()."""
+        return self.select_action(z_t)
+    
