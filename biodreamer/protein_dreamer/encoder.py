@@ -43,25 +43,61 @@ from typing import Any, Optional, Dict
 
 class ProteinEncoder(BaseEncoder):
     """Encodes a protein (sequence + structure(optional)) into a latent state z_t."""
-    def __init__(self, latent_dim: int, sequence_model: Any, structure_model: Optional[Any] = None, device: Optional[torch.device] = None) -> None:
+    def __init__(
+        self, 
+        latent_dim: int, 
+        fusion_mlp: Any, 
+        sequence_encoder: Optional[Any] = None, 
+        structure_encoder: Optional[Any] = None ,
+        device: Optional[torch.device] = None
+    ) -> None:
         super().__init__(latent_dim)
         self.device = device if device is not None and isinstance(device, torch.device) else (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
         self.latent_dim = latent_dim
-        self.sequence_model = sequence_model.to(self.device)
-        self.structure_model = structure_model.to(self.device) if structure_model is not None else None
+        self.sequence_encoder = sequence_encoder.to(self.device)
+        self.fusion_mlp = fusion_mlp.to(self.device)
+        self.structure_encoder = structure_encoder.to(self.device) if structure_encoder is not None else None
+        self.layer_norm = nn.LayerNorm(self.latent_dim).to(self.device)
         
     def encode(self, observation: Dict[str, Any]) -> torch.Tensor:
         """Encode a protein observation into a latent space z_t."""
-        sequence = observation['sequence'].to(self.device)
-        structure = observation.get('structure', None)
-        seq_emb = self.encode_sequence(sequence)
+        seq_emb = observation['seq_emb'].to(self.device)
+        struct_emb = observation.get('struct_emb', None)
         
-        if self.structure_model is not None and structure is not None:
-            structure = structure.to(self.device)
-            struct_emb = self.encode_structure(structure)
-            combined_emb = torch.cat([seq_emb, struct_emb], dim = -1)
-            return combined_emb
+        if len(seq_emb.shape) == 3:
+            seq_emb = seq_emb.mean(dim=1)
+        elif len(seq_emb.shape) == 2:
+            seq_emb = seq_emb.mean(dim=0)
         else:
-            return seq_emb
+            raise ValueError(f"Unexpected shape for seq_emb: {seq_emb.shape}")
+        if struct_emb is not None:
+            struct_emb = struct_emb.to(self.device)
+            if len(struct_emb.shape) == 3:
+                struct_emb = struct_emb.mean(dim=1)
+            elif len(struct_emb.shape) == 2:
+                struct_emb = struct_emb.mean(dim=0)
+            else:
+                raise ValueError(f"Unexpected shape for struct_emb: {struct_emb.shape}")
             
-
+        if struct_emb is not None:
+            info_embed = torch.cat([seq_emb, struct_emb], dim=-1)
+        else:
+            info_embed = seq_emb
+            
+        return self.layer_norm(self.fusion_mlp(info_embed))
+            
+        
+    def embed_observation(self, observation: Dict[str, Any]) -> Dict[str, Any]:
+        """Embed the raw observation into sequence and structure embeddings."""
+        seq_emb = self.sequence_encoder(observation['sequence'])
+        struct_emb = self.structure_encoder(observation['structure']) if self.structure_encoder is not None else None
+        return {'seq_emb': seq_emb, 'struct_emb': struct_emb}
+    
+    
+    def forward(self, observation: Dict[str, Any]) -> torch.Tensor:
+        """Full forward pass: embed observation(optional, if input is raw) and then encode to z_t."""
+        if 'sequence' in observation:
+            embedded_obs = self.embed_observation(observation)
+        else:
+            embedded_obs = observation
+        return self.encode(embedded_obs)
