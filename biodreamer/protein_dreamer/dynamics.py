@@ -83,8 +83,3 @@ class ProteinDynamics(BaseDynamics):
     def forward(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
         """Alias for predict() to allow calling the dynamics model directly."""
         return self.predict(z_t, action_emb)
-    
-    
-
-
-
