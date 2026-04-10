@@ -146,3 +146,4 @@ class ActionEncoder(BaseEncoder):
     def forward(self, action: Dict[str, Any]) -> torch.Tensor:
         """Full forward pass: encode action to z_t."""
         return self.encode(action)  
+    
