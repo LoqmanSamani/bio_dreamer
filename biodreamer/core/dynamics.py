@@ -59,3 +59,8 @@ class BaseDynamics(ABC, nn.Module):
             predicted_states.append(z_t)
         return torch.stack(predicted_states, dim=1)
     
+    
+    def forward(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
+        """Alias for predict() to allow calling the dynamics model directly."""
+        return self.predict(z_t, action_emb)
+    

@@ -43,3 +43,48 @@ Design notes:
       because it conditions on the current state z_t (which encodes all prior mutations),
       not just the wild-type.
 """
+import torch
+import torch.nn as nn
+from typing import Any, Dict, Optional
+from biodreamer.core.dynamics import BaseDynamics
+
+
+
+class ProteinDynamics(BaseDynamics):
+    """Mutation-conditioned latent transition model for ProteinDreamer."""
+    def __init__(self, trans_model: Any) -> None:
+        super().__init__()
+        self.trans_model = trans_model
+       
+        
+    def predict(self, z_t: torch.Tensor, action_emb: torch.Tensor, n_samples: int = 1) -> torch.Tensor:
+        """Predict the next latent state z_{t+1} given current state z_t and action embedding."""
+        return self.predict_distribution(z_t, action_emb, n_samples)
+    
+    
+    def predict_distribution(self, z_t: torch.Tensor, action_emb: torch.Tensor, n_samples: int) -> Dict[str, torch.Tensor]:    
+        """Predict a distribution over next latent states z_{t+1} for uncertainty estimation."""
+        input_emb = torch.cat([z_t, action_emb], dim=-1)
+        z_nexts = [self.trans_model(input_emb) for _ in range(n_samples)]
+        z_next_dist = torch.stack(z_nexts, dim=0)  # Shape: (n_samples, batch_size, latent_dim)
+        return {"mean": torch.mean(z_next_dist, dim=0), "var": torch.var(z_next_dist, dim=0)}  # Return mean and variance as distribution parameters
+
+
+    def rollout(self, z_0: torch.Tensor, actions: torch.Tensor, horizon: int) -> torch.Tensor:
+        """Rollout a sequence of latent states given an initial state and a sequence of actions."""
+        z_t = z_0
+        predicted_states = []
+        for t in range(horizon):
+            action_t = actions[:, t, :]
+            z_t = self.predict(z_t, action_t)
+            predicted_states.append(z_t)
+        return torch.stack(predicted_states, dim=1)  # Shape: (batch_size, horizon, latent_dim)
+    
+    def forward(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
+        """Alias for predict() to allow calling the dynamics model directly."""
+        return self.predict(z_t, action_emb)
+    
+    
+
+
+
