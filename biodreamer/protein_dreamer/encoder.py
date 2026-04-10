@@ -49,6 +49,7 @@ class ProteinEncoder(BaseEncoder):
         fusion_mlp: Any, 
         sequence_encoder: Optional[Any] = None, 
         structure_encoder: Optional[Any] = None ,
+        regularizer: Optional[Any] = None,
         device: Optional[torch.device] = None
     ) -> None:
         super().__init__(latent_dim)
@@ -57,6 +58,7 @@ class ProteinEncoder(BaseEncoder):
         self.sequence_encoder = sequence_encoder.to(self.device)
         self.fusion_mlp = fusion_mlp.to(self.device)
         self.structure_encoder = structure_encoder.to(self.device) if structure_encoder is not None else None
+        self.regularizer = regularizer.to(self.device) if regularizer is not None else None
         self.layer_norm = nn.LayerNorm(self.latent_dim).to(self.device)
         
     def encode(self, observation: Dict[str, Any]) -> torch.Tensor:
@@ -84,7 +86,12 @@ class ProteinEncoder(BaseEncoder):
         else:
             info_embed = seq_emb
             
-        return self.layer_norm(self.fusion_mlp(info_embed))
+        z_t = self.layer_norm(self.fusion_mlp(info_embed))
+        
+        if self.regularizer is not None:
+            z_t = self.regularizer(z_t)
+            
+        return z_t
             
         
     def embed_observation(self, observation: Dict[str, Any]) -> Dict[str, Any]:
@@ -101,3 +108,41 @@ class ProteinEncoder(BaseEncoder):
         else:
             embedded_obs = observation
         return self.encode(embedded_obs)
+    
+    
+    
+    
+class ActionEncoder(BaseEncoder):
+    """Encodes an action (e.g. mutation) into a latent space z_t."""
+    def __init__(
+        self, 
+        latent_dim: int, 
+        action_mlp: Any, 
+        pos_embed: Optional[Any] = None, 
+        aa_embed: Optional[Any] = None, 
+        aa_new_embed: Optional[Any] = None, 
+        device: Optional[torch.device] = None,
+        embed_dim: int = 128
+        ) -> None:
+        super().__init__(latent_dim)
+        self.device = device if device is not None and isinstance(device, torch.device) else (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
+        self.latent_dim = latent_dim
+        self.action_mlp = action_mlp.to(self.device)
+        self.pos_embed = pos_embed.to(self.device) if pos_embed is not None else nn.Linear(1, embed_dim).to(self.device)
+        self.aa_embed = aa_embed.to(self.device) if aa_embed is not None else nn.Embedding(20, embed_dim).to(self.device)
+        self.aa_new_embed = aa_new_embed.to(self.device) if aa_new_embed is not None else nn.Embedding(20, embed_dim).to(self.device)
+        self.layer_norm = nn.LayerNorm(self.latent_dim).to(self.device)
+        
+    def encode(self, action: Dict[str, Any]) -> torch.Tensor:
+        """Encode an action into a latent space z_t."""
+        
+        pos_emb = self.pos_embed(action['position'].unsqueeze(-1).to(self.device))
+        aa_emb = self.aa_embed(action['aa_old'].to(self.device))
+        aa_new_emb = self.aa_new_embed(action['aa_new'].to(self.device))
+        action_embed = torch.cat([pos_emb, aa_emb, aa_new_emb], dim=-1)
+        
+        return self.layer_norm(self.action_mlp(action_embed))
+            
+    def forward(self, action: Dict[str, Any]) -> torch.Tensor:
+        """Full forward pass: encode action to z_t."""
+        return self.encode(action)  
