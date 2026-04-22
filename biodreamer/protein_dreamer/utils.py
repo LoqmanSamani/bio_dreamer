@@ -14,22 +14,22 @@ class SIGReg(nn.Module):
     """
 
     def __init__(
-        self, config,
-        #latent_dim: int,
-        #num_proj: int = 16,
-        #mean_weight: float = 1.0,
-        #var_weight: float = 1.0,
-        #proj_weight: float = 1.0,
-        #eps: float = 1e-6,
+        self,
+        latent_dim: int,
+        num_proj: int = 16,
+        mean_weight: float = 1.0,
+        var_weight: float = 1.0,
+        proj_weight: float = 1.0,
+        eps: float = 1e-6,
     ) -> None:
         super().__init__()
-        self.device = config.device if hasattr(config, 'device') else (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
-        self.latent_dim = config.latent_dim
-        self.num_proj = config.num_proj
-        self.mean_weight = config.mean_weight
-        self.var_weight = config.var_weight
-        self.proj_weight = config.proj_weight
-        self.eps = config.eps
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.latent_dim = latent_dim
+        self.num_proj = num_proj
+        self.mean_weight = mean_weight
+        self.var_weight = var_weight
+        self.proj_weight = proj_weight
+        self.eps = eps
 
     def _flatten_batch(self, z: torch.Tensor) -> torch.Tensor:
         """flatten batch dimensions, keeping the latent dimension intact"""
@@ -81,5 +81,3 @@ class SIGReg(nn.Module):
             + self.var_weight * var_loss
             + self.proj_weight * proj_loss
         )
-
-        

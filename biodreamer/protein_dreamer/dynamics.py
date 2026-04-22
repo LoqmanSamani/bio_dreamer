@@ -64,10 +64,10 @@ class ProteinDynamics(BaseDynamics):
     
     def predict_distribution(self, z_t: torch.Tensor, action_emb: torch.Tensor, n_samples: int) -> Dict[str, torch.Tensor]:    
         """Predict a distribution over next latent states z_{t+1} for uncertainty estimation."""
-        input_emb = torch.cat([z_t, action_emb], dim=-1)
-        z_nexts = [self.trans_model(input_emb) for _ in range(n_samples)]
-        z_next_dist = torch.stack(z_nexts, dim=0)  # Shape: (n_samples, batch_size, latent_dim)
-        return {"mean": torch.mean(z_next_dist, dim=0), "var": torch.var(z_next_dist, dim=0)}  # Return mean and variance as distribution parameters
+        # input_emb = torch.cat([z_t, action_emb], dim=-1) # trans_model will handle this internally
+        z_nexts = [self.trans_model(z_t, action_emb) for _ in range(n_samples)]
+        z_next_dist = torch.stack(z_nexts, dim=0)  # shape: (n_samples, batch_size, latent_dim)
+        return {"mean": torch.mean(z_next_dist, dim=0), "var": torch.var(z_next_dist, dim=0)}  # return mean and variance as distribution parameters
 
 
     def rollout(self, z_0: torch.Tensor, actions: torch.Tensor, horizon: int) -> torch.Tensor:

@@ -91,7 +91,7 @@ class ProteinEncoder(BaseEncoder):
         z_t = self.layer_norm(self.fusion_mlp(info_embed))
         
         #if self.regularizer is not None:
-        #    z_t = self.regularizer(z_t)
+        #    z_t = self.regularizer(z_t) # sigreg will be used but outside the encoder, so we won't apply it here.
             
         return z_t
     
