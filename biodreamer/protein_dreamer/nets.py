@@ -893,5 +893,153 @@ class GVP(nn.Module):
     
     
     
+class DeterministicPredictor(nn.Module):
+    """
+    autoregressive/deterministic latent predictor using a stack of TransformerLayer blocks
+
+    behavior:
+      - input: sequence of latent tokens `z` of shape (B, T, C) or single step (B, C).
+      - when `causal=True` (default), a causal mask is applied so each position may only
+        attend to previous positions (autoregressive).
+      - returns predicted next-token latent of shape (B, C) (prediction for position T -> T+1).
+    """
+    def __init__(
+        self,
+        latent_dim: int,
+        n_layers: int = 6,
+        n_heads: int = 8,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.1,
+        max_len: int = 1024,
+        causal: bool = True,
+    ) -> None:
+        super().__init__()
+        self.latent_dim = latent_dim
+        self.causal = causal
+        self.input_proj = nn.Identity()
+        # learned positional embeddings
+        self.pos_emb = nn.Parameter(torch.zeros(max_len, latent_dim))
+        nn.init.trunc_normal_(self.pos_emb, std=0.02)
+        
+        self.layers = nn.ModuleList([
+            TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            for _ in range(n_layers)
+        ])
+        self.norm = nn.LayerNorm(latent_dim)
+        self.out_head = nn.Linear(latent_dim, latent_dim)
+
+    def forward(
+        self, 
+        z: torch.Tensor, 
+        cond: Optional[torch.Tensor] = None, 
+        attention_mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        z: (B, T, C) or (B, C)
+        cond: optional conditioning passed to TransformerLayer (kept for compatibility)
+        attention_mask: optional mask for attention (True=allow). if None and causal=True,
+                        a causal lower-triangular mask is constructed automatically.
+
+        returns: predicted next latent (B, C)
+        """
+        if z.dim() == 2:
+            z = z.unsqueeze(1)
+        B, T, C = z.shape
+        pos = self.pos_emb[:T].unsqueeze(0).to(z.device)
+        x = self.input_proj(z) + pos
+        mask = attention_mask
+        if self.causal and mask is None:
+            causal_mask = torch.tril(torch.ones((T, T), dtype=torch.bool, device=z.device))
+            mask = causal_mask
+        for layer in self.layers:
+            x = layer(x, cond=cond, attn_mask=mask)
+        x = self.norm(x)
+        out = self.out_head(x)  # (B, T, C)
+        return out[:, -1, :]
     
     
+    
+
+class TransformerLayer(nn.Module):
+    """standard transformer block used as deterministic predictor in latent space"""
+    def __init__(
+        self, 
+        dim: int, 
+        n_heads: int = 4, 
+        mlp_ratio: float = 4.0, 
+        dropout: float = 0.0
+    ) -> None:
+        super().__init__()
+        self.dim = dim
+        self.n_heads = n_heads
+        self.head_dim = dim // n_heads
+        assert self.head_dim * n_heads == dim, "dim must be divisible by n_heads"
+        self.q = nn.Linear(dim, dim)
+        self.k = nn.Linear(dim, dim)
+        self.v = nn.Linear(dim, dim)
+        self.attn_drop = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        mlp_hidden_dim = int(dim * mlp_ratio)
+        self.mlp = nn.Sequential(
+            nn.Linear(dim, mlp_hidden_dim),
+            nn.GELU(),
+            nn.Linear(mlp_hidden_dim, dim),
+            nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        )
+        self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+
+    def forward(self, x: torch.Tensor, cond: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        x: (B, N, C)
+        cond: optional conditioning sequence (B, M, C) or None
+        attn_mask: optional boolean mask that indicates allowed key positions.
+            Supported shapes (will be broadcast where possible):
+              - (N, K) or (Q, K)
+              - (B, Q, K)
+              - (B, 1, Q, K) or (B, H, Q, K)
+            Mask True=allow attend, False=block.
+
+        returns: (B, N, C)
+        """
+        B, N, C = x.shape
+        # queries from target positions
+        q = self.q(x).reshape(B, N, self.n_heads, self.head_dim).permute(0, 2, 1, 3)  # (B, H, Q, D)
+        # keys/values may come from conditioning sequence of potentially different length
+        if cond is not None:
+            K_len = cond.shape[1]
+            k = self.k(cond).reshape(B, K_len, self.n_heads, self.head_dim).permute(0, 2, 1, 3)  # (B, H, K, D)
+            v = self.v(cond).reshape(B, K_len, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        else:
+            K_len = N
+            k = self.k(x).reshape(B, N, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+            v = self.v(x).reshape(B, N, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        # attention scores: (B, H, Q, K)
+        attn_scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        # apply optional attention mask
+        if attn_mask is not None:
+            mask = attn_mask
+            if mask.dim() == 2:
+                # (Q, K) -> (1, 1, Q, K)
+                mask = mask.unsqueeze(0).unsqueeze(0)
+            elif mask.dim() == 3:
+                # (B, Q, K) -> (B, 1, Q, K)
+                mask = mask.unsqueeze(1)
+            elif mask.dim() == 4:
+                # (B, H, Q, K) use as-is
+                pass
+            else:
+                raise ValueError(f"Unsupported attn_mask dim: {mask.dim()}")
+            mask = mask.to(dtype=torch.bool, device=attn_scores.device)
+            # mask broadcasting will align batch/heads where possible
+            attn_scores = attn_scores.masked_fill(~mask, float('-inf'))
+        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attn_weights = self.attn_drop(attn_weights)
+        # weighted sum -> (B, H, Q, D)
+        attn_output = (attn_weights @ v).transpose(1, 2).reshape(B, N, C)
+        x = x + self.proj_drop(self.proj(attn_output))
+        x = x + self.mlp(self.norm2(x))
+        return x
+
+
