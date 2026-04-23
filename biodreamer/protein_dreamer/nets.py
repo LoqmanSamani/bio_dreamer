@@ -270,7 +270,7 @@ class SDE(nn.Module):
     @torch.inference_mode()
     def sample_step(self, xt: torch.Tensor, t: torch.Tensor, dt: float, cond: Optional[torch.Tensor] = None, last_step: bool = False) -> torch.Tensor:
         """one reverse diffusion step for sampling - predict noise and compute x_{t-1}"""
-        pred = self.score_net(xt, t, cond)
+        pred = self.predictor(xt, t, cond)
         xt = self.reverse_diff(xt, pred, t, dt, last_step = last_step)
         return xt
         
@@ -1043,3 +1043,83 @@ class TransformerLayer(nn.Module):
         return x
 
 
+
+
+class DiffTransformer(nn.Module):
+    """transformer-style predictor for diffusion models
+    predictor(xt, t, cond) -> same-shaped tensor as xt
+    - xt: (B, T, C) or (B, C) (if 2D treated as single-token sequence)
+    - t: (B,) tensor of timestep scalars (int or float)
+    - cond: optional conditioning sequence (B, M, C) or global vector (B, C)
+    """
+    def __init__(
+        self,
+        dim: int,
+        n_layers: int = 4,
+        n_heads: int = 8,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        time_emb_dim: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        assert dim % n_heads == 0, "dim must be divisible by n_heads"
+        self.dim = dim
+        self.n_layers = n_layers
+        self.time_emb_dim = time_emb_dim if time_emb_dim is not None else dim
+
+        self.time_mlp = nn.Sequential(
+            nn.Linear(self.time_emb_dim, self.time_emb_dim * 2),
+            nn.GELU(),
+            nn.Linear(self.time_emb_dim * 2, dim),
+        )
+        # transformer stack
+        self.layers = nn.ModuleList([
+            TransformerLayer(dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            for _ in range(n_layers)
+        ])
+        self.norm = nn.LayerNorm(dim)
+        self.out = nn.Identity()
+
+    @staticmethod
+    def _timestep_embedding(t: torch.Tensor, dim: int) -> torch.Tensor:
+        """sinusoidal timestep embedding. t is (B,) float or int"""
+        # ensure float
+        t = t.float()
+        half = dim // 2
+        emb = torch.exp(torch.arange(half, device=t.device, dtype=torch.float32) * -(math.log(10000.0) / (half - 1)))
+        emb = t.unsqueeze(1) * emb.unsqueeze(0)
+        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
+        if dim % 2 == 1:
+            emb = torch.cat([emb, torch.zeros(t.shape[0], 1, device=t.device)], dim=1)
+        return emb
+
+    def forward(self, xt: torch.Tensor, t: torch.Tensor, cond: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        xt: (B, T, C) or (B, C)
+        t: (B,) scalar timesteps
+        cond: (B, M, C) or (B, C)
+
+        returns tensor same shape as xt
+        """
+        squeeze_output = False
+        if xt.dim() == 2:
+            xt = xt.unsqueeze(1)  # (B, 1, C)
+            squeeze_output = True
+        B, T, C = xt.shape
+        assert C == self.dim, f"Input feature dim {C} must match model dim {self.dim}"
+        t_emb = self._timestep_embedding(t, self.time_emb_dim)
+        t_emb = self.time_mlp(t_emb).unsqueeze(1)  # (B, 1, C)
+        x = xt + t_emb
+        cond_seq = None
+        if cond is not None:
+            if cond.dim() == 2:
+                cond_seq = cond.unsqueeze(1)  # (B, 1, C)
+            else:
+                cond_seq = cond
+        for layer in self.layers:
+            x = layer(x, cond=cond_seq)
+        x = self.norm(x)
+        out = self.out(x)
+        if squeeze_output:
+            return out[:, 0, :]
+        return out
