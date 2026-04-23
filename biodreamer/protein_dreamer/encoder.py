@@ -46,9 +46,9 @@ class ProteinEncoder(BaseEncoder):
     def __init__(
         self, 
         latent_dim: int, 
-        sequence_encoder: Any, 
+        sequence_encoder: Any,
+        structure_encoder: Optional[Any] = None, 
         fusion_mlp: Optional[Any] = None,
-        structure_encoder: Optional[Any] = None ,
         #regularizer: Optional[Any] = None,
         device: Optional[torch.device] = None
     ) -> None:

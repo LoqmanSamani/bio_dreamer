@@ -445,3 +445,265 @@ class SDE(nn.Module):
     
     def sample_time(self, batch_size: int, eps: float = 1e-5) -> torch.Tensor:
         return eps + (1 - eps) * torch.rand(batch_size, device=self.device)
+    
+    
+
+class GVP_GNN(nn.Module):
+    """
+    GVP-GNN encoder stack for protein structure embedding.
+    - produces per-node scalar+vector embeddings preserving geometric equivariance.
+    - intended as a structure encoder/embedder: given residue-level scalar and vector inputs
+      plus edge features (e.g. relative displacement vectors, distances, edge-type scalars),
+      returns updated per-residue embeddings.
+    """
+    def __init__(
+        self,
+        in_node_dims: Tuple[int, int],
+        in_edge_dims: Tuple[int, int],
+        hidden_dims: Tuple[int, int],
+        n_layers: int = 3,
+        vector_dim: int = 3,
+    ) -> None:
+        super().__init__()
+        self.vector_dim = vector_dim
+        # initial embeddings for nodes and edges -> hidden dims
+        self.node_embed = GVP(in_node_dims, hidden_dims, vector_dim=vector_dim)
+        self.edge_embed = GVP(in_edge_dims, hidden_dims, vector_dim=vector_dim)
+        # stack of GVPConv layers
+        layers = []
+        for _ in range(n_layers):
+            layers.append(GVPConv(hidden_dims, hidden_dims, hidden_dims, vector_dim=vector_dim))
+        self.layers = nn.ModuleList(layers)
+
+    def forward(
+        self,
+        s: torch.Tensor,
+        v: torch.Tensor,
+        edge_index: torch.LongTensor,
+        edge_s: Optional[torch.Tensor] = None,
+        edge_v: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        s: (n, in_node_scalar)
+        v: (n, in_node_vec, 3)
+        edge_index: (2, e) long tensor
+        edge_s: (e, in_edge_scalar) or none
+        edge_v: (e, in_edge_vec, 3) or none
+
+        returns:
+            s: (n, hidden_scalar)
+            v: (n, hidden_vec, 3)
+        """
+        # embed inputs into hidden dims
+        s_h, v_h = self.node_embed(s, v)
+        if edge_s is None:
+            edge_s = torch.zeros(edge_index.shape[1], 0, device=s.device, dtype=s.dtype)
+        if edge_v is None:
+            edge_v = torch.zeros(edge_index.shape[1], 0, self.vector_dim, device=s.device, dtype=s.dtype)
+        s_e, v_e = self.edge_embed(edge_s, edge_v)
+
+        # pass through GVPConv layers
+        for layer in self.layers:
+            s_h, v_h = layer(s_h, v_h, edge_index, s_e, v_e)
+        return s_h, v_h
+    
+    
+class GVPConv(nn.Module):
+    """
+    single GVP convolution/message-passing layer.
+    - message_gvp maps (sender node features + edge features) -> message (s_msg, v_msg)
+    - node_gvp maps (node_features + aggregated_messages) -> updated node features
+
+    expected input shapes:
+        s: (n, n_s)
+        v: (n, n_v, 3)
+        edge_index: LongTensor (2, e) with [0]=senders, [1]=receivers
+        edge_s: (e, edge_s_dim)
+        edge_v: (e, edge_v_dim, 3)
+    """
+    def __init__(
+        self,
+        node_dims: Tuple[int, int],
+        edge_dims: Tuple[int, int],
+        message_dims: Tuple[int, int],
+        vector_dim: int = 3,
+    ) -> None:
+        super().__init__()
+        self.node_dims = node_dims
+        self.edge_dims = edge_dims
+        self.msg_dims = message_dims
+        self.vector_dim = vector_dim
+        msg_in_dims = (node_dims[0] + edge_dims[0], node_dims[1] + edge_dims[1])
+        self.message_gvp = GVP(msg_in_dims, message_dims, vector_dim=vector_dim)
+        node_update_in = (node_dims[0] + message_dims[0], node_dims[1] + message_dims[1])
+        self.node_gvp = GVP(node_update_in, node_dims, vector_dim=vector_dim)
+
+    def forward(
+        self,
+        s: torch.Tensor,
+        v: torch.Tensor,
+        edge_index: torch.LongTensor,
+        edge_s: Optional[torch.Tensor],
+        edge_v: Optional[torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        senders, receivers = edge_index[0], edge_index[1]  # (e,), (e,)
+        s_src = s[senders]       # (e, node_s)
+        v_src = v[senders]       # (e, node_v, 3)
+        if edge_s is None:
+            edge_s = torch.zeros(s_src.shape[0], 0, device=s.device, dtype=s.dtype)
+        if edge_v is None:
+            edge_v = torch.zeros(s_src.shape[0], 0, self.vector_dim, device=s.device, dtype=s.dtype)
+        # message input
+        s_msg_in = torch.cat([s_src, edge_s], dim=-1) if edge_s.shape[-1] > 0 else s_src
+        v_msg_in = torch.cat([v_src, edge_v], dim=1) if (v_src.shape[1] > 0 or edge_v.shape[1] > 0) else v_src
+        # compute messages
+        m_s, m_v = self.message_gvp(s_msg_in, v_msg_in)  # (e, msg_s), (e, msg_v, 3)
+        # aggregate messages per receiver (sum)
+        n = s.shape[0]
+        device = s.device
+        agg_s = torch.zeros(n, m_s.shape[-1], device=device, dtype=m_s.dtype)
+        agg_s = agg_s.index_add(0, receivers, m_s)
+        # aggregate vector messages: shape (n, msg_v, 3)
+        if m_v is not None:
+            agg_v = torch.zeros(n, m_v.shape[1], self.vector_dim, device=device, dtype=m_v.dtype)
+            agg_v = agg_v.index_add(0, receivers, m_v)
+        else:
+            agg_v = torch.zeros(n, 0, self.vector_dim, device=device, dtype=s.dtype)
+        # combine aggregated messages with node features and update
+        s_comb = torch.cat([s, agg_s], dim=-1) if agg_s.shape[-1] > 0 else s
+        v_comb = torch.cat([v, agg_v], dim=1) if v.shape[1] + agg_v.shape[1] > 0 else v
+        s_upd, v_upd = self.node_gvp(s_comb, v_comb)
+        # residual add if shapes match
+        if s_upd.shape[-1] == s.shape[-1]:
+            s_out = s + s_upd
+        else:
+            s_out = s_upd
+        if v_upd is not None and v_upd.shape[1] == v.shape[1]:
+            v_out = v + v_upd
+        else:
+            v_out = v_upd if v_upd is not None else v
+        return s_out, v_out
+    
+    
+    
+class GVP(nn.Module):
+    """
+    Geometric Vector Perceptron (GVP) core block.
+    - inputs:
+        s: (..., n_s)         scalar features per node/edge
+        v: (..., n_v, 3)      vector features per node/edge (3d vectors)
+    - outputs:
+        s_out: (..., n_s_out)
+        v_out: (..., n_v_out, 3)
+
+    design notes:
+    - vector features are linearly combined across channels (no bias on 3d axis)
+      to preserve equivariance to rotations. we follow the original GVP idea:
+        v' = W_v · v  (channel mixing)
+        v_norm = ||v'||_2  (per-channel norms become scalar inputs)
+        s' = Linear([s, v_norm]) -> s_out (scalar path)
+        gate = sigmoid(Linear(s')) -> gate vector applied to v'
+    """
+    def __init__(
+        self,
+        in_dims: Tuple[int, int],
+        out_dims: Tuple[int, int],
+        vector_dim: int = 3,
+        scalar_act: Optional[nn.Module] = None,
+        use_layernorm: bool = False,
+        dropout: float = 0.0,
+        eps: float = 1e-8
+    ) -> None:
+        super().__init__()
+        in_s, in_v = in_dims
+        out_s, out_v = out_dims
+        self.in_s, self.in_v = in_s, in_v
+        self.out_s, self.out_v = out_s, out_v
+        self.vector_dim = vector_dim
+        self.use_layernorm = use_layernorm
+
+        # vector channel mixing (out_v x in_v). no bias on 3d coordinates to preserve equivariance
+        if in_v > 0 and out_v > 0:
+            self.w_v = nn.Parameter(torch.empty(out_v, in_v))
+            nn.init.xavier_uniform_(self.w_v)
+        else:
+            self.w_v = None
+
+        # scalar path: input is original scalars concatenated with vector norms (if any)
+        scalar_in = in_s + (out_v if (in_v > 0 and out_v > 0) else 0)
+        if out_s > 0:
+            self.linear_s = nn.Linear(scalar_in, out_s)
+            nn.init.xavier_uniform_(self.linear_s.weight)
+            if self.linear_s.bias is not None: 
+                nn.init.zeros_(self.linear_s.bias)
+        else:
+            self.linear_s = None
+
+        # gate for vector output produced from scalar features (or scalar projection)
+        if out_v > 0:
+            gate_in = out_s if out_s > 0 else scalar_in
+            self.gate = nn.Linear(gate_in, out_v)
+            nn.init.xavier_uniform_(self.gate.weight)
+            if self.gate.bias is not None:
+                nn.init.zeros_(self.gate.bias)
+        else:
+            self.gate = None
+
+        self.scalar_act = scalar_act if scalar_act is not None else nn.GELU()
+        self.layernorm_s = nn.LayerNorm(out_s) if (use_layernorm and out_s > 0) else None
+        self.dropout = nn.Dropout(dropout) if dropout > 0.0 else None
+        self._eps = eps
+
+    def forward(self, s: torch.Tensor, v: Optional[torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        """
+        s: (..., in_s)
+        v: (..., in_v, 3) or none
+        returns:
+            s_out: (..., out_s) or torch.empty(..., 0) if out_s==0
+            v_out: (..., out_v, 3) or none
+        """
+        v_lin = None
+        v_norm = None
+        if self.in_v > 0 and v is not None:
+            v_lin = torch.einsum('...ij,oj->...oi', v, self.w_v)  # (..., out_v, 3)
+            v_norm = torch.sqrt((v_lin ** 2).sum(dim=-1) + self._eps)
+        elif self.out_v > 0:
+            batch_shape = s.shape[:-1]
+            v_lin = torch.zeros(*batch_shape, self.out_v, self.vector_dim, device=s.device, dtype=s.dtype)
+            v_norm = torch.zeros(*batch_shape, self.out_v, device=s.device, dtype=s.dtype)
+
+        # scalar path
+        if self.in_s > 0:
+            s_in = s
+        else:
+            s_in = torch.zeros(*s.shape[:-1], 0, device=s.device, dtype=s.dtype)
+            
+        if v_norm is not None and v_norm.shape[-1] > 0:
+            s_cat = torch.cat([s_in, v_norm], dim=-1)
+        else:
+            s_cat = s_in
+
+        s_out = None
+        if self.linear_s is not None:
+            s_out = self.linear_s(s_cat)
+            if self.scalar_act is not None:
+                s_out = self.scalar_act(s_out)
+            if self.layernorm_s is not None:
+                s_out = self.layernorm_s(s_out)
+            if self.dropout is not None:
+                s_out = self.dropout(s_out)
+        else:
+            s_out = s_cat if (self.gate is not None) else None
+
+        # vector gating and final vector output
+        v_out = None
+        if self.gate is not None:
+            gate_input = s_out if (s_out is not None) else s_cat
+            gates = torch.sigmoid(self.gate(gate_input))  # (..., out_v)
+            v_out = v_lin * gates.unsqueeze(-1)
+        elif v_lin is not None:
+            v_out = v_lin
+
+        return s_out, v_out
+
+
