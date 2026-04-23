@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from typing import Any, Optional, Tuple
@@ -463,16 +464,40 @@ class GVP_GNN(nn.Module):
         hidden_dims: Tuple[int, int],
         n_layers: int = 3,
         vector_dim: int = 3,
+        conv_type: str = "gvp",  # "gvp" (GVPConv) or "transformer" (graph-transformer attention)
+        n_heads: int = 4,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
         self.vector_dim = vector_dim
         # initial embeddings for nodes and edges -> hidden dims
         self.node_embed = GVP(in_node_dims, hidden_dims, vector_dim=vector_dim)
         self.edge_embed = GVP(in_edge_dims, hidden_dims, vector_dim=vector_dim)
-        # stack of GVPConv layers
+
+        # choose convolution / message-passing implementation
+        self.conv_type = conv_type
         layers = []
-        for _ in range(n_layers):
-            layers.append(GVPConv(hidden_dims, hidden_dims, hidden_dims, vector_dim=vector_dim))
+        if conv_type == "gvp":
+            for _ in range(n_layers):
+                layers.append(GVPConv(hidden_dims, hidden_dims, hidden_dims, vector_dim=vector_dim))
+        elif conv_type == "transformer":
+            # ensure hidden scalar dim is divisible by heads
+            hidden_s = hidden_dims[0]
+            if hidden_s % n_heads != 0:
+                # adjust head count to divide hidden dim
+                n_heads = max(1, math.gcd(hidden_s, n_heads))
+            for _ in range(n_layers):
+                layers.append(GraphTransformerLayer(
+                    node_dims=hidden_dims,
+                    edge_dims=hidden_dims,
+                    hidden_dim=hidden_dims[0],
+                    n_heads=n_heads,
+                    dropout=dropout,
+                    vector_dim=vector_dim
+                ))
+        else:
+            raise ValueError(f"Unsupported conv_type: {conv_type}. Use 'gvp' or 'transformer'.")
+
         self.layers = nn.ModuleList(layers)
 
     def forward(
@@ -586,6 +611,165 @@ class GVPConv(nn.Module):
     
     
     
+class GraphTransformer(nn.Module):
+    """stack of GraphTransformerLayer layers"""
+    def __init__(
+        self, 
+        node_dims: Tuple[int, int], 
+        edge_dims: Tuple[int, int], 
+        hidden_dim: int, 
+        n_layers: int = 3, 
+        n_heads: int = 4, 
+        dropout: float = 0.0, 
+        vector_dim: int = 3
+    ) -> None:
+        super().__init__()
+        layers = []
+        for _ in range(n_layers):
+            layers.append(
+                GraphTransformerLayer(
+                    node_dims=node_dims, 
+                    edge_dims=edge_dims, 
+                    hidden_dim=hidden_dim, 
+                    n_heads=n_heads, 
+                    dropout=dropout, 
+                    vector_dim=vector_dim
+                    )
+                )
+        self.layers = nn.ModuleList(layers)
+
+    def forward(
+        self, 
+        s: torch.Tensor, 
+        v: torch.Tensor, 
+        edge_index: torch.LongTensor, 
+        edge_s: Optional[torch.Tensor] = None, 
+        edge_v: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        s_h, v_h = s, v
+        for layer in self.layers:
+            s_h, v_h = layer(s_h, v_h, edge_index, edge_s, edge_v)
+        return s_h, v_h
+
+
+
+class GraphTransformerLayer(nn.Module):
+    """graph-transformer style message-passing layer with multi-head attention and optional edge biasing"""
+    def __init__(
+        self,
+        node_dims: Tuple[int, int],
+        edge_dims: Tuple[int, int],
+        hidden_dim: int,
+        n_heads: int = 4,
+        dropout: float = 0.0,
+        vector_dim: int = 3,
+    ) -> None:
+        super().__init__()
+        in_s, in_v = node_dims
+        edge_s_dim = edge_dims[0]
+        self.in_s = in_s
+        self.in_v = in_v
+        self.hidden_dim = hidden_dim
+        self.n_heads = n_heads
+        self.head_dim = hidden_dim // n_heads
+        self.vector_dim = vector_dim
+        # projections for attention (operate on scalars + vector norms)
+        self.q = nn.Linear(in_s + in_v, hidden_dim)
+        self.k = nn.Linear(in_s + in_v, hidden_dim)
+        self.v = nn.Linear(in_s + in_v, hidden_dim)
+        self.out_proj = nn.Linear(hidden_dim, in_s)
+        # optional small network to incorporate edge scalar features into attention bias
+        self.edge_att = nn.Linear(edge_s_dim, n_heads) if edge_s_dim > 0 else None
+        # vector channel mixer (map sender node vectors -> message vectors)
+        if in_v > 0:
+            self.w_v = nn.Parameter(torch.empty(in_v, in_v))
+            nn.init.xavier_uniform_(self.w_v)
+        else:
+            self.w_v = None
+        self.norm1 = nn.LayerNorm(in_s)
+        self.norm2 = nn.LayerNorm(in_s)
+        self.ff = nn.Sequential(
+            nn.Linear(in_s, max(in_s * 2, 4)),
+            nn.GELU(),
+            nn.Linear(max(in_s * 2, 4), in_s)
+        )
+        self.dropout = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+
+    def forward(
+        self, 
+        s: torch.Tensor, 
+        v: torch.Tensor, 
+        edge_index: torch.LongTensor, 
+        edge_s: Optional[torch.Tensor], 
+        edge_v: Optional[torch.Tensor]
+        ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        s: (n, in_s)
+        v: (n, in_v, 3)
+        edge_index: (2, e)
+        edge_s: (e, edge_s_dim) or none
+        edge_v: (e, edge_v_dim, 3) or none
+
+        returns updated (s_out, v_out) with the same shapes as input
+        """
+        device = s.device
+        senders, receivers = edge_index[0], edge_index[1]
+        n = s.shape[0]
+        if self.in_v > 0 and v is not None:
+            v_norm = torch.sqrt((v ** 2).sum(dim=-1) + 1e-8)  # (n, in_v)
+        else:
+            v_norm = torch.zeros(n, 0, device=device, dtype=s.dtype)
+        s_input = torch.cat([s, v_norm], dim=-1)
+        # compute per-node q/k/v and reshape into heads
+        q = self.q(s_input).view(n, self.n_heads, self.head_dim)
+        k = self.k(s_input).view(n, self.n_heads, self.head_dim)
+        v_val = self.v(s_input).view(n, self.n_heads, self.head_dim)
+        # gather per-edge sender/receiver projections
+        q_j = q[receivers]  # (e, heads, head_dim)
+        k_i = k[senders]
+        v_i = v_val[senders]
+        # attention scores per head
+        scores = (q_j * k_i).sum(dim=-1) / math.sqrt(self.head_dim)  # (e, heads)
+        if self.edge_att is not None and edge_s is not None:
+            edge_bias = self.edge_att(edge_s)  # (e, heads)
+            scores = scores + edge_bias
+
+        exp_scores = torch.exp(scores)
+        denom = torch.zeros(n, self.n_heads, device=device, dtype=exp_scores.dtype)
+        denom.index_add_(0, receivers, exp_scores)
+        denom = denom + 1e-8
+        weights = exp_scores / denom[receivers]
+
+        weighted_v = v_i * weights.unsqueeze(-1)  # (e, heads, head_dim)
+        agg = torch.zeros(n, self.n_heads, self.head_dim, device=device, dtype=weighted_v.dtype)
+        agg.index_add_(0, receivers, weighted_v)
+        agg = agg.view(n, self.hidden_dim)
+
+        msg = self.out_proj(agg)
+        s_updated = s + self.dropout(msg)
+        s_updated = self.norm1(s_updated)
+
+        ff = self.ff(s_updated)
+        s_out = s_updated + self.dropout(ff)
+        s_out = self.norm2(s_out)
+
+        if self.in_v > 0 and v is not None:
+            v_src = v[senders]  # (e, in_v, 3)
+            v_msg = torch.einsum('...ij,oj->...oi', v_src, self.w_v) if self.w_v is not None else v_src
+            w_mean = weights.mean(dim=1)  # (e,)
+            weighted_v_msg = v_msg * w_mean.view(-1, 1, 1)
+            agg_v = torch.zeros(n, v_msg.shape[1], self.vector_dim, device=device, dtype=v_msg.dtype)
+            agg_v.index_add_(0, receivers, weighted_v_msg)
+            if agg_v.shape[1] == v.shape[1]:
+                v_out = v + agg_v
+            else:
+                v_out = agg_v
+        else:
+            v_out = v
+        return s_out, v_out
+
+
+ 
 class GVP(nn.Module):
     """
     Geometric Vector Perceptron (GVP) core block.
@@ -705,5 +889,9 @@ class GVP(nn.Module):
             v_out = v_lin
 
         return s_out, v_out
-
-
+    
+    
+    
+    
+    
+    
