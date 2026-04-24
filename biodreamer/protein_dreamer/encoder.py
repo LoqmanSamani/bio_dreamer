@@ -36,6 +36,7 @@ import torch
 import torch.nn as nn
 from biodreamer.core.encoder import BaseEncoder
 from typing import Any, Optional, Dict
+from transformers import AutoModel, AutoTokenizer
 
 
 
@@ -106,10 +107,9 @@ class ProteinEncoder(BaseEncoder):
         
     def embed_observation(self, observation: Dict[str, Any]) -> Dict[str, Any]:
         """Embed the raw observation into sequence and structure embeddings."""
-        seq_emb = self.sequence_encoder(observation['sequence'])
-        struct_emb = self.structure_encoder(observation['structure']) if self.structure_encoder is not None else None
+        seq_emb = self.sequence_encoder(observation['sequence']) # ESM-2 sequence embedding by default
+        struct_emb = self.structure_encoder(observation['structure']) if self.structure_encoder is not None else None # GVP-GNN structure embedding by default
         return {'seq_emb': seq_emb, 'struct_emb': struct_emb}
-    
     
     def forward(self, observation: Dict[str, Any]) -> torch.Tensor:
         """Full forward pass: embed observation(optional, if input is raw) and then encode to z_t."""
