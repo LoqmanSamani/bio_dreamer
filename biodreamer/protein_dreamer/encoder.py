@@ -204,7 +204,6 @@ class ActionEncoder(BaseEncoder):
         
     def encode(self, action: Dict[str, Any]) -> torch.Tensor:
         """Encode an action into a latent space z_t."""
-        
         pos_emb = self.pos_embed(action['position'].unsqueeze(-1).to(self.device)) # positional embedding of the mutation site
         aa_emb = self.aa_embed(action['aa_old'].to(self.device)) # amino acid embedding for the original amino acid at the mutation site
         aa_new_emb = self.aa_new_embed(action['aa_new'].to(self.device)) # amino acid embedding for the new amino acid at the mutation site
