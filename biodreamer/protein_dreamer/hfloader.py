@@ -48,6 +48,7 @@ class HFModelLoader:
     """
     # registry: shorthand name -> ModelConfig
     REGISTRY: Dict[str, ModelConfig] = {
+        # pretrained ESM-2 models for sequence embedding
         "esm2-650m": ModelConfig(
             hf_id="facebook/esm2_t33_650M_UR50D",
             task=ModelTask.SEQUENCE_EMBEDDING,
@@ -55,6 +56,7 @@ class HFModelLoader:
             layer_index=-1,
             half_precision=False,
         ),
+        # pretrained ESM-2 large model for sequence embedding
         "esm2-3b": ModelConfig(
             hf_id="facebook/esm2_t36_3B_UR50D",
             task=ModelTask.SEQUENCE_EMBEDDING,
@@ -62,18 +64,34 @@ class HFModelLoader:
             layer_index=-1,
             half_precision=True,
         ),
+        # pretrained ESMFold for structure prediction
         "esmfold": ModelConfig(
             hf_id="facebook/esmfold_v1",
             task=ModelTask.STRUCTURE_PREDICTION,
             backend=ModelBackend.ESMFOLD,
             half_precision=True,
         ),
+        # prottrans t5 for sequence embedding and function prediction
         "prottrans-t5": ModelConfig(
             hf_id="Rostlab/prot_t5_xl_uniref50",
             task=ModelTask.SEQUENCE_EMBEDDING,
             backend=ModelBackend.AUTO,
-            half_precision=False,
+            half_precision=True,
         ),
+        # structure embedding models
+        "saprot-650m": ModelConfig(
+        hf_id="westlake-repl/SaProt_650M_AF2",
+        task=ModelTask.STRUCTURE_EMBEDDING,
+        backend=ModelBackend.AUTO,
+        half_precision=False,
+        ),
+        # esm-if1 for inverse folding (sequence design from structure)
+        "esm-if1": ModelConfig(
+            hf_id="facebook/esm-if1-gvp",
+            task=ModelTask.STRUCTURE_EMBEDDING,
+            backend=ModelBackend.ESM_IF, # Requires custom logic for 3D coordinate processing
+            half_precision=True,
+        ), 
     }
     def __init__(
         self, 

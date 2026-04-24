@@ -37,35 +37,64 @@ import torch.nn as nn
 from biodreamer.core.encoder import BaseEncoder
 from typing import Any, Optional, Dict
 from transformers import AutoModel, AutoTokenizer
+from .hfloader import HFModelLoader
+
 
 
 
 
 
 class ProteinEncoder(BaseEncoder):
-    """Encodes a protein (sequence + structure(optional)) into a latent state z_t."""
+    """encodes a protein (sequence + structure(optional)) into a latent state z_t"""
     def __init__(
         self, 
         latent_dim: int, 
-        sequence_encoder: Any,
-        structure_encoder: Optional[Any] = None, 
+        sequence_encoder: Optional[Any],
+        sequence_tokenizer: Optional[Any] = None,
+        structure_encoder: Optional[Any] = None,
+        structure_tokenizer: Optional[Any] = None, 
         fusion_mlp: Optional[Any] = None,
-        #regularizer: Optional[Any] = None,
+        freeze_seq_encoder: bool = True,
+        freeze_struct_encoder: bool = True,
+        use_structure: bool = False,
         device: Optional[torch.device] = None
     ) -> None:
         super().__init__(latent_dim)
         self.device = device if device is not None and isinstance(device, torch.device) else (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
         self.latent_dim = latent_dim
-        self.sequence_encoder = sequence_encoder.to(self.device)
+        self.freeze_seq_encoder = freeze_seq_encoder
+        self.freeze_struct_encoder = freeze_struct_encoder
+        
+        # load or assign sequence encoder
+        if sequence_encoder is not None:
+            self.sequence_encoder = sequence_encoder.to(self.device)
+            self.sequence_tokenizer = sequence_tokenizer.to(self.device) if sequence_tokenizer is not None else None
+        
+        else:
+            esm2, seq_tok = self._hf_load("esm2-650m")
+            self.sequence_encoder = esm2.to(self.device)
+            self.sequence_tokenizer = seq_tok.to(self.device)
+    
+        # load or assign structure encoder (optional)   
+        if structure_encoder is not None:
+            self.structure_encoder = structure_encoder.to(self.device)
+            self.structure_tokenizer = structure_tokenizer.to(self.device) if structure_tokenizer is not None else None
+        elif use_structure:
+            saport, struct_tok = self._hf_load("saprot-650m")
+            self.structure_encoder = saport.to(self.device)
+            self.structure_tokenizer = struct_tok.to(self.device)
+        else:
+            self.structure_encoder = None 
+            self.structure_tokenizer = None
+            
         self.fusion_mlp = fusion_mlp.to(self.device) if fusion_mlp is not None else self._fusion_mlp(
             sequence_encoder.get_latent_dim() + (structure_encoder.get_latent_dim() if structure_encoder is not None else 0), latent_dim
             )
-        self.structure_encoder = structure_encoder.to(self.device) if structure_encoder is not None else None
-        #self.regularizer = regularizer.to(self.device) if regularizer is not None else None
         self.layer_norm = nn.LayerNorm(self.latent_dim).to(self.device)
         
+        
     def encode(self, observation: Dict[str, Any]) -> torch.Tensor:
-        """Encode a protein observation into a latent space z_t."""
+        """encode a protein observation into a latent space z_t"""
         seq_emb = observation['seq_emb'].to(self.device)
         struct_emb = observation.get('struct_emb', None)
         
@@ -96,6 +125,11 @@ class ProteinEncoder(BaseEncoder):
             
         return z_t
     
+    def _hf_load(self, model_name: str) -> tuple:
+        """load a hugging-face model by name"""
+        loader = HFModelLoader(device=self.device)
+        return loader.load(model_name)
+    
     def _fusion_mlp(self, input_dim: int, hidden_dim: int) -> nn.Module:
         """Utility function to create a simple fusion MLP."""
         return nn.Sequential(
@@ -106,13 +140,41 @@ class ProteinEncoder(BaseEncoder):
             
         
     def embed_observation(self, observation: Dict[str, Any]) -> Dict[str, Any]:
-        """Embed the raw observation into sequence and structure embeddings."""
-        seq_emb = self.sequence_encoder(observation['sequence']) # ESM-2 sequence embedding by default
-        struct_emb = self.structure_encoder(observation['structure']) if self.structure_encoder is not None else None # GVP-GNN structure embedding by default
+        """embed the raw observation into sequence and structure embeddings"""
+        # sequence embedding
+        if self.freeze_seq_encoder:
+             with torch.no_grad():
+                inputs = self.sequence_tokenizer([observation['sequence']], return_tensors="pt", padding=True)
+                seq_emb = self.sequence_encoder(**inputs).late_hidden_state # esm-2 650m sequence embedding by default
+        else:
+            if self.sequence_tokenizer is not None:
+                inputs = self.sequence_tokenizer([observation['sequence']], return_tensors="pt", padding=True)
+                seq_emb = self.sequence_encoder(**inputs).late_hidden_state
+            else:
+                seq_emb = self.sequence_encoder(observation['sequence']).last_hidden_state
+                
+        # structure embedding (optional)
+        if self.freeze_struct_encoder and self.structure_encoder is not None:
+            with torch.no_grad():
+                if self.structure_tokenizer is not None:
+                    struct_inputs = self.structure_tokenizer(observation['structure'], return_tensors="pt", padding=True)
+                    struct_emb = self.structure_encoder(**struct_inputs).late_hidden_state
+                else:
+                    struct_emb = self.structure_encoder(observation['structure']).last_hidden_state
+        elif self.structure_encoder is not None and self.structure_tokenizer is not None:
+            struct_inputs = self.structure_tokenizer(observation['structure'], return_tensors="pt", padding=True)
+            struct_emb = self.structure_encoder(**struct_inputs).late_hidden_state
+            
+        elif self.structure_encoder is not None and self.structure_tokenizer is None:
+            struct_emb = self.structure_encoder(observation['structure']).last_hidden_state
+        else:
+            struct_emb = None
+                
         return {'seq_emb': seq_emb, 'struct_emb': struct_emb}
     
+    
     def forward(self, observation: Dict[str, Any]) -> torch.Tensor:
-        """Full forward pass: embed observation(optional, if input is raw) and then encode to z_t."""
+        """full forward pass: embed observation(optional, if input is raw) and then encode to z_t."""
         if 'sequence' in observation:
             embedded_obs = self.embed_observation(observation)
         else:
@@ -123,7 +185,7 @@ class ProteinEncoder(BaseEncoder):
     
     
 class ActionEncoder(BaseEncoder):
-    """Encodes an action (e.g. mutation) into a latent space z_t."""
+    """encodes an action (e.g. mutation) into a latent space z_t"""
     def __init__(
         self, 
         latent_dim: int, 
