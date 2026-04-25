@@ -1,0 +1,75 @@
+# root directory for all raw data (relative to project root or absolute)
+data_root: "data/raw/protein_dreamer"
+
+
+# ProteinGym 
+proteingym:
+  enabled: true
+
+  # source: "s3" (aws public bucket) or "huggingface" (OATML-Markslab/ProteinGym_v1)
+  source: "s3"
+
+  # s3 bucket name (no credentials needed - public dataset)
+  s3_bucket: "proteingym"
+  s3_region: "us-east-2"
+
+  # which subsets to download. comment out any you don't need.
+  subsets:
+    DMS_substitutions: true      # ~2.7M missense variants, 217 assays  [~1.2 GB]
+    DMS_indels: false            # ~300k mutants, 74 assays              [~150 MB]
+    clinical_substitutions: false
+    clinical_indels: false
+
+  # reference/metadata files (always recommended - small, very useful)
+  reference_files: true
+
+  # output layout under data_root/proteingym/
+  # each subset is saved as a single parquet file
+  output_subdir: "proteingym"
+
+
+# Tsuboyama 2023 (mega-scale stability) 
+tsuboyama:
+  enabled: true
+
+  # zenodo record url (doi: 10.5281/zenodo.7992926)
+  zenodo_record_id: "7992926"
+  zenodo_base_url: "https://zenodo.org/records/7992926/files"
+
+  # files to download. options:
+  #   processed_datasets  ->  processed_k50_dg_datasets.zip (main, recommended)
+  #   dataset1_csv        ->  tsuboyama2023_dataset1_20230416.csv
+  #   dataset2_3_csv      ->  tsuboyama2023_dataset2_dataset3_20230416.csv
+  #   single_dms_list     ->  single_dms_list.csv
+  #   double_dms_list     ->  double_dms_list.csv
+  #   triple_dms_list     ->  triple_dms_list.csv
+  files:
+    processed_datasets: true     # zip with all processed k50/dg tables  [~200 mb]
+    dataset1_csv: true           # flat csv, easier for quick inspection  [~50 mb]
+    dataset2_3_csv: false
+    single_dms_list: true        # list of single-mutant dms assays        [tiny]
+    double_dms_list: false
+    triple_dms_list: false
+
+  # whether to unzip the processed_datasets archive after download
+  unzip: true
+
+  output_subdir: "tsuboyama"
+
+
+# general download settings 
+download:
+  # skip files that already exist locally (resume-friendly)
+  skip_existing: true
+
+  # show a progress bar during download
+  show_progress: true
+
+  # number of retry attempts on transient network errors
+  max_retries: 3
+
+  # verify file integrity after download using checksums (if available)
+  verify_checksums: true
+
+  # chunk size for streaming downloads (bytes)
+  chunk_size: 8192

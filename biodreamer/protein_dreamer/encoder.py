@@ -3,7 +3,7 @@ import torch.nn as nn
 from biodreamer.core.encoder import BaseEncoder
 from typing import Any, Optional, Dict
 from transformers import AutoModel, AutoTokenizer
-from .hfloader import HFModelLoader
+from .data.hfloader import HFModelLoader
 
 
 
