@@ -150,6 +150,363 @@ ActiveInferencePolicy(BasePolicy):
 
 **Why:** Before any model can be trained, we need structured PyTorch datasets that load DMS fitness data (ProteinGym, Tsuboyama), tokenize sequences, parse mutation strings, and optionally predict/load 3D structures via ESMFold. This is the foundation everything else builds on.
 
+"""
+protein_dreamer/data/tokenizers/bpe_tokenizer.py
+================================================
+
+Byte-Pair Encoding (BPE) tokenizer for amino acid sequences.
+
+Unlike char/k-mer tokenizers whose vocabularies are fixed by construction,
+BPE learns a merge table from a corpus of sequences.  Frequent pairs of
+tokens are iteratively merged until the target vocabulary size is reached.
+
+Vocabulary layout (after training):
+  [PAD] [UNK] [CLS] [SEP] [MASK] [MUT]
+  [ORG_*] ...          (optional organism tokens)
+  A C D E F ...        (20 canonical + optional ambiguous — seed vocabulary)
+  AC CD DE ...         (learned merges, most frequent first)
+
+Workflow
+--------
+
+1. Train on a list of sequences:
+   tok = BPETokenizer(vocab_size=500)
+   tok.train(sequences)                    # learns merge table
+2. Save / load:
+   tok.save("config/protein_dreamer/bpe_vocab.json")
+   tok2 = BPETokenizer.load("config/protein_dreamer/bpe_vocab.json")
+3. Encode:
+   out = tok.encode("MKTAY...", return_tensors=True)
+
+BPE and mutation positions
+--------------------------
+
+BPE tokens are variable-length, so a mutation at position p may fall
+inside a merged token that also covers unmutated residues.  The mutation
+mask marks every token whose character span overlaps position p.
+
+Design notes
+------------
+
+- Pure Python implementation — no dependency on HuggingFace tokenizers or
+  SentencePiece.  Fast enough for protein sequences (typical length <1000).
+- The merge table is deterministic: ties are broken by lexicographic order
+  so training on the same corpus always produces the same vocabulary.
+- A pre-trained merge table can be injected at construction time, skipping
+  training (useful when loading from a saved config).
+  """
+
+from __future__ import annotations
+
+import json
+import re
+from collections import Counter
+from pathlib import Path
+from typing import Iterator
+
+from .base import BaseProteinTokenizer
+
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _word_to_chars(sequence: str) -> list[str]:
+    """Split a sequence into individual characters (seed BPE units)."""
+    return list(sequence.upper())
+
+def _get_pair_stats(vocab: dict[tuple[str, ...], int]) -> Counter:
+    """Count adjacent pair frequencies across all words in the vocab."""
+    stats: Counter = Counter()
+    for word, freq in vocab.items():
+        for i in range(len(word) - 1):
+            stats[(word[i], word[i + 1])] += freq
+    return stats
+
+def _merge_vocab(
+    vocab: dict[tuple[str, ...], int],
+    pair: tuple[str, str],
+) -> dict[tuple[str, ...], int]:
+    """Apply one BPE merge to every word in the working vocabulary."""
+    merged   = "".join(pair)
+    new_vocab: dict[tuple[str, ...], int] = {}
+    for word, freq in vocab.items():
+        new_word: list[str] = []
+        i = 0
+        while i < len(word):
+            if i < len(word) - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
+                new_word.append(merged)
+                i += 2
+            else:
+                new_word.append(word[i])
+                i += 1
+        new_vocab[tuple(new_word)] = freq
+    return new_vocab
+
+class BPETokenizer(BaseProteinTokenizer):
+    """
+    Learned BPE tokenizer for amino acid sequences.
+
+| Parameters                                                              |
+| ----------------------------------------------------------------------- |
+| vocab_size : int                                                        |
+| Target vocabulary size*including* special tokens and seed characters. |
+| More merges → longer tokens → shorter sequences → faster models.     |
+| Typical useful range for proteins: 100–2000.                           |
+| include_ambiguous : bool                                                |
+| Add ambiguous AA characters (B J O U X Z) to the seed vocabulary.       |
+| add_special_tokens : bool                                               |
+| organism_tokens : list[str]                                             |
+| merges : list[tuple[str, str]]                                          |
+| Pre-trained merge table.  If provided, skip training.                   |
+
+| Examples                                                      |
+| ------------------------------------------------------------- |
+| >>> seqs = ["MKTAYIAKQRQISFVK", "ACDEFGHIKLMNPQRSTVWY"] * 100 |
+| >>> tok = BPETokenizer(vocab_size=60)                         |
+| >>> tok.train(seqs)                                           |
+| >>> tok.tokenize("MKTAY")                                     |
+| ['MK', 'T', 'AY']          # depends on corpus statistics     |
+
+    >>> tok.save("config/protein_dreamer/bpe_vocab.json")
+    >>> tok2 = BPETokenizer.load("config/protein_dreamer/bpe_vocab.json")
+    """
+
+    def__init__(
+        self,
+        vocab_size: int = 200,
+        include_ambiguous: bool = True,
+        add_special_tokens: bool = True,
+        organism_tokens: list[str] | None = None,
+        merges: list[tuple[str, str]] | None = None,
+    ) -> None:
+        super().__init__(
+            add_special_tokens=add_special_tokens,
+            organism_tokens=organism_tokens,
+        )
+        self.target_vocab_size = vocab_size
+        self.include_ambiguous = include_ambiguous
+
+    # Ordered list of (a, b) → "ab" merge rules
+        self.merges: list[tuple[str, str]] = merges or []
+
+    # Build seed vocab (specials + single-char AA tokens)
+        self._build_seed_vocab()
+
+    # If merges were injected, apply them to the vocab immediately
+        if self.merges:
+            self._apply_merges_to_vocab(self.merges)
+
+    # ── Vocabulary construction ───────────────────────────────────────────────
+
+    def _build_seed_vocab(self) -> None:
+        """Register specials + individual amino acid characters."""
+        seed = (
+            self.SPECIAL_TOKENS
+            + self.organism_tokens
+            + self.AMINO_ACIDS
+            + (self.AMBIGUOUS_AA if self.include_ambiguous else [])
+        )
+        self._register_vocab(seed)
+
+    def _apply_merges_to_vocab(self, merges: list[tuple[str, str]]) -> None:
+        """Register merged tokens derived from the merge table."""
+        for a, b in merges:
+            merged = a + b
+            if merged not in self.token2id:
+                self._register_vocab([merged])
+
+    # ── Training ─────────────────────────────────────────────────────────────
+
+    def train(
+        self,
+        sequences: list[str],
+        min_frequency: int = 2,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Learn BPE merge rules from a list of amino acid sequences.
+
+| Parameters                                                     |
+| -------------------------------------------------------------- |
+| sequences : list[str]                                          |
+| Training corpus — typically all WT sequences in your dataset. |
+| min_frequency : int                                            |
+| Stop merging pairs that appear fewer than this many times.     |
+| verbose : bool                                                 |
+| Print progress every 50 merges.                                |
+| """                                                            |
+| # Build working vocabulary: {(char, char, ...): count}         |
+| working_vocab: dict[tuple[str, ...], int] = Counter(           |
+| tuple(_word_to_chars(seq))                                     |
+| for seq in sequences                                           |
+| if seq.strip()                                                 |
+| )                                                              |
+
+    # How many merge steps can we do?
+        n_seed      = self.vocab_size           # current vocab size (seed already registered)
+        n_special   = len(self.SPECIAL_TOKENS) + len(self.organism_tokens)
+        max_merges  = self.target_vocab_size - n_seed
+
+    if max_merges <= 0:
+            if verbose:
+                print(f"[BPE] vocab_size={self.target_vocab_size} already reached "
+                      f"by seed vocabulary ({n_seed} tokens). No merges needed.")
+            return
+
+    self.merges = []
+
+    for step in range(max_merges):
+            stats = _get_pair_stats(working_vocab)
+            if not stats:
+                break
+
+    # Filter by minimum frequency
+            stats = Counter({k: v for k, v in stats.items() if v >= min_frequency})
+            if not stats:
+                break
+
+    # Pick the most frequent pair; break ties lexicographically
+            best_pair = max(stats, key=lambda p: (stats[p], p))
+
+    # Apply merge
+            working_vocab = _merge_vocab(working_vocab, best_pair)
+            self.merges.append(best_pair)
+            merged_token = "".join(best_pair)
+            self._register_vocab([merged_token])
+
+    if verbose and (step + 1) % 50 == 0:
+                print(f"[BPE] step {step+1:4d} | vocab={self.vocab_size} | "
+                      f"merged '{best_pair[0]}'+'{best_pair[1]}' "
+                      f"→ '{merged_token}' (freq={stats[best_pair]})")
+
+    if verbose:
+            print(f"[BPE] Training done. Final vocab size: {self.vocab_size} "
+                  f"({len(self.merges)} merges learned).")
+
+    # ── Core interface ────────────────────────────────────────────────────────
+
+    def tokenize(self, sequence: str) -> list[str]:
+        """
+        Apply learned BPE merges to a sequence and return token strings.
+
+    If the tokenizer has not been trained yet, falls back to
+        character-level tokenization.
+        """
+        if not self.merges:
+            return _word_to_chars(sequence)
+
+    word = _word_to_chars(sequence.upper())
+
+    for pair in self.merges:
+            merged = "".join(pair)
+            new_word: list[str] = []
+            i = 0
+            while i < len(word):
+                if i < len(word) - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
+                    new_word.append(merged)
+                    i += 2
+                else:
+                    new_word.append(word[i])
+                    i += 1
+            word = new_word
+
+    return word
+
+    def convert_tokens_to_ids(self, tokens: list[str]) -> list[int]:
+        unk = self.unk_token_id
+        return [self.token2id.get(t, unk) for t in tokens]
+
+    def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
+        special_ids = set()
+        if skip_special_tokens:
+            special_ids = {self.token2id[t] for t in self.SPECIAL_TOKENS
+                           if t in self.token2id}
+            special_ids |= {self.token2id[t] for t in self.organism_tokens
+                            if t in self.token2id}
+
+    return "".join(
+            self.id2token[i]
+            for i in ids
+            if i in self.id2token and i not in special_ids
+        )
+
+    # ── Mutation mask override ────────────────────────────────────────────────
+
+    def _build_mutation_mask(
+        self,
+        tokens: list[str],
+        mutation_positions: list[int] | None,
+    ) -> list[int]:
+        """
+        BPE tokens are variable-length, so we must track character spans.
+
+    Token i covers characters [span_start, span_start + len(token) - 1].
+        A mutation at position p marks every token whose span includes p.
+        """
+        mask = [0] * len(tokens)
+        if not mutation_positions:
+            return mask
+
+    # Build character-offset spans for each token
+        spans: list[tuple[int, int]] = []
+        cursor = 0
+        for tok in tokens:
+            spans.append((cursor, cursor + len(tok) - 1))
+            cursor += len(tok)
+
+    for pos in mutation_positions:
+            for i, (start, end) in enumerate(spans):
+                if start <= pos <= end:
+                    mask[i] = 1
+
+    return mask
+
+    # ── Save / Load ───────────────────────────────────────────────────────────
+
+    def save(self, path: str | Path) -> None:
+        """
+        Serialise the tokenizer to a JSON file.
+
+    Saved fields: vocab_size target, merge list, organism tokens,
+        include_ambiguous, add_special_tokens.
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "type":               "BPETokenizer",
+            "target_vocab_size":  self.target_vocab_size,
+            "include_ambiguous":  self.include_ambiguous,
+            "add_special_tokens": self.add_special_tokens,
+            "organism_tokens":    self.organism_tokens,
+            "merges":             [list(m) for m in self.merges],
+        }
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+
+    @classmethod
+    def load(cls, path: str | Path) -> "BPETokenizer":
+        """Load a previously saved BPETokenizer from a JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+
+    if data.get("type") != "BPETokenizer":
+            raise ValueError(f"File {path} does not contain a BPETokenizer.")
+
+    return cls(
+            vocab_size=data["target_vocab_size"],
+            include_ambiguous=data["include_ambiguous"],
+            add_special_tokens=data["add_special_tokens"],
+            organism_tokens=data.get("organism_tokens"),
+            merges=[tuple(m) for m in data["merges"]],
+        )
+
+    # ── Repr ─────────────────────────────────────────────────────────────────
+
+    def__repr__(self) -> str:
+        trained = f"{len(self.merges)} merges" if self.merges else "untrained"
+        return (
+            f"BPETokenizer(target_vocab_size={self.target_vocab_size}, "
+            f"vocab_size={self.vocab_size}, {trained})"
+        )
+
 **Where:** `biodreamer/protein_dreamer/data/dataset.py` and `biodreamer/protein_dreamer/data/preprocessing.py`.
 
 **Base class needed:** No — these are data utilities, not model components.

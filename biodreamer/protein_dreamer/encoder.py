@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from biodreamer.core.encoder import BaseEncoder
+from ..core.encoder import BaseEncoder
 from typing import Any, Optional, Dict
 from transformers import AutoModel, AutoTokenizer
 from .data.hfloader import HFModelLoader
