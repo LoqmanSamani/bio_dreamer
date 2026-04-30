@@ -96,7 +96,14 @@ def make_dataloader(
     """construct a PyTorch DataLoader"""
     if collate_fn is None:
         collate_fn = make_collate_fn(dataset)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory, collate_fn=collate_fn)
+    return DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=shuffle, 
+        num_workers=num_workers, 
+        pin_memory=pin_memory, 
+        collate_fn=collate_fn
+        )
 
 
 
@@ -114,20 +121,41 @@ def make_dataloaders(
     loaders = {}
     if train_dataset is not None:
         train_collate = make_collate_fn(train_dataset)
-        loaders["train"] = make_dataloader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory, collate_fn=train_collate)
+        loaders["train"] = make_dataloader(
+            train_dataset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            num_workers=num_workers, 
+            pin_memory=pin_memory, 
+            collate_fn=train_collate
+            )
     else:
         loaders["train"] = None
     if val_dataset is not None:
         val_collate = make_collate_fn(val_dataset)
         vb = val_batch_size or batch_size
-        loaders["val"] = make_dataloader(val_dataset, batch_size=vb, shuffle=False, num_workers=num_workers, pin_memory=pin_memory, collate_fn=val_collate)
+        loaders["val"] = make_dataloader(
+            val_dataset, 
+            batch_size=vb, 
+            shuffle=False, 
+            num_workers=num_workers, 
+            pin_memory=pin_memory, 
+            collate_fn=val_collate
+            )
     else:
         loaders["val"] = None
 
     if test_dataset is not None:
         test_collate = make_collate_fn(test_dataset)
         tb = test_batch_size or batch_size
-        loaders["test"] = make_dataloader(test_dataset, batch_size=tb, shuffle=False, num_workers=num_workers, pin_memory=pin_memory, collate_fn=test_collate)
+        loaders["test"] = make_dataloader(
+            test_dataset, 
+            batch_size=tb, 
+            shuffle=False, 
+            num_workers=num_workers, 
+            pin_memory=pin_memory, 
+            collate_fn=test_collate
+            )
     else:
         loaders["test"] = None
     return loaders
