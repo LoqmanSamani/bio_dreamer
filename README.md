@@ -15,7 +15,7 @@
   <a href="https://github.com/LoqmanSamani/bio_dreamer/actions"><img src="https://img.shields.io/github/actions/workflow/status/LoqmanSamani/bio_dreamer/deploy.yml?branch=systembiology&label=deploy&logo=github-actions" alt="GitHub Actions" /></a>
 </p>
 
----
+
 
 ## Why BioDreamer?
 
@@ -25,7 +25,7 @@ Most ML approaches to these problems are one-shot. They generate a candidate, ev
 
 BioDreamer applies **world models** from model-based reinforcement learning to biology. The agent learns a latent-space simulator (a JEPA-based world model) of the biological environment and then plans optimal interventions *in imagination* before committing to expensive real-world queries. The planning is grounded in **Active Inference** and the Free Energy Principle, giving the agent a principled way to balance exploitation (pursuing high-fitness regions) with exploration (reducing model uncertainty).
 
----
+
 
 ## Three Modules, One Architecture
 
@@ -53,7 +53,7 @@ The library supports two primary JEPA backends. **Latent Diffusion JEPA** uses a
 
 The policy selects actions by minimising **expected free energy**, which naturally decomposes into pragmatic value (seek high fitness) and epistemic value (seek states where the model is uncertain). This is a direct application of Active Inference (Friston, 2010) to biological design, and the mathematical connection between JEPA energy and variational free energy makes the framework theoretically coherent rather than ad hoc.
 
----
+
 
 ## Project Structure
 
@@ -164,7 +164,7 @@ bio_dreamer/
 └── README.md
 ```
 
----
+
 
 
 ## License
