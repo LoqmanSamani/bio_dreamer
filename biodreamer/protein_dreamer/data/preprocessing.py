@@ -187,8 +187,8 @@ def load_structure(
     pdb_path_or_sequence: str,
     coord_mode: CoordMode = "backbone",
     device: Optional[torch.device] = None,
-) -> np.ndarray:
-    """load protein coordinates from a PDB file or by ESMFold prediction"""
+) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[float]]:
+    """load protein coords from a PDB file or ESMFold"""
     p = Path(pdb_path_or_sequence)
     if p.exists():
         atom_records: List[Dict] = []
@@ -211,12 +211,28 @@ def load_structure(
                 )
         if not atom_records:
             raise RuntimeError(f"No heavy atoms found in {p}")
-        return _select_coords_pdb(atom_records, coord_mode)
+        return _select_coords_pdb(atom_records, coord_mode), None, None
 
-    coords, _ = predict_structure_esmfold(
+    return predict_structure_esmfold(
         pdb_path_or_sequence, coord_mode=coord_mode, device=device
     )
-    return coords
+
+
+def _extract_ptm(out: dict) -> Optional[float]:
+    """Safely extract the global pTM score from an ESMFold output dict."""
+    for key in ("ptm", "predicted_tm_score", "tm_score"):
+        val = out.get(key)
+        if val is not None:
+            try:
+                return float(val.item() if hasattr(val, "item") else val)
+            except Exception:
+                pass
+    return None
+
+
+def _cache_save(cache_file, raw: np.ndarray, plddt: Optional[np.ndarray], ptm: Optional[float]) -> None:
+    ptm_arr = np.array([ptm if ptm is not None else float("nan")], dtype=np.float32)
+    np.savez_compressed(cache_file, coords=raw, plddt=plddt, ptm=ptm_arr)
 
 
 def predict_structure_esmfold(
@@ -224,8 +240,14 @@ def predict_structure_esmfold(
     coord_mode: CoordMode = "backbone",
     cache_dir: Optional[str] = None,
     device: Optional[torch.device] = None,
-) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """predict protein structure with ESMFold, results are cached by sequence hash"""
+) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[float]]:
+    """predict protein structure with ESMFold; results are cached by sequence hash.
+
+    returns `(coords, plddt, ptm)` where:
+    - coords: Cα or backbone coordinates per coord_mode
+    - plddt: per-residue confidence scores (0–100), or None
+    - ptm: global predicted TM-score (0–1), or None
+    """
     cache = _ensure_cache_dir(cache_dir)
     cache_file = cache / f"{_seq_hash(sequence)}.npz"
 
@@ -233,7 +255,12 @@ def predict_structure_esmfold(
         data = np.load(cache_file, allow_pickle=True)
         raw = data["coords"]
         plddt = data["plddt"] if "plddt" in data else None
-        return _select_coords_atom37(raw, coord_mode), plddt
+        ptm = None
+        if "ptm" in data:
+            ptm_arr = data["ptm"]
+            v = float(ptm_arr.flat[0])
+            ptm = v if not np.isnan(v) else None
+        return _select_coords_atom37(raw, coord_mode), plddt, ptm
 
     tried: List[str] = []
 
@@ -250,8 +277,9 @@ def predict_structure_esmfold(
                 np.asarray(out["plddt"], dtype=np.float32)
                 if out.get("plddt") is not None else None
             )
-            np.savez_compressed(cache_file, coords=raw, plddt=plddt)
-            return _select_coords_atom37(raw, coord_mode), plddt
+            ptm = _extract_ptm(out)
+            _cache_save(cache_file, raw, plddt, ptm)
+            return _select_coords_atom37(raw, coord_mode), plddt, ptm
         except Exception as e:
             tried.append(f"esm.pretrained call failed: {e}")
     except ImportError:
@@ -279,8 +307,9 @@ def predict_structure_esmfold(
                             np.asarray(out["plddt"], dtype=np.float32)
                             if out.get("plddt") is not None else None
                         )
-                        np.savez_compressed(cache_file, coords=raw, plddt=plddt)
-                        return _select_coords_atom37(raw, coord_mode), plddt
+                        ptm = _extract_ptm(out)
+                        _cache_save(cache_file, raw, plddt, ptm)
+                        return _select_coords_atom37(raw, coord_mode), plddt, ptm
                 if hasattr(out, "detach") or isinstance(out, np.ndarray):
                     arr = (
                         out.detach().cpu().numpy()
@@ -293,8 +322,8 @@ def predict_structure_esmfold(
                                 "ESMFold fallback: unexpected atom axis size %d (expected 37)",
                                 raw.shape[1],
                             )
-                        np.savez_compressed(cache_file, coords=raw, plddt=None)
-                        return _select_coords_atom37(raw, coord_mode), None
+                        _cache_save(cache_file, raw, None, None)
+                        return _select_coords_atom37(raw, coord_mode), None, None
             except Exception:
                 continue
         tried.append("HF ESMFold call methods exhausted")
@@ -316,21 +345,62 @@ def compute_distance_map(coords: np.ndarray) -> np.ndarray:
     return np.sqrt((diff ** 2).sum(-1))
 
 
-def build_protein_graph(coords: np.ndarray, cutoff: float = 10.0):
-    """build a residue-level contact graph from (L, 3) Cα coordinates"""
+def build_protein_graph(
+    coords: np.ndarray,
+    cutoff: float = 10.0,
+    plddt: Optional[np.ndarray] = None,
+):
+    """build a residue-level contact graph from (L, 3) Cα coordinates.
+
+    returns a dict (or torch_geometric.Data) with the following fields for
+    GVP-GNN consumption:
+    - node_s  (L, 1): pLDDT normalised to [0,1], or 1.0 if unavailable
+    - node_v  (L, 1, 3): Cα position as an equivariant vector feature
+    - edge_index (2, E)
+    - edge_s  (E, 1): inter-residue distance (Å)
+    - edge_v  (E, 1, 3): unit displacement vector from source to target
+
+    backward-compatible fields:
+    - x  (L, 3): raw Cα coordinates
+    - edge_attr (E, 1): same as edge_s (distances)
+    """
     coords = np.asarray(coords, dtype=np.float32)
     dmap = compute_distance_map(coords)
     rows, cols = np.where((dmap <= cutoff) & (dmap > 0.0))
-    edge_index = np.vstack([rows, cols]).astype(np.int64)
-    edge_attr = dmap[rows, cols].astype(np.float32)
+
+    # edge features
+    distances = dmap[rows, cols].astype(np.float32)
+    edge_s = torch.tensor(distances[:, None], dtype=torch.float32)  # (E, 1)
+    disp = coords[cols] - coords[rows]  # (E, 3)
+    norms = np.linalg.norm(disp, axis=1, keepdims=True).clip(min=1e-8)
+    edge_v = torch.tensor((disp / norms)[:, None, :], dtype=torch.float32)  # (E, 1, 3)
+    edge_index = torch.tensor(np.vstack([rows, cols]).astype(np.int64), dtype=torch.long)
+
+    # node features
+    if plddt is not None:
+        node_s = torch.tensor(
+            (np.asarray(plddt, dtype=np.float32) / 100.0)[:, None], dtype=torch.float32
+        )  # (L, 1), division by 100 to normalise pLDDT to [0, 1]
+    else:
+        node_s = torch.ones(len(coords), 1, dtype=torch.float32)
+    node_v = torch.tensor(coords[:, None, :], dtype=torch.float32)  # (L, 1, 3)
+
+    # backward-compat
     x = torch.tensor(coords, dtype=torch.float32)
-    edge_index_t = torch.tensor(edge_index, dtype=torch.long)
-    edge_attr_t = torch.tensor(edge_attr, dtype=torch.float32)
+
     try:
         from torch_geometric.data import Data
-        return Data(x=x, edge_index=edge_index_t, edge_attr=edge_attr_t)
+        return Data(
+            x=x, node_s=node_s, node_v=node_v,
+            edge_index=edge_index, edge_s=edge_s, edge_v=edge_v,
+            edge_attr=edge_s,
+        )
     except ImportError:
-        return {"x": x, "edge_index": edge_index_t, "edge_attr": edge_attr_t}
+        return {
+            "x": x, "node_s": node_s, "node_v": node_v,
+            "edge_index": edge_index, "edge_s": edge_s, "edge_v": edge_v,
+            "edge_attr": edge_s,
+        }
 
 
 def normalize_fitness(raw_scores: List[float], method: str = "quantile") -> np.ndarray:
