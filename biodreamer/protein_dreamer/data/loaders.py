@@ -17,7 +17,7 @@ def make_collate_fn(
     dataset: Optional[Any] = None,
     pad_token_id: Optional[int] = None,
 ) -> Callable:
-    """Return a collate function that pads token sequences, stacks tensors,
+    """return a collate function that pads token sequences, stacks tensors,
     and handles nested target dicts with NaN for missing values."""
     if pad_token_id is None and dataset is not None:
         tok = getattr(dataset, "tokenizer", None)
@@ -37,7 +37,7 @@ def make_collate_fn(
 
     def _collate_targets(target_dicts: List[Optional[Dict[str, float]]]) -> Dict[str, "torch.Tensor"]:
         """Stack per-key target values into float tensors; NaN where missing."""
-        keys = {"stability", "affinity", "activity"}
+        keys = {"stability", "affinity", "activity", "fitness"}
         result: Dict[str, "torch.Tensor"] = {}
         for k in keys:
             values = []
@@ -55,7 +55,7 @@ def make_collate_fn(
 
         non_none = [v for v in values if v is not None]
 
-        # Tensor or tensor-like
+        # tensor or tensor-like
         if all(hasattr(v, "dim") for v in non_none):
             tensors = [
                 v.squeeze(0)
@@ -75,12 +75,12 @@ def make_collate_fn(
                     out[i, ..., : t.size(-1)] = t
                 return out
 
-        # Lists/tuples of ints → pad as token IDs
+        # lists/tuples of ints -> pad as token ids
         if all(isinstance(v, (list, tuple)) for v in non_none):
             tensors = [torch.tensor(v, dtype=torch.long) for v in non_none]
             return _pad_1d(tensors, pad_value=pad_id)
 
-        # Scalars
+        # scalars
         if all(isinstance(v, (int, float)) for v in non_none):
             if any(isinstance(v, float) for v in non_none):
                 return torch.tensor(
@@ -101,13 +101,9 @@ def make_collate_fn(
         keys = set().union(*(b.keys() for b in batch))
         for k in keys:
             vals = [b.get(k) for b in batch]
-
-            # Special handling: targets dict → stack each key into a tensor
             if k == "targets" and all(isinstance(v, dict) or v is None for v in vals):
                 out[k] = _collate_targets(vals)  # type: ignore[arg-type]
                 continue
-
-            # Nested dict (e.g. s_t, s_t1, input_wt, input_mutant)
             if any(isinstance(v, dict) for v in vals if v is not None):
                 dict_list = [v if isinstance(v, dict) else {} for v in vals]
                 nested_keys = set().union(*(d.keys() for d in dict_list))
@@ -155,7 +151,7 @@ def make_dataloaders(
     num_workers: int = 4,
     pin_memory: bool = False,
 ) -> Dict[str, Optional["DataLoader"]]:
-    """Build train/val/test DataLoaders."""
+    """build train/val/test DataLoaders"""
     loaders: Dict[str, Optional[Any]] = {}
 
     if train_dataset is not None:

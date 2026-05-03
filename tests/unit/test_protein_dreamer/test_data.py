@@ -1,4 +1,3 @@
-"""Unit tests for the protein_dreamer data subpackage."""
 from __future__ import annotations
 
 import math
@@ -25,10 +24,6 @@ from biodreamer.protein_dreamer.data.preprocessing import (
     parse_mutation_string,
 )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 _WT = "ACDEFGHIKLMNPQRSTVWY"  # 20-residue synthetic wild-type
 
@@ -64,10 +59,6 @@ _ASSAY_TYPE_MAP = {
 }
 
 
-# ---------------------------------------------------------------------------
-# parse_mutation_string
-# ---------------------------------------------------------------------------
-
 class TestParseMutationString:
     def test_single_substitution(self):
         parsed = parse_mutation_string("A42G")
@@ -93,10 +84,6 @@ class TestParseMutationString:
         assert not parse_mutation_string("A1C:K2R").is_single
 
 
-# ---------------------------------------------------------------------------
-# AssayType classification
-# ---------------------------------------------------------------------------
-
 class TestAssayTypeMap:
     def test_build_from_csv(self, tmp_path):
         csv = tmp_path / "ref.csv"
@@ -111,13 +98,13 @@ class TestAssayTypeMap:
         assert mapping["PROT_001"] == AssayType.STABILITY
         assert mapping["PROT_002"] == AssayType.BINDING_AFFINITY
         assert mapping["PROT_003"] == AssayType.CATALYTIC_ACTIVITY
-        assert mapping["PROT_004"] == AssayType.GENERIC_FITNESS
+        assert mapping["PROT_004"] == AssayType.ORGANISMAL_FITNESS
 
-    def test_missing_type_column_defaults_to_generic(self, tmp_path):
+    def test_missing_type_column_defaults_to_organismal(self, tmp_path):
         csv = tmp_path / "ref_no_type.csv"
         csv.write_text("DMS_id\nPROT_001\n")
         mapping = build_assay_type_map(str(csv))
-        assert mapping["PROT_001"] == AssayType.GENERIC_FITNESS
+        assert mapping["PROT_001"] == AssayType.ORGANISMAL_FITNESS
 
     def test_make_targets_stability(self):
         t = _make_targets(1.0, AssayType.STABILITY)
@@ -137,18 +124,18 @@ class TestAssayTypeMap:
         assert math.isnan(t["affinity"])
         assert t["activity"] == 0.3
 
-    def test_make_targets_generic_routes_to_stability(self):
-        t = _make_targets(0.9, AssayType.GENERIC_FITNESS)
-        assert t["stability"] == 0.9
+    def test_make_targets_organismal_routes_to_fitness(self):
+        t = _make_targets(0.9, AssayType.ORGANISMAL_FITNESS)
+        assert t["fitness"] == 0.9
+        assert math.isnan(t["stability"])
+        assert math.isnan(t["affinity"])
+        assert math.isnan(t["activity"])
 
     def test_make_targets_none_fitness(self):
         t = _make_targets(None, AssayType.STABILITY)
         assert all(math.isnan(v) for v in t.values())
 
 
-# ---------------------------------------------------------------------------
-# ProteinGymDataset
-# ---------------------------------------------------------------------------
 
 class TestProteinGymDataset:
     def test_basic_length(self):
@@ -166,12 +153,13 @@ class TestProteinGymDataset:
     def test_targets_dict_structure(self):
         ds = ProteinGymDataset(_simple_df())
         item = ds[0]
-        assert set(item["targets"].keys()) == {"stability", "affinity", "activity"}
+        assert set(item["targets"].keys()) == {"stability", "affinity", "activity", "fitness"}
 
-    def test_default_routes_fitness_to_stability(self):
+    def test_default_routes_fitness_to_organismal_fitness(self):
         ds = ProteinGymDataset(_simple_df(fitness=0.75))
         item = ds[0]
-        assert item["targets"]["stability"] == pytest.approx(0.75)
+        assert item["targets"]["fitness"] == pytest.approx(0.75)
+        assert math.isnan(item["targets"]["stability"])
         assert math.isnan(item["targets"]["affinity"])
         assert math.isnan(item["targets"]["activity"])
 
@@ -222,14 +210,11 @@ class TestProteinGymDataset:
         assert all(math.isnan(v) for v in item["targets"].values())
 
 
-# ---------------------------------------------------------------------------
-# TsuboyamaDataset
-# ---------------------------------------------------------------------------
 
 class TestTsuboyamaDataset:
     def test_all_targets_route_to_stability(self):
         df = _multi_df()
-        # Even with an affinity assay_type_map, TsuboyamaDataset overrides to stability
+        # even with an affinity assay_type_map, TsuboyamaDataset overrides to stability
         ds = TsuboyamaDataset(df, assay_type_map=_ASSAY_TYPE_MAP)
         for i in range(len(ds)):
             item = ds[i]
@@ -238,9 +223,6 @@ class TestTsuboyamaDataset:
             assert math.isnan(item["targets"]["activity"])
 
 
-# ---------------------------------------------------------------------------
-# FitnessTransitionDataset
-# ---------------------------------------------------------------------------
 
 class TestFitnessTransitionDataset:
     def test_structure(self):
@@ -266,7 +248,7 @@ class TestFitnessTransitionDataset:
         for i in range(len(td)):
             item = td[i]
             targets = item["targets"]
-            assert set(targets.keys()) == {"stability", "affinity", "activity"}
+            assert set(targets.keys()) == {"stability", "affinity", "activity", "fitness"}
 
     def test_sequence_in_states(self):
         base = ProteinGymDataset(_simple_df())
@@ -281,9 +263,6 @@ class TestFitnessTransitionDataset:
             FitnessTransitionDataset("not_a_dataset")  # type: ignore
 
 
-# ---------------------------------------------------------------------------
-# Collation with NaN targets
-# ---------------------------------------------------------------------------
 
 class TestCollation:
     def _make_batch(self):
@@ -298,7 +277,7 @@ class TestCollation:
         assert "targets" in out
         targets = out["targets"]
         assert isinstance(targets, dict)
-        assert set(targets.keys()) == {"stability", "affinity", "activity"}
+        assert set(targets.keys()) == {"stability", "affinity", "activity", "fitness"}
         for v in targets.values():
             assert isinstance(v, torch.Tensor)
             assert v.shape == (3,)  # batch size 3
@@ -309,25 +288,24 @@ class TestCollation:
         collate = make_collate_fn()
         out = collate(batch)
         targets = out["targets"]
-        # STAB row: affinity and activity should be NaN
+        # STAB row: affinity, activity, fitness should be NaN
         assert torch.isnan(targets["affinity"][0])
         assert torch.isnan(targets["activity"][0])
-        # BIND row: stability and activity should be NaN
+        assert torch.isnan(targets["fitness"][0])
+        # BIND row: stability, activity, fitness should be NaN
         assert torch.isnan(targets["stability"][1])
         assert torch.isnan(targets["activity"][1])
-        # ACTV row: stability and affinity should be NaN
+        assert torch.isnan(targets["fitness"][1])
+        # ACTV row: stability, affinity, fitness should be NaN
         assert torch.isnan(targets["stability"][2])
         assert torch.isnan(targets["affinity"][2])
+        assert torch.isnan(targets["fitness"][2])
 
     def test_empty_batch(self):
         collate = make_collate_fn()
         out = collate([])
         assert out == {}
 
-
-# ---------------------------------------------------------------------------
-# normalize_fitness
-# ---------------------------------------------------------------------------
 
 class TestNormalizeFitness:
     def test_minmax(self):
@@ -348,10 +326,6 @@ class TestNormalizeFitness:
         result = normalize_fitness([5.0], method="quantile")
         assert result[0] == pytest.approx(0.0)
 
-
-# ---------------------------------------------------------------------------
-# encode_mutation — position dtype fix
-# ---------------------------------------------------------------------------
 
 class TestEncodeMutation:
     def test_position_is_int64(self):

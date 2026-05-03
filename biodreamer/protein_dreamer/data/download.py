@@ -28,7 +28,7 @@ except ImportError:
     HAS_TQDM = False
 
 
-# S3 keys for ProteinGym subsets: subset name → (S3 key, local filename)
+# s3 keys for ProteinGym subsets: subset name -> (s3 key, local filename)
 PROTEINGYM_S3_KEYS: dict[str, tuple[str, str]] = {
     "DMS_substitutions":      ("DMS_substitutions.parquet",       "DMS_substitutions.parquet"),
     "DMS_indels":             ("DMS_indels.parquet",               "DMS_indels.parquet"),
@@ -36,9 +36,7 @@ PROTEINGYM_S3_KEYS: dict[str, tuple[str, str]] = {
     "clinical_indels":        ("clinical_indels.parquet",          "clinical_indels.parquet"),
 }
 
-# Reference/metadata CSVs from the official ProteinGym GitHub release.
-# These contain per-assay metadata including selection_type (Stability/Binding/Activity)
-# used by AssayType classification in dataset.py.
+# reference/metadata csvs from the official ProteinGym GitHub release
 PROTEINGYM_REF_URLS: dict[str, str] = {
     "ProteinGym_reference_file_substitutions.csv": (
         "https://raw.githubusercontent.com/OATML-Markslab/ProteinGym/main/"
@@ -50,7 +48,7 @@ PROTEINGYM_REF_URLS: dict[str, str] = {
     ),
 }
 
-# Zenodo filenames for the Tsuboyama 2023 mega-scale stability dataset
+# zenodo filenames for the Tsuboyama 2023 mega-scale stability dataset
 TSUBOYAMA_FILES: dict[str, str] = {
     "processed_datasets": "Processed_K50_dG_datasets.zip",
     "dataset1_csv":       "Tsuboyama2023_Dataset1_20230416.csv",

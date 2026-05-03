@@ -27,9 +27,8 @@ _ATOM37_CA_IDX: int = 1
 CoordMode = Literal["ca", "backbone", "all_atom"]
 
 
-# ---------------------------------------------------------------------------
-# Sequence tokenization
-# ---------------------------------------------------------------------------
+
+
 
 def tokenize_sequence(
     sequence: str,
@@ -39,9 +38,8 @@ def tokenize_sequence(
     truncation: bool = True,
     device: Optional[torch.device] = None,
 ) -> Dict[str, Any]:
-    """Tokenize a protein sequence via an ESM-style tokenizer.
-
-    Falls back to char-level encoding if the model tokenizer is unavailable.
+    """tokenize a protein sequence via an esm-style tokenizer.
+    falls back to char-level encoding if the model tokenizer is unavailable.
     """
     try:
         from ..model_loader import HFModelLoader
@@ -66,30 +64,20 @@ def tokenize_sequence(
         return {"input_ids": ids, "attention_mask": mask}
 
 
-# ---------------------------------------------------------------------------
-# Mutation parsing and encoding
-# ---------------------------------------------------------------------------
-
 def parse_mutation_string(mut_str: str):
-    """Delegate to the tokenizers module's canonical parser."""
+    """delegate to the tokenizers module's canonical parser"""
     from ..tokenizers import parse_mutation_string as _parse
     return _parse(mut_str)
 
 
 def apply_mutations(wt_sequence: str, parsed_mutation) -> str:
-    """Apply a ParsedMutation to a wild-type sequence and return the mutant."""
+    """apply a ParsedMutation to a wild-type sequence and return the mutant"""
     from ..tokenizers import apply_mutations as _apply
     return _apply(wt_sequence, parsed_mutation)
 
 
 def encode_mutation(mutation: Any) -> Dict[str, torch.Tensor]:
-    """Encode a mutation specification into tensors for model input.
-
-    Returns a dict with keys:
-      - ``position``: 0-based residue index (int64)
-      - ``aa_old``:   wild-type amino acid index (int64)
-      - ``aa_new``:   mutant amino acid index (int64)
-    """
+    """encode a mutation specification into tensors for model input"""
     from ..tokenizers import MutationRecord, ParsedMutation
 
     if isinstance(mutation, str):
@@ -117,10 +105,6 @@ def _aa_to_index(aa: str) -> int:
     return AA_TO_IDX.get((aa or "").upper(), 0)
 
 
-# ---------------------------------------------------------------------------
-# Structure loading and prediction
-# ---------------------------------------------------------------------------
-
 def _ensure_cache_dir(cache_dir: Optional[str]) -> Path:
     if cache_dir is None:
         cache_dir = os.environ.get(
@@ -139,7 +123,7 @@ def _select_coords_atom37(
     all_atom_positions: np.ndarray,
     coord_mode: CoordMode,
 ) -> np.ndarray:
-    """Extract coordinates from an ESMFold atom37 array of shape (L, 37, 3)."""
+    """extract coordinates from an ESMFold atom37 array of shape (L, 37, 3)"""
     arr = np.asarray(all_atom_positions, dtype=np.float32)
     if arr.ndim != 3 or arr.shape[1] != 37 or arr.shape[2] != 3:
         raise ValueError(
@@ -156,7 +140,7 @@ def _select_coords_pdb(
     atom_records: List[Dict],
     coord_mode: CoordMode,
 ) -> np.ndarray:
-    """Build a coordinate array from parsed PDB ATOM records."""
+    """build a coordinate array from parsed pdb atom records"""
     if not atom_records:
         raise ValueError("No atom records provided")
 
@@ -204,7 +188,7 @@ def load_structure(
     coord_mode: CoordMode = "backbone",
     device: Optional[torch.device] = None,
 ) -> np.ndarray:
-    """Load protein coordinates from a PDB file or by ESMFold prediction."""
+    """load protein coordinates from a PDB file or by ESMFold prediction"""
     p = Path(pdb_path_or_sequence)
     if p.exists():
         atom_records: List[Dict] = []
@@ -241,7 +225,7 @@ def predict_structure_esmfold(
     cache_dir: Optional[str] = None,
     device: Optional[torch.device] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """Predict protein structure with ESMFold; results are cached by sequence hash."""
+    """predict protein structure with ESMFold, results are cached by sequence hash"""
     cache = _ensure_cache_dir(cache_dir)
     cache_file = cache / f"{_seq_hash(sequence)}.npz"
 
@@ -253,7 +237,7 @@ def predict_structure_esmfold(
 
     tried: List[str] = []
 
-    # Attempt 1: esm package
+    # esm package
     try:
         import esm
         try:
@@ -273,7 +257,7 @@ def predict_structure_esmfold(
     except ImportError:
         tried.append("esm package not available")
 
-    # Attempt 2: HuggingFace ESMFold wrapper
+    # HuggingFace ESMFold wrapper
     try:
         from ..model_loader import HFModelLoader
         loader = HFModelLoader(device=device or torch.device("cpu"))
@@ -323,12 +307,8 @@ def predict_structure_esmfold(
     )
 
 
-# ---------------------------------------------------------------------------
-# Graph construction
-# ---------------------------------------------------------------------------
-
 def compute_distance_map(coords: np.ndarray) -> np.ndarray:
-    """Pairwise Euclidean distance map from a (L, 3) coordinate array."""
+    """compute pairwise Euclidean distance map from a (L, 3) coordinate array"""
     coords = np.asarray(coords, dtype=np.float32)
     if coords.ndim != 2 or coords.shape[1] != 3:
         raise ValueError("coords must be shape (L, 3)")
@@ -337,7 +317,7 @@ def compute_distance_map(coords: np.ndarray) -> np.ndarray:
 
 
 def build_protein_graph(coords: np.ndarray, cutoff: float = 10.0):
-    """Build a residue-level contact graph from (L, 3) Cα coordinates."""
+    """build a residue-level contact graph from (L, 3) Cα coordinates"""
     coords = np.asarray(coords, dtype=np.float32)
     dmap = compute_distance_map(coords)
     rows, cols = np.where((dmap <= cutoff) & (dmap > 0.0))
@@ -353,12 +333,8 @@ def build_protein_graph(coords: np.ndarray, cutoff: float = 10.0):
         return {"x": x, "edge_index": edge_index_t, "edge_attr": edge_attr_t}
 
 
-# ---------------------------------------------------------------------------
-# Fitness normalization and augmentation
-# ---------------------------------------------------------------------------
-
 def normalize_fitness(raw_scores: List[float], method: str = "quantile") -> np.ndarray:
-    """Normalize fitness scores into [0, 1] (minmax / zscore / quantile)."""
+    """normalize fitness scores into [0, 1] (minmax / zscore / quantile)"""
     arr = np.asarray(raw_scores, dtype=float)
     if method == "minmax":
         mn, mx = np.nanmin(arr), np.nanmax(arr)
@@ -378,7 +354,7 @@ def normalize_fitness(raw_scores: List[float], method: str = "quantile") -> np.n
 
 
 def augment_dms_data(dataset: Any, strategy: str = "none") -> Any:
-    """Data augmentation for DMS datasets."""
+    """data augmentation for dms datasets"""
     if strategy == "none":
         return dataset
     try:
