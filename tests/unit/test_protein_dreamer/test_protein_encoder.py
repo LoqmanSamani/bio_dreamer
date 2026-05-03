@@ -1,4 +1,3 @@
-"""Unit tests for biodreamer.protein_dreamer.encoder."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -14,15 +13,14 @@ from biodreamer.protein_dreamer.data.preprocessing import build_protein_graph
 LATENT_DIM = 64
 EMBED_DIM = 32
 SEQ_LEN = 20
-SEQ_HIDDEN = 128  # stub ESM-2 hidden size
+SEQ_HIDDEN = 128  # stub esm2 hidden size
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+
+
 
 def _mock_esm2(hidden_size: int = SEQ_HIDDEN) -> MagicMock:
-    """Minimal ESM-2 stand-in that returns a last_hidden_state tensor."""
+    """minimal esm2 stand-in that returns a last_hidden_state tensor"""
     model = MagicMock(spec=nn.Module)
     model.config = MagicMock()
     model.config.hidden_size = hidden_size
@@ -37,12 +35,12 @@ def _mock_esm2(hidden_size: int = SEQ_HIDDEN) -> MagicMock:
         out.last_hidden_state = torch.randn(B, L, hidden_size)
         return out
 
-    model.__call__ = MagicMock(side_effect=_forward)
+    model.side_effect = _forward
     return model
 
 
 def _mock_tokenizer() -> MagicMock:
-    """Stand-in tokenizer that returns input_ids + attention_mask tensors."""
+    """stand-in tokenizer that returns input_ids + attention_mask tensors"""
     tok = MagicMock()
 
     def _call(seqs, return_tensors="pt", padding=True, **kwargs):
@@ -58,7 +56,7 @@ def _mock_tokenizer() -> MagicMock:
 
 
 def _protein_encoder(use_structure: bool = False) -> ProteinEncoder:
-    """Build a ProteinEncoder with mocked ESM-2 (no network download)."""
+    """build a ProteinEncoder with mocked esm2"""
     mock_model = _mock_esm2(SEQ_HIDDEN)
     mock_tok = _mock_tokenizer()
     with patch.object(ProteinEncoder, "_hf_load", return_value=(mock_model, mock_tok)):
@@ -82,9 +80,6 @@ def _sample_plddt(L: int = SEQ_LEN) -> np.ndarray:
     return rng.uniform(40.0, 95.0, size=L).astype(np.float32)
 
 
-# ---------------------------------------------------------------------------
-# build_protein_graph
-# ---------------------------------------------------------------------------
 
 class TestBuildProteinGraph:
     def test_node_s_shape(self):
@@ -140,9 +135,6 @@ class TestBuildProteinGraph:
         assert "edge_attr" in g
 
 
-# ---------------------------------------------------------------------------
-# ActionEncoder
-# ---------------------------------------------------------------------------
 
 class TestActionEncoder:
     @pytest.fixture
@@ -190,9 +182,6 @@ class TestActionEncoder:
         assert len(grads) > 0
 
 
-# ---------------------------------------------------------------------------
-# ProteinEncoder (seq-only mode, using mock ESM-2)
-# ---------------------------------------------------------------------------
 
 class TestProteinEncoderSeqOnly:
     @pytest.fixture
@@ -223,15 +212,14 @@ class TestProteinEncoderSeqOnly:
 
     def test_forward_same_as_embed_then_encode(self, enc):
         obs = {"sequence": "ACDEFGHIKLMNPQRSTVWY"}
-        z_direct = enc(obs)
+        # pre-embed once; forward() skips embed_observation when 'sequence' key is absent
         embedded = enc.embed_observation(obs)
-        z_indirect = enc.encode(embedded)
-        assert torch.allclose(z_direct, z_indirect, atol=1e-6)
+        z_via_forward = enc(embedded)
+        z_via_encode = enc.encode(embedded)
+        assert torch.allclose(z_via_forward, z_via_encode, atol=1e-6)
 
 
-# ---------------------------------------------------------------------------
-# ProteinEncoder (structure mode, using mock ESM-2 + real GVP-GNN)
-# ---------------------------------------------------------------------------
+
 
 class TestProteinEncoderWithStructure:
     @pytest.fixture
@@ -268,7 +256,7 @@ class TestProteinEncoderWithStructure:
 
     def test_missing_coords_falls_back_gracefully(self, enc):
         obs = {"sequence": "A" * SEQ_LEN}  # no coords
-        # Should not raise; struct_emb will be zeros
+        # should not raise; struct_emb will be zeros
         z = enc(obs)
         assert z.shape == (1, LATENT_DIM)
         assert torch.isfinite(z).all()

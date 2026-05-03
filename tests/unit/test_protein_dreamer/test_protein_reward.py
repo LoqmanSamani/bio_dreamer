@@ -1,4 +1,3 @@
-"""Unit tests for biodreamer.protein_dreamer.reward.ProteinRewardHead."""
 from __future__ import annotations
 
 import math
@@ -29,9 +28,7 @@ def z_t() -> torch.Tensor:
     return torch.randn(BATCH, LATENT_DIM)
 
 
-# ---------------------------------------------------------------------------
-# Architecture
-# ---------------------------------------------------------------------------
+
 
 class TestArchitecture:
     def test_four_heads_exist(self, reward_head):
@@ -53,9 +50,7 @@ class TestArchitecture:
         assert abs(total - 1.0) < 1e-6
 
 
-# ---------------------------------------------------------------------------
-# predict_multi output shapes and keys
-# ---------------------------------------------------------------------------
+
 
 class TestPredictMulti:
     def test_keys(self, reward_head, z_t):
@@ -73,9 +68,7 @@ class TestPredictMulti:
             assert v.dtype == torch.float32
 
 
-# ---------------------------------------------------------------------------
-# predict (scalar aggregation)
-# ---------------------------------------------------------------------------
+
 
 class TestPredict:
     def test_scalar_shape(self, reward_head, z_t):
@@ -91,9 +84,7 @@ class TestPredict:
         assert torch.allclose(r, expected.squeeze(-1), atol=1e-5)
 
 
-# ---------------------------------------------------------------------------
-# compute_loss — masked SmoothL1
-# ---------------------------------------------------------------------------
+
 
 class TestComputeLoss:
     def _targets_all_measured(self, batch_size: int = BATCH) -> dict:
@@ -122,7 +113,7 @@ class TestComputeLoss:
         assert loss.item() >= 0.0
 
     def test_loss_zero_on_perfect_prediction(self):
-        # Build a head whose weights are fixed identity so we can control the output.
+        # build a head whose weights are fixed identity so we can control the output.
         head = ProteinRewardHead(latent_dim=2, hidden_dim=4, device=torch.device("cpu"))
         z = torch.zeros(1, 2)
         multi = head.predict_multi(z)
@@ -134,7 +125,7 @@ class TestComputeLoss:
         z = torch.zeros(BATCH, LATENT_DIM)
         sparse = self._targets_sparse()
         loss = reward_head.compute_loss(z, sparse)
-        # If NaN masking works correctly, the loss is finite (no NaN propagation).
+        # if NaN masking works correctly, the loss is finite (no NaN propagation).
         assert not math.isnan(loss.item())
         assert loss.item() >= 0.0
 

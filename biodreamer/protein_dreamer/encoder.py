@@ -184,7 +184,7 @@ class ProteinEncoder(BaseEncoder):
                     struct_emb = struct_emb.mean(dim=0, keepdim=True)  # (L, H) -> (1, H)
                 parts.append(struct_emb)
             else:
-                # graceful degradation: zeros when structure was unavailable
+                # zeros when structure was unavailable
                 parts.append(torch.zeros(seq_emb.shape[0], self.gvp_hidden_dim, device=self.device))
 
             ptm_t = torch.tensor(
@@ -196,7 +196,7 @@ class ProteinEncoder(BaseEncoder):
         return self.layer_norm(self.fusion_mlp(fused))
 
     def forward(self, observation: Dict[str, Any]) -> torch.Tensor:
-        """Full forward pass: embed raw observation (if needed) then encode to z_t."""
+        """embed raw observation (if needed) then encode to z_t"""
         if "sequence" in observation:
             observation = self.embed_observation(observation)
         return self.encode(observation)
@@ -248,8 +248,8 @@ class ActionEncoder(BaseEncoder):
     def encode(self, action: Dict[str, Any]) -> torch.Tensor:
         pos = action["position"].to(self.device)
         pos_emb = self.pos_embed(pos.float().unsqueeze(-1))
-        aa_emb = self.aa_embed(action["aa_old"].float().to(self.device))
-        aa_new_emb = self.aa_new_embed(action["aa_new"].float().to(self.device))
+        aa_emb = self.aa_embed(action["aa_old"].to(self.device))
+        aa_new_emb = self.aa_new_embed(action["aa_new"].to(self.device))
         action_embed = torch.cat([pos_emb, aa_emb, aa_new_emb], dim=-1)
         return self.layer_norm(self.action_mlp(action_embed))
 

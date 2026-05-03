@@ -18,29 +18,26 @@ the ProteinTokenizer wraps either CharTokenizer or KmerTokenizer or BPETokenizer
   - encode_with_organism()     -> prepend organism token before [CLS]
 """
 from __future__ import annotations
+
+import itertools
 import json
+import logging
 import re
 from collections import Counter
-from pathlib import Path
-from typing import Iterator
-import itertools
-from ..core.tokenizers import BaseProteinTokenizer
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
+
 import torch
 
+from ..core.tokenizers import BaseProteinTokenizer
 
+logger = logging.getLogger(__name__)
 
-
-# tokenizer mode type 
 TokenizerMode = Literal["char", "kmer", "bpe"]
-# regex for parsing mutation sub-strings
+
 _SINGLE_SUB_RE = re.compile(r"^([A-Za-z*])(\d+)([A-Za-z\-*])$")
-
-# insertion flag: e.g. "42ins3"  (not decoded into aa tokens)
 _INSERTION_RE = re.compile(r"^\d+ins\d+$", re.IGNORECASE)
-
-
 
 
 class ProteinTokenizer:
@@ -118,7 +115,6 @@ class ProteinTokenizer:
         return_tensors: bool = False,
         mutation_positions: list[int] | None = None,
     ) -> dict:
-        """encode a raw amino acid sequence. thin wrapper around underlying tokenizer"""
         return self._tok.encode(
             sequence,
             max_length=max_length,
@@ -147,7 +143,6 @@ class ProteinTokenizer:
         )
 
     def parse_mutation(self, mutation_str: str) -> ParsedMutation:
-        """parse a mutation string into a ParsedMutation (no encoding)"""
         return parse_mutation_string(mutation_str)
 
     def encode_mutation_string(
@@ -160,18 +155,14 @@ class ProteinTokenizer:
         return_tensors: bool = False,
         strict_wt_check: bool = True,
     ) -> dict:
-        """
-        parse mutation_str, apply it to wt_sequence, then encode the
-        resulting mutated sequence with mutation positions flagged
-        """
+        """parse mutation_str, apply it to wt_sequence, then encode with mutation positions flagged"""
         parsed = parse_mutation_string(mutation_str)
 
         try:
             mutated_seq = apply_mutations(wt_sequence, parsed)
-        except ValueError as e:
+        except ValueError:
             if strict_wt_check:
                 raise
-            # soft mode: encode the wt sequence without flagging positions
             mutated_seq = wt_sequence
 
         out = self._tok.encode(
@@ -195,7 +186,6 @@ class ProteinTokenizer:
         return_tensors: bool = False,
         strict_wt_check: bool = True,
     ) -> dict:
-        """batch version of encode_mutation_string"""
         encoded_list = []
         parsed_list  = []
 
@@ -210,7 +200,7 @@ class ProteinTokenizer:
             )
             parsed_list.append(enc.pop("parsed_mutation"))
             encoded_list.append(enc)
-        # pad to batch max
+
         batch_max = max(len(e["input_ids"]) for e in encoded_list)
         if max_length is not None:
             batch_max = min(batch_max, max_length)
@@ -250,7 +240,7 @@ class ProteinTokenizer:
     ) -> dict:
         """encode sequence and prepend an organism token before [CLS]"""
         org_id = self._tok.get_organism_token_id(organism)
-        
+
         out = self._tok.encode(
             sequence,
             max_length=(max_length - 1) if max_length else None,
@@ -259,7 +249,6 @@ class ProteinTokenizer:
             return_tensors=False,
             mutation_positions=mutation_positions,
         )
-        # prepend organism token
         out["input_ids"]      = [org_id] + out["input_ids"]
         out["attention_mask"] = [1]      + out["attention_mask"]
         out["mutation_mask"]  = [0]      + out["mutation_mask"]
@@ -276,27 +265,22 @@ class ProteinTokenizer:
                     for k, v in out.items()}
         return out
 
-    # bpe-specific helpers
     def train_bpe(
         self,
         sequences: list[str],
         min_frequency: int = 2,
         verbose: bool = False,
     ) -> None:
-        """train bpe merge rules from a corpus of sequences"""
         if self.mode != "bpe":
             raise RuntimeError(
                 "train_bpe() is only available when mode='bpe'. "
                 f"Current mode: '{self.mode}'."
             )
-        assert isinstance(self._tok, BPETokenizer)
         self._tok.train(sequences, min_frequency=min_frequency, verbose=verbose)
 
     def save_bpe(self, path: str) -> None:
-        """save the bpe vocabulary/merge table to a json file"""
         if self.mode != "bpe":
             raise RuntimeError("save_bpe() requires mode='bpe'.")
-        assert isinstance(self._tok, BPETokenizer)
         self._tok.save(path)
 
     @classmethod
@@ -305,7 +289,6 @@ class ProteinTokenizer:
         path: str,
         organism_tokens: list[str] | None = None,
     ) -> ProteinTokenizer:
-        """load a previously saved bpe tokenizer and return a ProteinTokenizer"""
         saved = BPETokenizer.load(path)
         return cls(
             mode="bpe",
@@ -317,24 +300,22 @@ class ProteinTokenizer:
 
     def __repr__(self) -> str:
         return (
-            f"UnifiedTokenizer(mode='{self.mode}', "
+            f"ProteinTokenizer(mode='{self.mode}', "
             f"vocab_size={self.vocab_size}, "
             f"organism_tokens={self.organism_tokens})"
         )
-        
-            
+
 
 @dataclass
 class MutationRecord:
     """represents a single amino acid substitution or indel from a mutation string"""
-    wt_aa:    str          # wild-type amino acid (single letter)
-    position: int          # 1-based position (as in ProteinGym)
-    mut_aa:   str          # mutant amino acid
-    raw:      str = ""     # original string, e.g. "A42G"
+    wt_aa:    str
+    position: int
+    mut_aa:   str
+    raw:      str = ""
 
     @property
     def position_0(self) -> int:
-        """0-based position for use with python strings"""
         return self.position - 1
 
     @property
@@ -347,6 +328,7 @@ class MutationRecord:
 
     def __str__(self) -> str:
         return self.raw or f"{self.wt_aa}{self.position}{self.mut_aa}"
+
 
 @dataclass
 class ParsedMutation:
@@ -366,11 +348,7 @@ class ParsedMutation:
 
     @property
     def positions_0(self) -> list[int]:
-        """0-based positions of all mutations"""
         return [r.position_0 for r in self.records]
-
-
-
 
 
 class BPETokenizer(BaseProteinTokenizer):
@@ -389,16 +367,12 @@ class BPETokenizer(BaseProteinTokenizer):
         )
         self.target_vocab_size = vocab_size
         self.include_ambiguous = include_ambiguous
-        # ordered list of (a, b) → "ab" merge rules
         self.merges: list[tuple[str, str]] = merges or []
-        # build seed vocab (specials + single-char aa tokens)
         self._build_seed_vocab()
-        # if merges were injected, apply them to the vocab immediately
         if self.merges:
             self._apply_merges_to_vocab(self.merges)
 
     def _build_seed_vocab(self) -> None:
-        """register specials + individual amino acid characters"""
         seed = (
             self.SPECIAL_TOKENS
             + self.organism_tokens
@@ -408,7 +382,6 @@ class BPETokenizer(BaseProteinTokenizer):
         self._register_vocab(seed)
 
     def _apply_merges_to_vocab(self, merges: list[tuple[str, str]]) -> None:
-        """register merged tokens derived from the merge table"""
         for a, b in merges:
             merged = a + b
             if merged not in self.token2id:
@@ -420,16 +393,14 @@ class BPETokenizer(BaseProteinTokenizer):
         min_frequency: int = 2,
         verbose: bool = False,
     ) -> None:
-        """learn bpe merge rules from a list of amino acid sequences"""
         working_vocab: dict[tuple[str, ...], int] = Counter(
             tuple(_word_to_chars(seq))
             for seq in sequences
             if seq.strip()
         )
-        n_seed      = self.vocab_size # current vocab size (seed already registered)
-        n_special   = len(self.SPECIAL_TOKENS) + len(self.organism_tokens)
-        max_merges  = self.target_vocab_size - n_seed
-        
+        n_seed     = self.vocab_size
+        max_merges = self.target_vocab_size - n_seed
+
         if max_merges <= 0:
             if verbose:
                 print(f"[BPE] vocab_size={self.target_vocab_size} already reached "
@@ -441,7 +412,6 @@ class BPETokenizer(BaseProteinTokenizer):
             stats = _get_pair_stats(working_vocab)
             if not stats:
                 break
-            # filter by minimum frequency
             stats = Counter({k: v for k, v in stats.items() if v >= min_frequency})
             if not stats:
                 break
@@ -459,22 +429,11 @@ class BPETokenizer(BaseProteinTokenizer):
                   f"({len(self.merges)} merges learned).")
 
     def tokenize(self, sequence: str) -> list[str]:
-        """apply learned bpe merges to a sequence and return token strings"""
         if not self.merges:
             return _word_to_chars(sequence)
         word = _word_to_chars(sequence.upper())
         for pair in self.merges:
-            merged = "".join(pair)
-            new_word: list[str] = []
-            i = 0
-            while i < len(word):
-                if i < len(word) - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
-                    new_word.append(merged)
-                    i += 2
-                else:
-                    new_word.append(word[i])
-                    i += 1
-            word = new_word
+            word = _apply_merge(word, pair)
         return word
 
     def convert_tokens_to_ids(self, tokens: list[str]) -> list[int]:
@@ -500,14 +459,9 @@ class BPETokenizer(BaseProteinTokenizer):
         tokens: list[str],
         mutation_positions: list[int] | None,
     ) -> list[int]:
-        """bpe tokens are variable-length, so we must track character spans.
-        token i covers characters [span_start, span_start + len(token) - 1].
-        a mutation at position p marks every token whose span includes p.
-        """
         mask = [0] * len(tokens)
         if not mutation_positions:
             return mask
-        # build character-offset spans for each token
         spans: list[tuple[int, int]] = []
         cursor = 0
         for tok in tokens:
@@ -520,7 +474,6 @@ class BPETokenizer(BaseProteinTokenizer):
         return mask
 
     def save(self, path: str | Path) -> None:
-        """serialise the tokenizer to a json file"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
@@ -536,7 +489,6 @@ class BPETokenizer(BaseProteinTokenizer):
 
     @classmethod
     def load(cls, path: str | Path) -> "BPETokenizer":
-        """load a previously saved BPETokenizer from a json file"""
         with open(path) as f:
             data = json.load(f)
         if data.get("type") != "BPETokenizer":
@@ -555,9 +507,6 @@ class BPETokenizer(BaseProteinTokenizer):
             f"BPETokenizer(target_vocab_size={self.target_vocab_size}, "
             f"vocab_size={self.vocab_size}, {trained})"
         )
-        
-       
-  
 
 
 class KmerTokenizer(BaseProteinTokenizer):
@@ -585,7 +534,6 @@ class KmerTokenizer(BaseProteinTokenizer):
 
     def _build_vocab(self) -> None:
         aa = self.AMINO_ACIDS + (self.AMBIGUOUS_AA if self.include_ambiguous else [])
-        # generate all possible k-mers (sorted for reproducibility)
         kmers = sorted(
             "".join(combo)
             for combo in itertools.product(aa, repeat=self.k)
@@ -593,9 +541,7 @@ class KmerTokenizer(BaseProteinTokenizer):
         tokens = self.SPECIAL_TOKENS + self.organism_tokens + kmers
         self._register_vocab(tokens)
 
-   
     def tokenize(self, sequence: str) -> list[str]:
-        """slide a window of size k over the sequence with the given stride"""
         seq = sequence.upper()
         L   = len(seq)
         tokens: list[str] = []
@@ -605,14 +551,11 @@ class KmerTokenizer(BaseProteinTokenizer):
             tokens.append(seq[pos : pos + self.k])
             pos += self.stride
 
-        # handle incomplete tail window (only when stride > 1)
         if self.stride > 1 and pos < L:
             tail = seq[pos:]
             if self.pad_incomplete:
-                tail = tail.ljust(self.k, "-")   # pad with '-'
-                tokens.append(tail)
-            # else: drop the incomplete window
-            
+                tokens.append(tail.ljust(self.k, "-"))
+
         return tokens
 
     def convert_tokens_to_ids(self, tokens: list[str]) -> list[int]:
@@ -620,7 +563,6 @@ class KmerTokenizer(BaseProteinTokenizer):
         return [self.token2id.get(t, unk) for t in tokens]
 
     def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
-        """reconstruct the sequence from overlapping k-mer tokens"""
         special_ids = set()
         if skip_special_tokens:
             special_ids = {self.token2id[t] for t in self.SPECIAL_TOKENS
@@ -638,12 +580,10 @@ class KmerTokenizer(BaseProteinTokenizer):
             return ""
 
         if self.stride == 1:
-            # overlapping: first char of each token + full last token
             seq = "".join(t[0] for t in real_tokens[:-1]) + real_tokens[-1]
         else:
             seq = "".join(real_tokens)
 
-        # strip padding characters introduced during tokenization
         return seq.replace("-", "")
 
     def _build_mutation_mask(
@@ -651,18 +591,14 @@ class KmerTokenizer(BaseProteinTokenizer):
         tokens: list[str],
         mutation_positions: list[int] | None,
     ) -> list[int]:
-        """
-        a mutation at position p in the original sequence affects all k-mer
-        windows that overlap position p.
-        """
+        """a mutation at position p affects all k-mer windows whose span overlaps p."""
         mask = [0] * len(tokens)
         if not mutation_positions:
             return mask
 
         for pos in mutation_positions:
-            # token indices whose window covers `pos`
             first_tok = max(0, pos - self.k + 1)
-            last_tok  = pos // self.stride       # works for both stride=1 and >1
+            last_tok  = pos // self.stride
             for ti in range(first_tok, min(last_tok + 1, len(mask))):
                 mask[ti] = 1
 
@@ -673,10 +609,7 @@ class KmerTokenizer(BaseProteinTokenizer):
             f"KmerTokenizer(k={self.k}, stride={self.stride}, "
             f"vocab_size={self.vocab_size})"
         )
-        
-        
- 
-        
+
 
 class CharTokenizer(BaseProteinTokenizer):
     """
@@ -710,7 +643,6 @@ class CharTokenizer(BaseProteinTokenizer):
         self._register_vocab(tokens)
 
     def tokenize(self, sequence: str) -> list[str]:
-        """split sequence into individual characters (residues)"""
         return list(sequence.upper())
 
     def convert_tokens_to_ids(self, tokens: list[str]) -> list[int]:
@@ -730,52 +662,53 @@ class CharTokenizer(BaseProteinTokenizer):
             for i in ids
             if i in self.id2token and i not in special_ids
         )
-        
-        
-        
 
 
-# helpers 
+
+# helpers
 def _word_to_chars(sequence: str) -> list[str]:
-    """split a sequence into individual characters (seed bpe units)"""
     return list(sequence.upper())
 
+
+def _apply_merge(word: list[str], pair: tuple[str, str]) -> list[str]:
+    """apply one BPE merge rule to a tokenised word in-place (returns new list)."""
+    merged = "".join(pair)
+    new_word: list[str] = []
+    i = 0
+    while i < len(word):
+        if i < len(word) - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
+            new_word.append(merged)
+            i += 2
+        else:
+            new_word.append(word[i])
+            i += 1
+    return new_word
+
+
 def _get_pair_stats(vocab: dict[tuple[str, ...], int]) -> Counter:
-    """count adjacent pair frequencies across all words in the vocab"""
     stats: Counter = Counter()
     for word, freq in vocab.items():
         for i in range(len(word) - 1):
             stats[(word[i], word[i + 1])] += freq
     return stats
 
+
 def _merge_vocab(
     vocab: dict[tuple[str, ...], int],
     pair: tuple[str, str],
 ) -> dict[tuple[str, ...], int]:
-    """apply one bpe merge to every word in the working vocabulary"""
-    merged   = "".join(pair)
-    new_vocab: dict[tuple[str, ...], int] = {}
-    for word, freq in vocab.items():
-        new_word: list[str] = []
-        i = 0
-        while i < len(word):
-            if i < len(word) - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
-                new_word.append(merged)
-                i += 2
-            else:
-                new_word.append(word[i])
-                i += 1
-        new_vocab[tuple(new_word)] = freq
-    return new_vocab
+    return {
+        tuple(_apply_merge(list(word), pair)): freq
+        for word, freq in vocab.items()
+    }
+
 
 def parse_mutation_string(mut_str: str) -> ParsedMutation:
-    """parse a ProteinGym-style mutation string into a ParsedMutation"""
     parts = [p.strip() for p in mut_str.split(":")]
     records: list[MutationRecord] = []
-    
+
     for part in parts:
         if _INSERTION_RE.match(part):
-            # insertions: we record them as a deletion placeholder
             records.append(MutationRecord(
                 wt_aa="-", position=0, mut_aa="ins", raw=part
             ))
@@ -797,12 +730,12 @@ def parse_mutation_string(mut_str: str) -> ParsedMutation:
         ))
     return ParsedMutation(records=records, raw_string=mut_str)
 
+
 def apply_mutations(wt_sequence: str, parsed: ParsedMutation) -> str:
-    """apply parsed mutations to a wild-type sequence string"""
     seq = list(wt_sequence.upper())
     for rec in parsed.records:
         if rec.position == 0:
-            continue  
+            continue
         idx = rec.position_0
         if idx >= len(seq):
             raise IndexError(
@@ -815,7 +748,7 @@ def apply_mutations(wt_sequence: str, parsed: ParsedMutation) -> str:
                 f"expected '{rec.wt_aa}', found '{seq[idx]}'."
             )
         if rec.is_deletion:
-            seq[idx] = "" 
+            seq[idx] = ""
         else:
             seq[idx] = rec.mut_aa
     return "".join(seq)

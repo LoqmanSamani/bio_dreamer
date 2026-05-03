@@ -521,11 +521,15 @@ class GVP_GNN(nn.Module):
         """
         # embed inputs into hidden dims
         s_h, v_h = self.node_embed(s, v)
+        if v_h is None:
+            v_h = torch.zeros(s_h.shape[0], 0, self.vector_dim, device=s_h.device, dtype=s_h.dtype)
         if edge_s is None:
             edge_s = torch.zeros(edge_index.shape[1], 0, device=s.device, dtype=s.dtype)
         if edge_v is None:
             edge_v = torch.zeros(edge_index.shape[1], 0, self.vector_dim, device=s.device, dtype=s.dtype)
         s_e, v_e = self.edge_embed(edge_s, edge_v)
+        if v_e is None:
+            v_e = torch.zeros(s_e.shape[0], 0, self.vector_dim, device=s_e.device, dtype=s_e.dtype)
 
         # pass through GVPConv layers
         for layer in self.layers:
@@ -755,7 +759,7 @@ class GraphTransformerLayer(nn.Module):
 
         if self.in_v > 0 and v is not None:
             v_src = v[senders]  # (e, in_v, 3)
-            v_msg = torch.einsum('...ij,oj->...oi', v_src, self.w_v) if self.w_v is not None else v_src
+            v_msg = torch.einsum('...ij,oi->...oj', v_src, self.w_v) if self.w_v is not None else v_src
             w_mean = weights.mean(dim=1)  # (e,)
             weighted_v_msg = v_msg * w_mean.view(-1, 1, 1)
             agg_v = torch.zeros(n, v_msg.shape[1], self.vector_dim, device=device, dtype=v_msg.dtype)
@@ -849,7 +853,7 @@ class GVP(nn.Module):
         v_lin = None
         v_norm = None
         if self.in_v > 0 and v is not None:
-            v_lin = torch.einsum('...ij,oj->...oi', v, self.w_v)  # (..., out_v, 3)
+            v_lin = torch.einsum('...ij,oi->...oj', v, self.w_v)  # (..., out_v, 3)
             v_norm = torch.sqrt((v_lin ** 2).sum(dim=-1) + self._eps)
         elif self.out_v > 0:
             batch_shape = s.shape[:-1]
