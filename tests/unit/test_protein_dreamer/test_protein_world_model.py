@@ -1,4 +1,3 @@
-"""Unit tests for biodreamer.protein_dreamer.world_model.ProteinWorldModel."""
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -19,9 +18,9 @@ BATCH      = 4
 HORIZON    = 3
 
 
-# ---------------------------------------------------------------------------
-# Minimal concrete stubs that satisfy the ABCs
-# ---------------------------------------------------------------------------
+
+
+
 
 class _Encoder(BaseEncoder):
     def __init__(self, latent_dim: int) -> None:
@@ -75,9 +74,7 @@ class _Decoder(BaseDecoder):
         return self.proj(z_t)
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def wm() -> ProteinWorldModel:
@@ -110,9 +107,8 @@ def actions() -> torch.Tensor:
     return torch.randn(BATCH, HORIZON, ACTION_DIM)
 
 
-# ---------------------------------------------------------------------------
-# Construction
-# ---------------------------------------------------------------------------
+
+
 
 class TestConstruction:
     def test_is_protein_world_model(self, wm):
@@ -138,9 +134,8 @@ class TestConstruction:
         assert "reward_head" in names
 
 
-# ---------------------------------------------------------------------------
-# encode()
-# ---------------------------------------------------------------------------
+
+
 
 class TestEncode:
     def test_output_shape(self, wm, z):
@@ -154,9 +149,7 @@ class TestEncode:
         assert wm.encode(z).dtype == torch.float32
 
 
-# ---------------------------------------------------------------------------
-# imagine()
-# ---------------------------------------------------------------------------
+
 
 class TestImagine:
     def test_states_shape(self, wm, z, actions):
@@ -198,9 +191,8 @@ class TestImagine:
         assert out["states"].shape[1] == HORIZON
 
 
-# ---------------------------------------------------------------------------
-# decode()
-# ---------------------------------------------------------------------------
+
+
 
 class TestDecode:
     def test_decode_without_decoder_raises(self, wm, z):
@@ -219,9 +211,8 @@ class TestDecode:
         assert torch.isfinite(wm_with_decoder.decode(z)).all()
 
 
-# ---------------------------------------------------------------------------
-# predict_reward()
-# ---------------------------------------------------------------------------
+
+
 
 class TestPredictReward:
     def test_output_shape(self, wm, z):
@@ -235,9 +226,8 @@ class TestPredictReward:
         assert wm.predict_reward(z).dtype == torch.float32
 
 
-# ---------------------------------------------------------------------------
-# compute_loss()
-# ---------------------------------------------------------------------------
+
+
 
 class TestComputeLoss:
     @pytest.fixture

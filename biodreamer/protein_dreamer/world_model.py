@@ -15,18 +15,21 @@ from biodreamer.core.world_model import WorldModel
 logger = logging.getLogger(__name__)
 
 
+
+
+
+
 class ProteinWorldModel(WorldModel):
     """ProteinDreamer world model: encoder + dynamics + reward + optional decoder.
 
-    Inherits encode(), imagine(), decode(), and predict_reward() from
+    inherits encode(), imagine(), decode(), and predict_reward() from
     core.WorldModel. Adds compute_loss() to coordinate the JEPA dynamics
     objective (L_dyn) with the multi-head reward loss (L_rew).
 
-    The decoder is optional — JEPA operates entirely in latent space.
-    Pass one only when decoded outputs are needed (interpretability /
-    validation / frontend serving).
+    the decoder is optional: JEPA operates entirely in latent space 
+    and protein-dreamer would not need it but you may train one for 
+    interpretability / validation / frontend serving.
     """
-
     def __init__(
         self,
         encoder: BaseEncoder,
@@ -50,19 +53,16 @@ class ProteinWorldModel(WorldModel):
         beta_dyn: float = 1.0,
         beta_rew: float = 0.1,
     ) -> Dict[str, torch.Tensor]:
-        """Combined dynamics + reward training loss.
+        """combined dynamics + reward training loss.
 
-        Args:
-            z_t:          Current latent state (B, latent_dim).
-            action_emb:   Action embedding (B, action_dim).
-            z_t1_target:  Target next latent from the EMA/target encoder (B, latent_dim).
-            targets:      Fitness target dict — keys "stability", "affinity",
+        args:
+            z_t:          current latent state (B, latent_dim).
+            action_emb:   action embedding (B, action_dim).
+            z_t1_target:  target next latent from the EMA/target encoder (B, latent_dim).
+            targets:      fitness target dict — keys "stability", "affinity",
                           "activity", "fitness", each (B,); NaN where unmeasured.
-            beta_dyn:     Weight on the dynamics loss (L_B / L_A).
-            beta_rew:     Weight on the reward loss (L_rew).
-
-        Returns:
-            Dict with keys "loss", "loss_dyn", "loss_rew".
+            beta_dyn:     weight on the dynamics loss (L_B / L_A).
+            beta_rew:     weight on the reward loss (L_rew).
         """
         z_t1_pred = self.dynamics.predict(z_t, action_emb)
         loss_dyn = F.mse_loss(z_t1_pred, z_t1_target.detach())
