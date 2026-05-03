@@ -1,28 +1,201 @@
-"""
-biodreamer.protein_dreamer.decoder — Protein State Decoder.
+from __future__ import annotations
 
-Purpose:
-    Reconstructs interpretable outputs from the protein latent state z_t:
-    mutated sequence, predicted structure changes, per-residue confidence.
+import logging
+from typing import Any, Dict, List, Optional
 
-Components to implement:
-    - ProteinDecoder(BaseDecoder):
-        - decode_sequence(z_t) → amino acid probabilities per position (L × 20)
-        - decode_structure(z_t) → predicted Cα coordinates or distance map
-        - decode_plddt(z_t) → per-residue confidence (pLDDT-like)
-        - decode_all(z_t) → dict with sequence, structure, confidence
-
-Design notes:
-    - The sequence decoder essentially performs "inverse folding in latent space" —
-      it predicts what sequence corresponds to the current latent representation.
-    - Structure decoding is approximate — for high-fidelity structure, the decoded
-      sequence is passed through ESMFold/AF2 as a validation oracle.
-    - Decoder outputs are displayed in the web frontend: sequence alignment view,
-      3D structure viewer (Mol*), per-residue pLDDT heatmap.
-    - Training loss: sequence cross-entropy + structure coordinate MSE + pLDDT MSE.
-"""
-
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+from biodreamer.core.decoder import BaseDecoder
+from .blocks import TransformerLayer
+from .utils import aa_indices_to_sequence
+
+logger = logging.getLogger(__name__)
+
+
+
+
+
+class ProteinSequenceDecoder(BaseDecoder):
+    """decodes a pooled latent z_t to per-residue amino acid logits.
+
+    architecture: learned positional query embeddings cross-attend to z_t via a
+    stack of TransformerLayer blocks, then project to 20-class logits.
+
+    decode() returns:
+      "logits":    (B, L, 20) — raw logits, use for cross-entropy training
+      "sequences": List[str]  — greedy-decoded aa strings (length L each)
+
+    set_seq_len() updates default_seq_len before each trajectory so that
+    WorldModel.decode(z_t) works without an explicit seq_len argument.
+    """
+    def __init__(
+        self,
+        latent_dim: int,
+        n_layers: int = 4,
+        n_heads: int = 8,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        max_seq_len: int = 512,
+        default_seq_len: int = 50,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        super().__init__(latent_dim)
+        self.device = (
+            device if device is not None and isinstance(device, torch.device)
+            else torch.device("cuda") if torch.cuda.is_available()
+            else torch.device("cpu")
+        )
+        self.latent_dim = latent_dim
+        self.max_seq_len = max_seq_len
+        self.default_seq_len = default_seq_len
+
+        self.pos_queries = nn.Parameter(torch.zeros(max_seq_len, latent_dim))
+        nn.init.trunc_normal_(self.pos_queries, std=0.02)
+
+        # z_t (global) is projected to a single key/value token for cross-attention
+        self.z_proj = nn.Linear(latent_dim, latent_dim)
+
+        self.layers = nn.ModuleList([
+            TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            for _ in range(n_layers)
+        ])
+        self.norm = nn.LayerNorm(latent_dim)
+        self.logit_head = nn.Linear(latent_dim, 20)
+
+        self.to(self.device)
+
+    def set_seq_len(self, seq_len: int) -> None:
+        """update the default sequence length used when seq_len is not passed to decode()"""
+        self.default_seq_len = seq_len
+
+    def decode(
+        self,
+        z_t: torch.Tensor,
+        seq_len: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """decode z_t to per-residue sequence logits.
+
+        z_t:     (B, latent_dim)
+        seq_len: number of residues to generate; defaults to self.default_seq_len
+
+        returns:
+            "logits":    (B, L, 20)
+            "sequences": List[str] of length B, each string of length L
+        """
+        L = seq_len if seq_len is not None else self.default_seq_len
+        if L > self.max_seq_len:
+            raise ValueError(f"seq_len={L} exceeds max_seq_len={self.max_seq_len}")
+
+        z_t = z_t.to(self.device)
+        B = z_t.shape[0]
+
+        # positional queries: (B, L, latent_dim)
+        queries = self.pos_queries[:L].unsqueeze(0).expand(B, -1, -1)
+
+        # z_t as single conditioning token: (B, 1, latent_dim)
+        cond = self.z_proj(z_t).unsqueeze(1)
+
+        x = queries
+        for layer in self.layers:
+            x = layer(x, cond=cond)
+        x = self.norm(x)                          # (B, L, latent_dim)
+        logits = self.logit_head(x)               # (B, L, 20)
+
+        tokens = logits.argmax(dim=-1)            # (B, L)
+        sequences: List[str] = [
+            aa_indices_to_sequence(tokens[i].cpu()) for i in range(B)
+        ]
+
+        return {"logits": logits, "sequences": sequences}
+
+    def forward(self, z_t: torch.Tensor, seq_len: Optional[int] = None) -> Dict[str, Any]:
+        return self.decode(z_t, seq_len=seq_len)
+
+
+class ProteinStructureDecoder(BaseDecoder):
+    """decodes a pooled latent z_t to per-residue Cα coordinates.
+
+    architecture: learned positional query embeddings cross-attend to z_t via a
+    stack of TransformerLayer blocks, then project to 3D Cα positions.
+
+    intended for interpretability and validation, not a substitute for a
+    structure-prediction oracle (ESMFold / AlphaFold).
+
+    decode() returns:
+      "coords": (B, L, 3) — predicted Cα coordinates in Å
+
+    set_seq_len() mirrors ProteinSequenceDecoder for consistent usage.
+    """
+    def __init__(
+        self,
+        latent_dim: int,
+        n_layers: int = 4,
+        n_heads: int = 8,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        max_seq_len: int = 512,
+        default_seq_len: int = 50,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        super().__init__(latent_dim)
+        self.device = (
+            device if device is not None and isinstance(device, torch.device)
+            else torch.device("cuda") if torch.cuda.is_available()
+            else torch.device("cpu")
+        )
+        self.latent_dim = latent_dim
+        self.max_seq_len = max_seq_len
+        self.default_seq_len = default_seq_len
+
+        self.pos_queries = nn.Parameter(torch.zeros(max_seq_len, latent_dim))
+        nn.init.trunc_normal_(self.pos_queries, std=0.02)
+
+        self.z_proj = nn.Linear(latent_dim, latent_dim)
+
+        self.layers = nn.ModuleList([
+            TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            for _ in range(n_layers)
+        ])
+        self.norm = nn.LayerNorm(latent_dim)
+        self.coord_head = nn.Linear(latent_dim, 3)
+
+        self.to(self.device)
+
+    def set_seq_len(self, seq_len: int) -> None:
+        """update the default sequence length used when seq_len is not passed to decode()"""
+        self.default_seq_len = seq_len
+
+    def decode(
+        self,
+        z_t: torch.Tensor,
+        seq_len: Optional[int] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """decode z_t to per-residue Cα coordinates.
+
+        z_t:     (B, latent_dim)
+        seq_len: number of residues; defaults to self.default_seq_len
+
+        returns:
+            "coords": (B, L, 3) predicted Cα positions in Å
+        """
+        L = seq_len if seq_len is not None else self.default_seq_len
+        if L > self.max_seq_len:
+            raise ValueError(f"seq_len={L} exceeds max_seq_len={self.max_seq_len}")
+
+        z_t = z_t.to(self.device)
+        B = z_t.shape[0]
+
+        queries = self.pos_queries[:L].unsqueeze(0).expand(B, -1, -1)
+        cond = self.z_proj(z_t).unsqueeze(1)
+
+        x = queries
+        for layer in self.layers:
+            x = layer(x, cond=cond)
+        x = self.norm(x)
+        coords = self.coord_head(x)               # (B, L, 3)
+
+        return {"coords": coords}
+
+    def forward(self, z_t: torch.Tensor, seq_len: Optional[int] = None) -> Dict[str, torch.Tensor]:
+        return self.decode(z_t, seq_len=seq_len)

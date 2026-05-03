@@ -12,22 +12,24 @@ logger = logging.getLogger(__name__)
 
 
 class EnergyBasedDynamics(BaseDynamics):
-    """Architecture B: deterministic Transformer predictor (Energy-Based JEPA).
+    """deterministic transformer predictor (energy-based JEPA).
 
-    ẑ_{t+1} = g_φ(z_t, a_t) where g_φ is a DeterministicPredictor whose
-    self-attention operates on z_t and cross-attends to a projected action token.
+    ẑ_{t+1} = g_φ(z_t, a_t) where g_φ cross-attends to a projected action token.
 
-    Training objective (roadmap §4, Eq. L_B):
-        L_B = β_jepa · ||ẑ_{t+1} - sg(z̄_{t+1})||² + λ_reg · SIGReg(z_t) + β_rew · L_rew
+    training objective (roadmap §4, Eq. L_B):
+        L_B = β_jepa · ||ẑ_{t+1} - z̄_{t+1}||² + λ_reg · SIGReg(z_t) + β_rew · L_rew
 
-    Uncertainty for this architecture is handled externally by EnsembleUncertainty
-    (uncertainty.py), not by repeated calls to predict().
+    any nn.Module with signature predictor(z_t, cond=a_cond) → z_next can be
+    substituted via the predictor argument. when predictor is None a
+    DeterministicPredictor is built from the remaining hyperparameters.
+
+    uncertainty is handled externally by EnsembleUncertainty (uncertainty.py).
     """
-
     def __init__(
         self,
         latent_dim: int,
         action_dim: int,
+        predictor: Optional[nn.Module] = None,
         n_layers: int = 6,
         n_heads: int = 8,
         mlp_ratio: float = 4.0,
@@ -42,53 +44,70 @@ class EnergyBasedDynamics(BaseDynamics):
             else torch.device("cpu")
         )
         self.latent_dim = latent_dim
-        # Project action_emb → latent_dim so the action token has the same d_model as z_t
         self.action_proj = nn.Linear(action_dim, latent_dim).to(self.device)
-        from .nets import DeterministicPredictor
-        self.predictor = DeterministicPredictor(
-            latent_dim=latent_dim,
-            n_layers=n_layers,
-            n_heads=n_heads,
-            mlp_ratio=mlp_ratio,
-            dropout=dropout,
-            max_len=max_len,
-            causal=False,
-        ).to(self.device)
+
+        if predictor is not None:
+            self.predictor = predictor.to(self.device)
+        else:
+            from .blocks import DeterministicPredictor
+            self.predictor = DeterministicPredictor(
+                latent_dim=latent_dim,
+                n_layers=n_layers,
+                n_heads=n_heads,
+                mlp_ratio=mlp_ratio,
+                dropout=dropout,
+                max_len=max_len,
+                causal=False,
+            ).to(self.device)
 
     def predict(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
-        """Predict ẑ_{t+1} = g_φ(z_t, action_emb).
+        """predict ẑ_{t+1} = g_φ(z_t, action_emb).
 
         z_t:        (B, latent_dim)
         action_emb: (B, action_dim)
-        Returns:    (B, latent_dim)
+        returns:    (B, latent_dim)
         """
         z_t = z_t.to(self.device)
-        # Action token for cross-attention: (B, latent_dim) → (B, 1, latent_dim)
         a_cond = self.action_proj(action_emb.to(self.device)).unsqueeze(1)
         return self.predictor(z_t, cond=a_cond)
 
 
 class DiffusionDynamics(BaseDynamics):
-    """Architecture A: conditional DDPM in latent space (Latent Diffusion JEPA).
+    """conditional diffusion model in latent space (Architecture A).
 
-    Models p_θ(z_{t+1} | z_t, a_t) via iterative denoising. The denoiser must
-    accept (xt: Tensor, t: Tensor, cond: Tensor) → pred: Tensor, matching the
-    interface expected by DDPM in nets.py.
+    models p_θ(z_{t+1} | z_t, a_t) via iterative denoising.
 
-    Training objective (roadmap §4, Eq. L_A):
+    the scheduler controls the noise process. any nn.Module that implements
+    the common scheduler interface can be used:
+        scheduler.noise_step(x, cond)         → (pred, target)   [training]
+        scheduler.sample(shape, cond)         → tensor            [inference]
+
+    additionally, schedulers that expose DDPM-style step access support
+    the noise() and denoise() methods:
+        scheduler.forward_diff(x0, t, noise)  → (xt, target)
+        scheduler.sample_step(xt, t, cond)    → x_prev
+
+    built-in schedulers in blocks.py (all satisfy the interface above):
+        DDPM, SDE, FlowMatchingScheduler
+
+    when scheduler is None, a DDPM is built from the supplied denoiser nn.Module
+    and the diffusion_steps / noise_schedule hyperparameters.
+    when both scheduler and denoiser are None a ValueError is raised.
+
+    training objective (roadmap §4, Eq. L_A):
         L_A = β_diff · E[||D_θ(z̄_{t+1}^τ, τ, z_t, a_t) - z̄_{t+1}||²]
               + λ_reg · SIGReg(z_t) + β_rew · L_rew
 
-    Uncertainty is built-in: predict_distribution() runs n_samples independent
-    reverse diffusion chains and returns their empirical mean and variance, giving
-    the epistemic signal for the Active Inference policy (roadmap §6).
+    predict_distribution() runs n_samples independent sampling chains and
+    returns their empirical mean and variance for the Active Inference policy.
     """
 
     def __init__(
         self,
         latent_dim: int,
         action_dim: int,
-        denoiser: nn.Module,
+        scheduler: Optional[nn.Module] = None,
+        denoiser: Optional[nn.Module] = None,
         diffusion_steps: int = 1000,
         noise_schedule: str = "cosine",
         device: Optional[torch.device] = None,
@@ -101,27 +120,61 @@ class DiffusionDynamics(BaseDynamics):
         )
         self.latent_dim = latent_dim
         self.action_proj = nn.Linear(action_dim, latent_dim).to(self.device)
-        from .nets import DDPM
-        self.ddpm = DDPM(
-            predictor=denoiser,
-            schedule_type=noise_schedule,
-            time_steps=diffusion_steps,
-            device=self.device,
-        )
+
+        if scheduler is not None:
+            self.scheduler = scheduler
+        elif denoiser is not None:
+            from .blocks import DDPM
+            self.scheduler = DDPM(
+                predictor=denoiser,
+                schedule_type=noise_schedule,
+                time_steps=diffusion_steps,
+            )
+        else:
+            raise ValueError(
+                "DiffusionDynamics requires either 'scheduler' (a pre-built DDPM / SDE / "
+                "FlowMatchingScheduler) or 'denoiser' (an nn.Module from which a default "
+                "DDPM is constructed)."
+            )
 
     def _conditioning(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
-        """Build (B, 2, latent_dim) conditioning context: [z_t token, action token]."""
+        """build (B, 2, latent_dim) conditioning context: [z_t token, action token]"""
         z_t = z_t.to(self.device)
-        a_proj = self.action_proj(action_emb.to(self.device))  # (B, latent_dim)
-        return torch.stack([z_t, a_proj], dim=1)               # (B, 2, latent_dim)
+        a_proj = self.action_proj(action_emb.to(self.device))
+        return torch.stack([z_t, a_proj], dim=1)
 
-    def noise(self, z_clean: torch.Tensor, tau: torch.Tensor):
-        """Add cosine-schedule diffusion noise at step tau.
+    def training_step(
+        self,
+        z_target: torch.Tensor,
+        z_t: torch.Tensor,
+        action_emb: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """compute (pred, target) for training via scheduler.noise_step().
 
-        Returns (z_noised, noise) for computing the training loss L_A.
+        works with any scheduler (DDPM, SDE, FlowMatchingScheduler) since all
+        implement noise_step(x, cond) → (pred, target).
+
+        z_target:   (B, latent_dim) — clean next latent state (prediction target)
+        z_t:        (B, latent_dim) — current latent state (conditioning)
+        action_emb: (B, action_dim)
+        returns:    (pred, target) both of shape (B, latent_dim)
         """
+        cond = self._conditioning(z_t, action_emb)
+        return self.scheduler.noise_step(z_target.to(self.device), cond=cond)
+
+    def noise(self, z_clean: torch.Tensor, tau: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """add ddpm-schedule noise at timestep tau.
+
+        only valid when scheduler exposes forward_diff() (i.e. DDPM or SDE).
+        use training_step() for scheduler-agnostic training.
+        """
+        if not hasattr(self.scheduler, "forward_diff"):
+            raise AttributeError(
+                f"{type(self.scheduler).__name__} does not support noise() — "
+                "use training_step() instead."
+            )
         noise = torch.randn_like(z_clean)
-        z_noised, _ = self.ddpm.forward_diff(
+        z_noised, _ = self.scheduler.forward_diff(
             z_clean.to(self.device), tau.to(self.device), noise
         )
         return z_noised, noise
@@ -133,20 +186,28 @@ class DiffusionDynamics(BaseDynamics):
         z_t: torch.Tensor,
         action_emb: torch.Tensor,
     ) -> torch.Tensor:
-        """Single DDPM reverse step z^τ → z^{τ-1}, conditioned on (z_t, action_emb)."""
+        """single reverse step z^τ → z^{τ-1}, conditioned on (z_t, action_emb).
+
+        only valid when scheduler exposes sample_step() (i.e. DDPM or SDE).
+        """
+        if not hasattr(self.scheduler, "sample_step"):
+            raise AttributeError(
+                f"{type(self.scheduler).__name__} does not support denoise() — "
+                "use predict() for full reverse sampling instead."
+            )
         cond = self._conditioning(z_t, action_emb)
-        return self.ddpm.sample_step(z_noised.to(self.device), tau.to(self.device), cond)
+        return self.scheduler.sample_step(z_noised.to(self.device), tau.to(self.device), cond)
 
     def predict(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
-        """Full reverse diffusion from pure Gaussian noise to ẑ_{t+1}.
+        """full reverse pass from pure Gaussian noise to ẑ_{t+1}.
 
         z_t:        (B, latent_dim)
         action_emb: (B, action_dim)
-        Returns:    (B, latent_dim)
+        returns:    (B, latent_dim)
         """
         cond = self._conditioning(z_t, action_emb)
         B = z_t.shape[0] if z_t.dim() > 1 else 1
-        return self.ddpm.sample((B, self.latent_dim), cond=cond)
+        return self.scheduler.sample((B, self.latent_dim), cond=cond)
 
     def predict_distribution(
         self,
@@ -154,14 +215,14 @@ class DiffusionDynamics(BaseDynamics):
         action_emb: torch.Tensor,
         n_samples: int,
     ) -> Dict[str, torch.Tensor]:
-        """Draw n_samples independent reverse diffusion trajectories.
+        """draw n_samples independent sampling trajectories.
 
-        Returns {"mean": (B, latent_dim), "var": (B, latent_dim)}.
-        variance uses correction=0 (population variance) to avoid NaN when n_samples=1.
+        returns {"mean": (B, latent_dim), "var": (B, latent_dim)}.
+        correction=0 avoids NaN when n_samples=1.
         """
         samples = torch.stack(
             [self.predict(z_t, action_emb) for _ in range(n_samples)], dim=0
-        )  # (n_samples, B, latent_dim)
+        )
         return {
             "mean": samples.mean(dim=0),
             "var":  samples.var(dim=0, correction=0),

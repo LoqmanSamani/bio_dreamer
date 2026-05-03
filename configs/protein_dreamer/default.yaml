@@ -1,17 +1,130 @@
 # ProteinDreamer — Default Training Configuration
 #
-# This YAML file defines all hyperparameters for training the ProteinDreamer
-# world model (encoder + dynamics + reward) and RL policy.
-#
 # Sections:
-#   - data:        ProteinGym DMS assay paths, Tsuboyama mega-scale data, structure oracle config
-#   - encoder:     PLM backbone (ESM-2 model size), GVP-GNN layers, joint embedding dim
-#   - dynamics:    World model type (conditional transformer / latent diffusion), latent dim, context length
-#   - decoder:     Fitness prediction heads (ΔΔG, Kd, kcat), structure change predictor
-#   - reward:      Multi-objective weighting, reward scaling, reward shaping
-#   - policy:      RL algorithm (SAC/PPO/MCTS), imagination rollout length, mutation budget
-#   - active_inference:  Free energy components (pragmatic value weight, epistemic value weight), EFE temperature
-#   - uncertainty: Ensemble size or evidential DL config for epistemic uncertainty
-#   - training:    Batch size, LR, warmup steps, KL balancing, gradient clipping, epochs
-#   - active_learning:  Acquisition function, batch size per round, oracle budget
-#   - logging:     W&B project, checkpoint frequency, eval interval, eval DMS assays
+#   data        — dataset paths and preprocessing
+#   encoder     — sequence PLM backbone, GVP-GNN structure encoder, fusion
+#   dynamics    — world model architecture and per-arch hyperparams
+#   reward      — multi-objective reward head
+#   policy      — active inference / RL settings
+#   uncertainty — epistemic uncertainty estimation
+#   training    — optimiser, scheduler, gradient clipping
+#   active_learning — acquisition function and oracle budget
+#   logging     — W&B, checkpointing, evaluation
+
+
+data:
+  proteingym_dir: "data/proteingym"
+  tsuboyama_dir:  "data/tsuboyama"
+  max_seq_len:    512
+  pretokenize:    true          # cache tokens at dataset init; set false if RAM is limited
+
+encoder:
+  latent_dim:           256
+  seq_model_name:       "esm2-650m"   # esm2-8m | esm2-35m | esm2-150m | esm2-650m | esm2-3b
+  freeze_seq_encoder:   true
+  use_structure:        true
+  freeze_struct_encoder: true
+  gvp:
+    hidden_dim:  256
+    n_layers:    3
+    conv_type:   "gvp"           # "gvp" | "transformer"
+    n_heads:     4               # only used when conv_type="transformer"
+    dropout:     0.0
+
+dynamics:
+  arch:         "energy_based"   # "energy_based" | "diffusion" | "flow_matching"
+  latent_dim:   256
+  action_dim:   256
+
+  # EnergyBased (Architecture B) — DeterministicPredictor
+  transformer:
+    n_layers:    6
+    n_heads:     8
+    mlp_ratio:   4.0
+    dropout:     0.1
+    max_len:     1024
+
+  # DDPM (Architecture A) — DiffTransformer predictor + DDPMScheduler
+  ddpm:
+    time_steps:    1000
+    schedule:      "cosine"       # "linear" | "cosine"
+    pred_type:     "noise"        # "noise" | "x0" | "v"
+    var_type:      "fixed_small"  # "fixed_small" | "fixed_large" | "learned"
+    beta_min:      0.0001
+    beta_max:      0.02
+    cosine_s:      0.008
+    clip_out:      true
+    denoiser:
+      n_layers:    4
+      n_heads:     8
+      mlp_ratio:   4.0
+      dropout:     0.0
+
+  # Flow Matching (Architecture A-alt) — DiffTransformer predictor + FlowMatchingScheduler
+  flow_matching:
+    num_steps:   100
+    solver:      "heun"          # "euler" | "heun"
+    time_eps:    1.0e-3
+    predictor:
+      n_layers:  4
+      n_heads:   8
+      mlp_ratio: 4.0
+      dropout:   0.0
+
+  # SDE settings (continuous-time diffusion)
+  sde:
+    method:        "vp"          # "vp" | "ve" | "sub-vp" | "ode"
+    pred_type:     "v"           # "noise" | "score" | "v"
+    schedule_type: "cosine"      # "linear" | "cosine"
+    beta_min:      0.1
+    beta_max:      20.0
+    time_eps:      1.0e-5
+    num_steps:     1000
+    sigma_min:     0.01          # only for method="ve"
+    sigma_max:     50.0          # only for method="ve"
+
+reward:
+  latent_dim:     256
+  hidden_dim:     512
+  n_layers:       2
+  dropout:        0.1
+  weights:
+    stability:    1.0
+    affinity:     1.0
+    activity:     1.0
+    fitness:      0.5
+
+policy:
+  eta:           1.0           # epistemic value weight in EFE
+  n_samples:     10            # Monte Carlo samples for uncertainty
+  n_aa:          20
+  imagination_horizon: 5
+
+uncertainty:
+  type:         "ensemble"     # "ensemble" | "mc_dropout" | "evidential"
+  ensemble_size: 5
+  mc_dropout_passes: 20
+
+training:
+  batch_size:         64
+  lr:                 3.0e-4
+  weight_decay:       1.0e-4
+  warmup_steps:       1000
+  max_steps:          100000
+  grad_clip:          1.0
+  beta_dyn:           1.0       # dynamics loss weight
+  beta_rew:           0.1       # reward loss weight
+  lambda_reg:         0.01      # SIGReg weight
+  ema_tau:            0.99      # EMA target encoder momentum
+  device:             "cuda"
+
+active_learning:
+  acquisition:       "ucb"      # "ucb" | "greedy" | "thompson"
+  rounds:            10
+  candidates_per_round: 96
+  oracle_budget:     960
+
+logging:
+  wandb_project:    "protein-dreamer"
+  checkpoint_freq:  1000        # steps between checkpoints
+  eval_freq:        500         # steps between evaluations

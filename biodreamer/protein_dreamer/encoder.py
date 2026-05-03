@@ -87,8 +87,8 @@ class ProteinEncoder(BaseEncoder):
             if structure_encoder is not None:
                 self.structure_encoder = structure_encoder.to(self.device)
             else:
-                from .nets import GVP_GNN
-                self.structure_encoder = GVP_GNN(
+                from .blocks import GvpGNN
+                self.structure_encoder = GvpGNN(
                     in_node_dims=(1, 1),            # (plddt scalar, Cα position vector)
                     in_edge_dims=(1, 1),            # (distance scalar, unit-displacement vector)
                     hidden_dims=(gvp_hidden_dim, 4),
