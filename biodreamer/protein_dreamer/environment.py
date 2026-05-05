@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from biodreamer.core.environment import BaseEnvironment, BaseOracle, BaseStructureOracle
+
 logger = logging.getLogger(__name__)
 
 _AA_LIST: List[str] = list("ACDEFGHIKLMNPQRSTVWY")
@@ -28,7 +30,7 @@ State = Dict[str, Any]
 
 
 
-class ProteinEnvironment:
+class ProteinEnvironment(BaseEnvironment):
     """Gym-like environment wrapping a protein fitness landscape.
 
     models a protein design MDP where each action is a single-site amino acid
@@ -285,24 +287,6 @@ class ProteinEnvironment:
         return seq
 
 
-
-
-
-
-class BaseOracle(ABC):
-    """abstract base for fitness oracles.
-
-    an oracle takes a protein sequence (str) and returns a scalar fitness value
-    (float). returns float('nan') when the fitness is unknown or unavailable.
-    """
-
-    @abstractmethod
-    def query(self, sequence: str) -> float:
-        """return a scalar fitness score for the given sequence"""
-
-    def query_multi(self, sequences: List[str]) -> Dict[str, float]:
-        """batch query, default falls back to per-sequence query()"""
-        return {seq: self.query(seq) for seq in sequences}
 
 
 
@@ -592,27 +576,6 @@ class WetLabOracle(BaseOracle):
         return len(self._measurements)
 
 
-
-
-
-
-class BaseStructureOracle(ABC):
-    """abstract base for protein structure oracles.
-
-    returns (coords, plddt, ptm) compatible with ProteinEncoder.embed_observation().
-    """
-
-    @abstractmethod
-    def predict(
-        self, sequence: str
-    ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[float]]:
-        """predict protein structure.
-
-        returns:
-            coords: (L, 3) Cα coordinates in Å
-            plddt:  (L,) per-residue confidence 0–100, or None
-            ptm:    global pTM score 0–1, or None
-        """
 
 
 

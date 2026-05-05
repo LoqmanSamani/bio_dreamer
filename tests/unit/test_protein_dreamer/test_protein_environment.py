@@ -1,4 +1,3 @@
-"""Unit tests for biodreamer.protein_dreamer.environment."""
 from __future__ import annotations
 
 import math
