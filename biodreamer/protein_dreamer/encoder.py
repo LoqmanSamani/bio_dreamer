@@ -40,18 +40,20 @@ class ProteinEncoder(BaseEncoder):
 
     def __init__(
         self,
-        latent_dim: int,
+        config: dict,
         sequence_encoder: Optional[Any] = None,
         sequence_tokenizer: Optional[Any] = None,
         structure_encoder: Optional[Any] = None,
-        freeze_seq_encoder: bool = True,
-        freeze_struct_encoder: bool = True,
-        use_structure: bool = False,
-        seq_model_name: str = "esm2-650m",
-        gvp_hidden_dim: int = 256,
-        gvp_layers: int = 3,
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim = config["latent_dim"]
+        seq_model_name = config.get("seq_model_name", "esm2-650m")
+        freeze_seq_encoder = config.get("freeze_seq_encoder", True)
+        freeze_struct_encoder = config.get("freeze_struct_encoder", True)
+        use_structure = config.get("use_structure", False)
+        gvp_cfg = config.get("gvp", {})
+        gvp_hidden_dim = gvp_cfg.get("hidden_dim", 256) if isinstance(gvp_cfg, dict) else gvp_cfg.get("hidden_dim", 256)
+        gvp_layers = gvp_cfg.get("n_layers", 3) if isinstance(gvp_cfg, dict) else gvp_cfg.get("n_layers", 3)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -217,14 +219,15 @@ class ActionEncoder(BaseEncoder):
     """
     def __init__(
         self,
-        latent_dim: int,
+        config: dict,
         action_mlp: Optional[Any] = None,
         pos_embed: Optional[Any] = None,
         aa_embed: Optional[Any] = None,
         aa_new_embed: Optional[Any] = None,
         device: Optional[torch.device] = None,
-        embed_dim: int = 128,
     ) -> None:
+        latent_dim = config["latent_dim"]
+        embed_dim = config.get("embed_dim", 128)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)

@@ -16,32 +16,19 @@ logger = logging.getLogger(__name__)
 
 class DDPM(nn.Module):
     """diffusion-based dynamics model for ProteinDreamer"""
-    def __init__(
-        self,
-        predictor: Any,
-        beta_min: float = 0.0001,
-        beta_max: float = 0.02,
-        time_steps: int = 1000,
-        cosine_s: float = 0.008,
-        clip_min: float = 0.0001,
-        clip_max: float = 0.9999,
-        clip_out: bool = True,
-        var_type: str = "fixed_small",  # options: "fixed_small", "fixed_large", "learned"
-        pred_type: Optional[str] = None,
-        schedule_type: Optional[str] = None,
-    ) -> None:
+    def __init__(self, config: dict, *, predictor: Any) -> None:
         super().__init__()
-        self.predictor = predictor
-        self.pred_type = pred_type if pred_type is not None else "noise"
-        self.schedule_type = schedule_type if schedule_type is not None else "linear"
-        self.beta_min = beta_min
-        self.beta_max = beta_max
-        self.time_steps = time_steps
-        self.cosine_s = cosine_s
-        self.clip_min = clip_min
-        self.clip_max = clip_max
-        self.clip_out = clip_out
-        self.var_type = var_type
+        self.predictor     = predictor
+        self.pred_type     = config.get("pred_type", "noise")
+        self.schedule_type = config.get("schedule_type", "linear")
+        self.beta_min      = config.get("beta_min", 0.0001)
+        self.beta_max      = config.get("beta_max", 0.02)
+        self.time_steps    = config.get("time_steps", 1000)
+        self.cosine_s      = config.get("cosine_s", 0.008)
+        self.clip_min      = config.get("clip_min", 0.0001)
+        self.clip_max      = config.get("clip_max", 0.9999)
+        self.clip_out      = config.get("clip_out", True)
+        self.var_type      = config.get("var_type", "fixed_small")
 
         valid_types = ["noise", "x0", "v"]
         if self.pred_type not in valid_types:
@@ -228,35 +215,21 @@ class DDPM(nn.Module):
 
 class SDE(nn.Module):
     """score-based generative model via stochastic differential equations"""
-    def __init__(
-        self,
-        predictor: Any,
-        method: str = "ode",  # options: "vp", "ve", "sub-vp", "ode"
-        pred_type: str = "v",  # options: "noise", "score", "v"
-        schedule_type: str = "cosine",  # options: "linear", "cosine"
-        beta_min: float = 0.1,
-        beta_max: float = 20.0,
-        time_eps: float = 1e-5,
-        num_steps: int = 1000,
-        cosine_s: float = 0.008,
-        sigma_min: float = 0.01,
-        sigma_max: float = 50.0,
-        eps: float = 1e-8,
-    ) -> None:
+    def __init__(self, config: dict, *, predictor: Any) -> None:
         super().__init__()
-        self.predictor = predictor
+        self.predictor     = predictor
         self.register_buffer("_anchor", torch.zeros(1))
-        self.method = method
-        self.pred_type = pred_type
-        self.beta_min = beta_min
-        self.beta_max = beta_max
-        self.time_eps = time_eps
-        self.num_steps = num_steps
-        self.cosine_s = cosine_s
-        self.schedule_type = schedule_type
-        self.sigma_min = sigma_min
-        self.sigma_max = sigma_max
-        self.eps = eps
+        self.method        = config.get("method", "ode")
+        self.pred_type     = config.get("pred_type", "v")
+        self.schedule_type = config.get("schedule_type", "cosine")
+        self.beta_min      = config.get("beta_min", 0.1)
+        self.beta_max      = config.get("beta_max", 20.0)
+        self.time_eps      = config.get("time_eps", 1e-5)
+        self.num_steps     = config.get("num_steps", 1000)
+        self.cosine_s      = config.get("cosine_s", 0.008)
+        self.sigma_min     = config.get("sigma_min", 0.01)
+        self.sigma_max     = config.get("sigma_max", 50.0)
+        self.eps           = config.get("eps", 1e-8)
 
         valid_methods = ["vp", "ve", "sub-vp", "ode"]
         if self.method not in valid_methods:
@@ -503,20 +476,15 @@ class FlowMatchingScheduler(nn.Module):
     training: predict velocity v = x_data - x_noise; loss = MSE(v_θ(x_t, t, cond), v).
     sampling: ode dx/dt = v_θ(x, t, cond) from t=0 (noise) to t=1 (data).
     """
-    def __init__(
-        self,
-        predictor: nn.Module,
-        num_steps: int = 100,
-        solver: str = "heun",
-        time_eps: float = 1e-3,
-    ) -> None:
+    def __init__(self, config: dict, *, predictor: nn.Module) -> None:
         super().__init__()
+        solver = config.get("solver", "heun")
         if solver not in ("euler", "heun"):
             raise ValueError(f"solver must be 'euler' or 'heun', got {solver!r}")
         self.predictor = predictor
-        self.num_steps = num_steps
-        self.solver = solver
-        self.time_eps = time_eps
+        self.num_steps = config.get("num_steps", 100)
+        self.solver    = solver
+        self.time_eps  = config.get("time_eps", 1e-3)
 
     def noise_step(
         self, x1: torch.Tensor, cond: Optional[torch.Tensor] = None
@@ -561,16 +529,14 @@ class ResidualMLP(nn.Module):
     each block: LayerNorm -> Linear -> Act -> Linear -> Dropout -> residual add.
     in_proj maps in_dim -> hidden_dim, out_proj maps hidden_dim -> out_dim.
     """
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-        n_layers: int = 2,
-        dropout: float = 0.0,
-        act_cls: type = nn.GELU,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        in_dim     = config["in_dim"]
+        hidden_dim = config["hidden_dim"]
+        out_dim    = config["out_dim"]
+        n_layers   = config.get("n_layers", 2)
+        dropout    = config.get("dropout", 0.0)
+        act_cls    = config.get("act_cls", nn.GELU)
         self.in_proj = nn.Linear(in_dim, hidden_dim)
         self.blocks = nn.ModuleList()
         for _ in range(n_layers):
@@ -609,18 +575,16 @@ class GvpGNN(nn.Module):
     displacement vectors, distances, edge-type scalars), returns updated per-residue
     embeddings.
     """
-    def __init__(
-        self,
-        in_node_dims: Tuple[int, int],
-        in_edge_dims: Tuple[int, int],
-        hidden_dims: Tuple[int, int],
-        n_layers: int = 3,
-        vector_dim: int = 3,
-        conv_type: str = "gvp",  # "gvp" (GVPConv) or "transformer" (graph-transformer attention)
-        n_heads: int = 4,
-        dropout: float = 0.0,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        in_node_dims = config["in_node_dims"]
+        in_edge_dims = config["in_edge_dims"]
+        hidden_dims  = config["hidden_dims"]
+        n_layers     = config.get("n_layers", 3)
+        vector_dim   = config.get("vector_dim", 3)
+        conv_type    = config.get("conv_type", "gvp")
+        n_heads      = config.get("n_heads", 4)
+        dropout      = config.get("dropout", 0.0)
         self.vector_dim = vector_dim
         self.node_embed = GVP(in_node_dims, hidden_dims, vector_dim=vector_dim)
         self.edge_embed = GVP(in_edge_dims, hidden_dims, vector_dim=vector_dim)
@@ -756,17 +720,15 @@ class GVPConv(nn.Module):
 
 class GraphTransformer(nn.Module):
     """stack of GraphTransformerLayer layers"""
-    def __init__(
-        self,
-        node_dims: Tuple[int, int],
-        edge_dims: Tuple[int, int],
-        hidden_dim: int,
-        n_layers: int = 3,
-        n_heads: int = 4,
-        dropout: float = 0.0,
-        vector_dim: int = 3,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        node_dims  = config["node_dims"]
+        edge_dims  = config["edge_dims"]
+        hidden_dim = config["hidden_dim"]
+        n_layers   = config.get("n_layers", 3)
+        n_heads    = config.get("n_heads", 4)
+        dropout    = config.get("dropout", 0.0)
+        vector_dim = config.get("vector_dim", 3)
         self.layers = nn.ModuleList(
             [
                 GraphTransformerLayer(
@@ -1013,17 +975,15 @@ class DeterministicPredictor(nn.Module):
         attend to previous positions (autoregressive).
       - returns predicted next-token latent of shape (B, C) (prediction for position T → T+1).
     """
-    def __init__(
-        self,
-        latent_dim: int,
-        n_layers: int = 6,
-        n_heads: int = 8,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.1,
-        max_len: int = 1024,
-        causal: bool = True,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        latent_dim = config["latent_dim"]
+        n_layers   = config.get("n_layers", 6)
+        n_heads    = config.get("n_heads", 8)
+        mlp_ratio  = config.get("mlp_ratio", 4.0)
+        dropout    = config.get("dropout", 0.1)
+        max_len    = config.get("max_len", 1024)
+        causal     = config.get("causal", True)
         self.latent_dim = latent_dim
         self.causal = causal
         self.input_proj = nn.Identity()
@@ -1157,16 +1117,14 @@ class DiffTransformer(nn.Module):
       t:    (B,) tensor of timestep scalars (int or float)
       cond: optional conditioning sequence (B, M, C) or global vector (B, C)
     """
-    def __init__(
-        self,
-        dim: int,
-        n_layers: int = 4,
-        n_heads: int = 8,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.0,
-        time_emb_dim: Optional[int] = None,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        dim          = config["dim"]
+        n_layers     = config.get("n_layers", 4)
+        n_heads      = config.get("n_heads", 8)
+        mlp_ratio    = config.get("mlp_ratio", 4.0)
+        dropout      = config.get("dropout", 0.0)
+        time_emb_dim = config.get("time_emb_dim", None)
         assert dim % n_heads == 0, "dim must be divisible by n_heads"
         self.dim = dim
         self.n_layers = n_layers

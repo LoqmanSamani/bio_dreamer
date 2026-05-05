@@ -24,7 +24,7 @@ from biodreamer.protein_dreamer.utils import (
 class TestSIGReg:
     @pytest.fixture
     def reg(self) -> SIGReg:
-        return SIGReg(latent_dim=32, num_proj=8)
+        return SIGReg({"latent_dim": 32, "num_proj": 8})
 
     @pytest.fixture
     def z_gaussian(self) -> torch.Tensor:
@@ -75,8 +75,8 @@ class TestSIGReg:
         assert loss_scaled > loss_clean
 
     def test_mean_weight_zero_removes_mean_term(self):
-        reg_no_mean = SIGReg(latent_dim=32, num_proj=8, mean_weight=0.0,
-                             var_weight=0.0, proj_weight=0.0)
+        reg_no_mean = SIGReg({"latent_dim": 32, "num_proj": 8, "mean_weight": 0.0,
+                               "var_weight": 0.0, "proj_weight": 0.0})
         z = torch.randn(64, 32) + 10.0
         assert reg_no_mean(z).item() == pytest.approx(0.0, abs=1e-6)
 
@@ -106,22 +106,22 @@ class TestEMAUpdater:
 
     def test_invalid_tau_zero_raises(self):
         with pytest.raises(ValueError, match="tau must be in"):
-            EMAUpdater(tau=0.0)
+            EMAUpdater({"tau": 0.0})
 
     def test_invalid_tau_one_raises(self):
         with pytest.raises(ValueError, match="tau must be in"):
-            EMAUpdater(tau=1.0)
+            EMAUpdater({"tau": 1.0})
 
     def test_invalid_tau_negative_raises(self):
         with pytest.raises(ValueError, match="tau must be in"):
-            EMAUpdater(tau=-0.5)
+            EMAUpdater({"tau": -0.5})
 
     def test_tau_stored(self):
-        ema = EMAUpdater(tau=0.95)
+        ema = EMAUpdater({"tau": 0.95})
         assert ema.tau == pytest.approx(0.95)
 
     def test_tau_close_to_one_barely_changes_target(self):
-        ema = EMAUpdater(tau=0.999)
+        ema = EMAUpdater({"tau": 0.999})
         online = self._make_linear(1.0)
         target = self._make_linear(0.0)
         ema.update(online, target)
@@ -130,7 +130,7 @@ class TestEMAUpdater:
         assert w.mean().item() == pytest.approx(0.001, abs=1e-6)
 
     def test_tau_close_to_zero_copies_online(self):
-        ema = EMAUpdater(tau=1e-9)
+        ema = EMAUpdater({"tau": 1e-9})
         online = self._make_linear(7.0)
         target = self._make_linear(0.0)
         ema.update(online, target)
@@ -138,7 +138,7 @@ class TestEMAUpdater:
 
     def test_correct_ema_formula(self):
         tau = 0.9
-        ema = EMAUpdater(tau=tau)
+        ema = EMAUpdater({"tau": tau})
         online = self._make_linear(1.0)
         target = self._make_linear(0.0)
         ema.update(online, target)
@@ -146,7 +146,7 @@ class TestEMAUpdater:
         assert target.weight.data.mean().item() == pytest.approx(expected, abs=1e-6)
 
     def test_repeated_updates_converge(self):
-        ema = EMAUpdater(tau=0.9)
+        ema = EMAUpdater({"tau": 0.9})
         online = self._make_linear(1.0)
         target = self._make_linear(0.0)
         for _ in range(200):
@@ -155,7 +155,7 @@ class TestEMAUpdater:
         assert torch.allclose(target.weight.data, online.weight.data, atol=1e-3)
 
     def test_online_parameters_not_modified(self):
-        ema = EMAUpdater(tau=0.9)
+        ema = EMAUpdater({"tau": 0.9})
         online = self._make_linear(3.0)
         target = self._make_linear(0.0)
         original = online.weight.data.clone()
@@ -163,7 +163,7 @@ class TestEMAUpdater:
         assert torch.equal(online.weight.data, original)
 
     def test_no_grad_update(self):
-        ema = EMAUpdater(tau=0.9)
+        ema = EMAUpdater({"tau": 0.9})
         online = self._make_linear(1.0)
         target = self._make_linear(0.0)
         ema.update(online, target)

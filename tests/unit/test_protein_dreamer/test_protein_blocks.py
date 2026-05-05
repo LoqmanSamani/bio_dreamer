@@ -53,7 +53,7 @@ def _make_graph(n: int = 5, n_s: int = 4, n_v: int = 1, e: int = 8):
 class TestResidualMLP:
     @pytest.fixture
     def mlp(self) -> ResidualMLP:
-        return ResidualMLP(in_dim=16, hidden_dim=32, out_dim=8, n_layers=2)
+        return ResidualMLP({"in_dim": 16, "hidden_dim": 32, "out_dim": 8, "n_layers": 2})
 
     def test_output_shape(self, mlp):
         x = torch.randn(4, 16)
@@ -71,7 +71,7 @@ class TestResidualMLP:
         assert mlp(torch.randn(1, 16)).shape == (1, 8)
 
     def test_n_layers_zero(self):
-        mlp = ResidualMLP(in_dim=8, hidden_dim=16, out_dim=4, n_layers=0)
+        mlp = ResidualMLP({"in_dim": 8, "hidden_dim": 16, "out_dim": 4, "n_layers": 0})
         assert mlp(torch.randn(3, 8)).shape == (3, 4)
 
     def test_dropout_zero_deterministic(self, mlp):
@@ -80,7 +80,7 @@ class TestResidualMLP:
         assert torch.allclose(mlp(x), mlp(x))
 
     def test_in_out_same_dim(self):
-        mlp = ResidualMLP(in_dim=32, hidden_dim=32, out_dim=32, n_layers=1)
+        mlp = ResidualMLP({"in_dim": 32, "hidden_dim": 32, "out_dim": 32, "n_layers": 1})
         x = torch.randn(2, 32)
         assert mlp(x).shape == (2, 32)
 
@@ -176,13 +176,13 @@ class TestGVPConv:
 class TestGvpGNN:
     @pytest.fixture
     def gvp_gnn(self) -> GvpGNN:
-        return GvpGNN(
-            in_node_dims=(4, 1),
-            in_edge_dims=(2, 1),
-            hidden_dims=(16, 2),
-            n_layers=2,
-            conv_type="gvp",
-        )
+        return GvpGNN({
+            "in_node_dims": (4, 1),
+            "in_edge_dims": (2, 1),
+            "hidden_dims":  (16, 2),
+            "n_layers":     2,
+            "conv_type":    "gvp",
+        })
 
     def test_output_shapes(self, gvp_gnn):
         s, v, edge_index = _make_graph(n=6, n_s=4, n_v=1, e=10)
@@ -194,10 +194,10 @@ class TestGvpGNN:
 
     def test_no_edge_features(self):
         # in_edge_dims=(0,0) → None edge inputs are valid
-        gvp_gnn = GvpGNN(
-            in_node_dims=(4, 1), in_edge_dims=(0, 0),
-            hidden_dims=(16, 2), n_layers=1,
-        )
+        gvp_gnn = GvpGNN({
+            "in_node_dims": (4, 1), "in_edge_dims": (0, 0),
+            "hidden_dims": (16, 2), "n_layers": 1,
+        })
         s, v, edge_index = _make_graph(n=6, n_s=4, n_v=1, e=10)
         s_out, v_out = gvp_gnn(s, v, edge_index)
         assert s_out.shape == (6, 16)
@@ -212,22 +212,22 @@ class TestGvpGNN:
 
     def test_invalid_conv_type(self):
         with pytest.raises(ValueError, match="conv_type"):
-            GvpGNN(
-                in_node_dims=(4, 1),
-                in_edge_dims=(2, 1),
-                hidden_dims=(16, 2),
-                conv_type="invalid",
-            )
+            GvpGNN({
+                "in_node_dims": (4, 1),
+                "in_edge_dims": (2, 1),
+                "hidden_dims":  (16, 2),
+                "conv_type":    "invalid",
+            })
 
     def test_transformer_conv_type(self):
-        gnn = GvpGNN(
-            in_node_dims=(4, 1),
-            in_edge_dims=(2, 1),
-            hidden_dims=(16, 2),
-            n_layers=1,
-            conv_type="transformer",
-            n_heads=4,
-        )
+        gnn = GvpGNN({
+            "in_node_dims": (4, 1),
+            "in_edge_dims": (2, 1),
+            "hidden_dims":  (16, 2),
+            "n_layers":     1,
+            "conv_type":    "transformer",
+            "n_heads":      4,
+        })
         s, v, edge_index = _make_graph(n=5, n_s=4, n_v=1, e=8)
         edge_s = torch.randn(8, 2)
         edge_v = torch.randn(8, 1, 3)
@@ -270,13 +270,13 @@ class TestGraphTransformerLayer:
 
 class TestGraphTransformer:
     def test_output_shapes(self):
-        gt = GraphTransformer(
-            node_dims=(16, 2),
-            edge_dims=(8, 1),
-            hidden_dim=16,
-            n_layers=2,
-            n_heads=4,
-        )
+        gt = GraphTransformer({
+            "node_dims": (16, 2),
+            "edge_dims": (8, 1),
+            "hidden_dim": 16,
+            "n_layers": 2,
+            "n_heads": 4,
+        })
         s, v, edge_index = _make_graph(n=6, n_s=16, n_v=2, e=10)
         edge_s = torch.randn(10, 8)
         s_out, v_out = gt(s, v, edge_index, edge_s)
@@ -337,7 +337,7 @@ class TestTransformerLayer:
 class TestDeterministicPredictor:
     @pytest.fixture
     def pred(self) -> DeterministicPredictor:
-        return DeterministicPredictor(latent_dim=32, n_layers=2, n_heads=4)
+        return DeterministicPredictor({"latent_dim": 32, "n_layers": 2, "n_heads": 4})
 
     def test_output_shape_2d(self, pred):
         z = torch.randn(3, 32)
@@ -362,7 +362,7 @@ class TestDeterministicPredictor:
         assert out.shape == (3, 32)
 
     def test_non_causal_option(self):
-        p = DeterministicPredictor(latent_dim=32, n_layers=1, n_heads=4, causal=False)
+        p = DeterministicPredictor({"latent_dim": 32, "n_layers": 1, "n_heads": 4, "causal": False})
         z = torch.randn(2, 32)
         assert p(z).shape == (2, 32)
 
@@ -372,7 +372,7 @@ class TestDeterministicPredictor:
 class TestDiffTransformer:
     @pytest.fixture
     def model(self) -> DiffTransformer:
-        return DiffTransformer(dim=32, n_layers=2, n_heads=4)
+        return DiffTransformer({"dim": 32, "n_layers": 2, "n_heads": 4})
 
     def test_output_shape_2d(self, model):
         xt = torch.randn(4, 32)
@@ -424,20 +424,16 @@ BATCH = 4
 @pytest.fixture
 def ddpm_linear() -> DDPM:
     return DDPM(
+        {"time_steps": 10, "schedule_type": "linear", "pred_type": "noise"},
         predictor=_LinearPredictor(DIM),
-        time_steps=10,
-        schedule_type="linear",
-        pred_type="noise",
     )
 
 
 @pytest.fixture
 def ddpm_cosine() -> DDPM:
     return DDPM(
+        {"time_steps": 10, "schedule_type": "cosine", "pred_type": "noise"},
         predictor=_LinearPredictor(DIM),
-        time_steps=10,
-        schedule_type="cosine",
-        pred_type="noise",
     )
 
 
@@ -458,15 +454,15 @@ class TestDDPMSchedule:
 
     def test_invalid_pred_type_raises(self):
         with pytest.raises(ValueError, match="pred_type"):
-            DDPM(predictor=_LinearPredictor(DIM), pred_type="bad")
+            DDPM({"pred_type": "bad"}, predictor=_LinearPredictor(DIM))
 
     def test_invalid_schedule_raises(self):
         with pytest.raises(ValueError, match="schedule_type"):
-            DDPM(predictor=_LinearPredictor(DIM), schedule_type="bad")
+            DDPM({"schedule_type": "bad"}, predictor=_LinearPredictor(DIM))
 
     def test_linear_beta_range_validation(self):
         with pytest.raises(ValueError, match="0 < beta_min"):
-            DDPM(predictor=_LinearPredictor(DIM), schedule_type="linear", beta_min=0.1, beta_max=0.01)
+            DDPM({"schedule_type": "linear", "beta_min": 0.1, "beta_max": 0.01}, predictor=_LinearPredictor(DIM))
 
     def test_device_property(self, ddpm_linear):
         assert ddpm_linear._device == ddpm_linear.betas.device
@@ -490,7 +486,7 @@ class TestDDPMForwardDiff:
         assert torch.isfinite(target).all()
 
     def test_x0_pred_type_target_is_x0(self):
-        ddpm = DDPM(predictor=_LinearPredictor(DIM), time_steps=10, pred_type="x0")
+        ddpm = DDPM({"time_steps": 10, "pred_type": "x0"}, predictor=_LinearPredictor(DIM))
         x0 = torch.randn(BATCH, DIM)
         _, target = ddpm.forward_diff(x0, torch.zeros(BATCH, dtype=torch.long), torch.randn_like(x0))
         assert torch.allclose(target, x0)
@@ -561,41 +557,41 @@ class TestDDPMPredictX0:
 
 class TestSDEConstruction:
     def test_vp_construction(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), method="vp")
+        sde = SDE({"method": "vp"}, predictor=_LinearPredictor(DIM))
         assert sde.method == "vp"
 
     def test_ode_construction(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), method="ode")
+        sde = SDE({"method": "ode"}, predictor=_LinearPredictor(DIM))
         assert sde.method == "ode"
 
     def test_invalid_method_raises(self):
         with pytest.raises(ValueError, match="method must be one of"):
-            SDE(predictor=_LinearPredictor(DIM), method="invalid")
+            SDE({"method": "invalid"}, predictor=_LinearPredictor(DIM))
 
     def test_invalid_pred_type_raises(self):
         with pytest.raises(ValueError, match="pred_type"):
-            SDE(predictor=_LinearPredictor(DIM), pred_type="invalid")
+            SDE({"pred_type": "invalid"}, predictor=_LinearPredictor(DIM))
 
     def test_invalid_schedule_raises(self):
         with pytest.raises(ValueError, match="schedule_type"):
-            SDE(predictor=_LinearPredictor(DIM), schedule_type="invalid")
+            SDE({"schedule_type": "invalid"}, predictor=_LinearPredictor(DIM))
 
     def test_anchor_buffer_exists(self):
-        sde = SDE(predictor=_LinearPredictor(DIM))
+        sde = SDE({}, predictor=_LinearPredictor(DIM))
         assert hasattr(sde, "_anchor")
         assert isinstance(sde._anchor, torch.Tensor)
 
     def test_device_property(self):
-        sde = SDE(predictor=_LinearPredictor(DIM))
+        sde = SDE({}, predictor=_LinearPredictor(DIM))
         assert sde._device == sde._anchor.device
 
     def test_sigma_params_stored(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), sigma_min=0.02, sigma_max=80.0)
+        sde = SDE({"sigma_min": 0.02, "sigma_max": 80.0}, predictor=_LinearPredictor(DIM))
         assert sde.sigma_min == pytest.approx(0.02)
         assert sde.sigma_max == pytest.approx(80.0)
 
     def test_eps_stored(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), eps=1e-7)
+        sde = SDE({"eps": 1e-7}, predictor=_LinearPredictor(DIM))
         assert sde.eps == pytest.approx(1e-7)
 
 

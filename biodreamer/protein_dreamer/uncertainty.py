@@ -94,6 +94,7 @@ class EnsembleUncertainty(UncertaintyModule):
 
     def __init__(
         self,
+        config: dict,
         members: List[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]],
     ) -> None:
         if len(members) < 2:
@@ -142,13 +143,11 @@ class EvidentialUncertainty(UncertaintyModule, nn.Module):
         hidden_dim: Width of the two-layer MLP head.
     """
 
-    def __init__(
-        self,
-        input_dim: int,
-        output_dim: int = 1,
-        hidden_dim: int = 256,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         nn.Module.__init__(self)
+        input_dim  = config["input_dim"]
+        output_dim = config.get("output_dim", 1)
+        hidden_dim = config.get("hidden_dim", 256)
         self.output_dim = output_dim
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -239,7 +238,8 @@ class MCDropoutUncertainty(UncertaintyModule):
         n_passes: Number of stochastic forward passes.
     """
 
-    def __init__(self, model: nn.Module, n_passes: int = 20) -> None:
+    def __init__(self, config: dict, model: nn.Module) -> None:
+        n_passes = config.get("mc_dropout_passes", 20)
         if n_passes < 2:
             raise ValueError("n_passes must be at least 2")
         self.model = model

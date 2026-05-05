@@ -155,6 +155,7 @@ class ProteinGymDataset(Dataset):
 
     def __init__(
         self,
+        config: dict,
         path: "str | pd.DataFrame",
         tokenizer: Optional[Any] = None,
         seq_col: Optional[str] = None,
@@ -163,14 +164,14 @@ class ProteinGymDataset(Dataset):
         fitness_col: Optional[str] = None,
         assay_col: Optional[str] = None,
         assay_type_map: Optional[Dict[str, AssayType]] = None,
-        max_length: Optional[int] = None,
-        return_tensors: bool = False,
-        strict_wt_check: bool = True,
-        load_structures: bool = False,
-        struct_cache_dir: Optional[str] = None,
-        tokenizer_mode: str = "char",
-        pretokenize: bool = True,
     ) -> None:
+        max_length       = config.get("max_length", None)
+        return_tensors   = config.get("return_tensors", False)
+        strict_wt_check  = config.get("strict_wt_check", True)
+        load_structures  = config.get("load_structures", False)
+        struct_cache_dir = config.get("struct_cache_dir", None)
+        tokenizer_mode   = config.get("tokenizer_mode", "char")
+        pretokenize      = config.get("pretokenize", True)
         if pd is None:
             raise RuntimeError("pandas is required to load ProteinGym datasets")
 
@@ -301,7 +302,7 @@ class ProteinGymDataset(Dataset):
                 )
                 if rec.get("mutation_string"):
                     from ..tokenizers import ProteinTokenizer
-                    ptok = ProteinTokenizer(mode=self.tokenizer_mode)
+                    ptok = ProteinTokenizer({"mode": self.tokenizer_mode})
                     rec["input_mutant"] = ptok.encode_mutation_string(
                         rec["wt_sequence"],
                         rec["mutation_string"],
@@ -373,10 +374,10 @@ class ProteinGymDataset(Dataset):
 
 class TsuboyamaDataset(ProteinGymDataset):
     """loads Tsuboyama 2023 mega-scale stability data"""
-    def __init__(self, path: "str | pd.DataFrame", **kwargs) -> None:
+    def __init__(self, config: dict, path: "str | pd.DataFrame", **kwargs) -> None:
         # force all rows to STABILITY regardless of any provided assay_type_map
         kwargs.setdefault("assay_type_map", {})
-        super().__init__(path, **kwargs)
+        super().__init__(config, path, **kwargs)
         for rec in self._records:
             all_vals = [v for v in rec["targets"].values() if v == v]  # non-nan values
             fitness = all_vals[0] if all_vals else float("nan")
@@ -429,11 +430,7 @@ class FitnessTransitionDataset(Dataset):
 
 class CustomAssayDataset(ProteinGymDataset):
     """dataset for user-uploaded csv files with `sequence` and `fitness` columns"""
-    def __init__(
-        self,
-        path: "str | pd.DataFrame",
-        seq_col: str = "sequence",
-        fitness_col: str = "fitness",
-        **kwargs,
-    ) -> None:
-        super().__init__(path, seq_col=seq_col, fitness_col=fitness_col, **kwargs)
+    def __init__(self, config: dict, path: "str | pd.DataFrame", **kwargs) -> None:
+        kwargs.setdefault("seq_col", config.get("seq_col", "sequence"))
+        kwargs.setdefault("fitness_col", config.get("fitness_col", "fitness"))
+        super().__init__(config, path, **kwargs)

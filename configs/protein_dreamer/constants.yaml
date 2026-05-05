@@ -1,0 +1,4 @@
+# Canonical 20 amino acids in standard one-letter alphabetical order.
+# This ordering defines AA_TO_IDX throughout the codebase.
+amino_acids: "ACDEFGHIKLMNPQRSTVWY"
+n_aa: 20

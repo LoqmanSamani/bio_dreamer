@@ -17,11 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from biodreamer.core.environment import BaseEnvironment, BaseOracle, BaseStructureOracle
+from .config import ProteinDreamerConstants as _Constants
 
 logger = logging.getLogger(__name__)
 
-_AA_LIST: List[str] = list("ACDEFGHIKLMNPQRSTVWY")
-_AA_TO_IDX: Dict[str, int] = {aa: i for i, aa in enumerate(_AA_LIST)}
+_AA_LIST: List[str] = _Constants.amino_acids()
+_AA_TO_IDX: Dict[str, int] = _Constants.aa_to_idx()
 
 State = Dict[str, Any]
 
@@ -62,13 +63,14 @@ class ProteinEnvironment(BaseEnvironment):
     """
     def __init__(
         self,
+        config: dict,
         wild_type_sequence: str,
         fitness_oracle: BaseOracle,
         structure_oracle: Optional[BaseStructureOracle] = None,
-        max_steps: int = 50,
-        fitness_threshold: Optional[float] = None,
-        track_trajectory: bool = False,
     ) -> None:
+        max_steps         = config.get("max_steps", 50)
+        fitness_threshold = config.get("fitness_threshold", None)
+        track_trajectory  = config.get("track_trajectory", False)
         if not wild_type_sequence:
             raise ValueError("wild_type_sequence must be non-empty")
         if not isinstance(fitness_oracle, BaseOracle):

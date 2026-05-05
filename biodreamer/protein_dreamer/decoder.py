@@ -31,15 +31,16 @@ class ProteinSequenceDecoder(BaseDecoder):
     """
     def __init__(
         self,
-        latent_dim: int,
-        n_layers: int = 4,
-        n_heads: int = 8,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.0,
-        max_seq_len: int = 512,
-        default_seq_len: int = 50,
+        config: dict,
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim      = config["latent_dim"]
+        n_layers        = config.get("n_layers", 4)
+        n_heads         = config.get("n_heads", 8)
+        mlp_ratio       = config.get("mlp_ratio", 4.0)
+        dropout         = config.get("dropout", 0.0)
+        max_seq_len     = config.get("max_seq_len", 512)
+        default_seq_len = config.get("default_seq_len", 50)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -129,15 +130,16 @@ class ProteinStructureDecoder(BaseDecoder):
     """
     def __init__(
         self,
-        latent_dim: int,
-        n_layers: int = 4,
-        n_heads: int = 8,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.0,
-        max_seq_len: int = 512,
-        default_seq_len: int = 50,
+        config: dict,
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim      = config["latent_dim"]
+        n_layers        = config.get("n_layers", 4)
+        n_heads         = config.get("n_heads", 8)
+        mlp_ratio       = config.get("mlp_ratio", 4.0)
+        dropout         = config.get("dropout", 0.0)
+        max_seq_len     = config.get("max_seq_len", 512)
+        default_seq_len = config.get("default_seq_len", 50)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)

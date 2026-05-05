@@ -25,22 +25,14 @@ class SIGReg(nn.Module):
       - per-dimension variance ≠ 1
       - random 1d projections fail mean/variance/kurtosis checks
     """
-    def __init__(
-        self,
-        latent_dim: int,
-        num_proj: int = 16,
-        mean_weight: float = 1.0,
-        var_weight: float = 1.0,
-        proj_weight: float = 1.0,
-        eps: float = 1e-6,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
-        self.latent_dim = latent_dim
-        self.num_proj   = num_proj
-        self.mean_weight = mean_weight
-        self.var_weight  = var_weight
-        self.proj_weight = proj_weight
-        self.eps = eps
+        self.latent_dim  = config["latent_dim"]
+        self.num_proj    = config.get("num_proj", 16)
+        self.mean_weight = config.get("mean_weight", 1.0)
+        self.var_weight  = config.get("var_weight", 1.0)
+        self.proj_weight = config.get("proj_weight", 1.0)
+        self.eps         = config.get("eps", 1e-6)
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         """compute the SIGReg loss for a batch of latent vectors"""
@@ -84,7 +76,8 @@ class EMAUpdater:
     the EMAUpdater is an alternative regularisation strategy, where the target encoder is a slow-moving 
     average of the online encoder, and the SIGReg loss is not used.
     """
-    def __init__(self, tau: float = 0.99) -> None:
+    def __init__(self, config: dict) -> None:
+        tau = config.get("tau", 0.99)
         if not 0.0 < tau < 1.0:
             raise ValueError(f"tau must be in (0, 1), got {tau}")
         self.tau = tau

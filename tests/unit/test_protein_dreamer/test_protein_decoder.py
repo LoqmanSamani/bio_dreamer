@@ -18,32 +18,26 @@ MAX_LEN = 64
 N_LAYERS = 2
 N_HEADS = 4
 
-
+_DEC_CFG = {
+    "latent_dim": LATENT_DIM,
+    "n_layers": N_LAYERS,
+    "n_heads": N_HEADS,
+    "mlp_ratio": 4.0,
+    "dropout": 0.0,
+    "max_seq_len": MAX_LEN,
+    "default_seq_len": DEFAULT_LEN,
+}
 
 
 
 @pytest.fixture
 def seq_dec() -> ProteinSequenceDecoder:
-    return ProteinSequenceDecoder(
-        latent_dim=LATENT_DIM,
-        n_layers=N_LAYERS,
-        n_heads=N_HEADS,
-        max_seq_len=MAX_LEN,
-        default_seq_len=DEFAULT_LEN,
-        device=torch.device("cpu"),
-    )
+    return ProteinSequenceDecoder(_DEC_CFG, device=torch.device("cpu"))
 
 
 @pytest.fixture
 def struct_dec() -> ProteinStructureDecoder:
-    return ProteinStructureDecoder(
-        latent_dim=LATENT_DIM,
-        n_layers=N_LAYERS,
-        n_heads=N_HEADS,
-        max_seq_len=MAX_LEN,
-        default_seq_len=DEFAULT_LEN,
-        device=torch.device("cpu"),
-    )
+    return ProteinStructureDecoder(_DEC_CFG, device=torch.device("cpu"))
 
 
 @pytest.fixture

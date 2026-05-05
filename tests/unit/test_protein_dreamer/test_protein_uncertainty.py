@@ -55,7 +55,7 @@ class TestUncertaintyModuleInterface:
     def _make_ensemble(self):
         m1 = _ConstModel(1.0, D_OUT)
         m2 = _ConstModel(2.0, D_OUT)
-        return EnsembleUncertainty([m1, m2])
+        return EnsembleUncertainty({}, [m1, m2])
 
     def test_is_subclass_of_abstract(self):
         assert issubclass(EnsembleUncertainty, UncertaintyModule)
@@ -94,21 +94,21 @@ class TestUncertaintyModuleInterface:
 class TestEnsembleUncertaintyConstruction:
     def test_requires_at_least_two_members(self):
         with pytest.raises(ValueError, match="at least 2"):
-            EnsembleUncertainty([_ConstModel(0.0, D_OUT)])
+            EnsembleUncertainty({}, [_ConstModel(0.0, D_OUT)])
 
     def test_empty_list_raises(self):
         with pytest.raises(ValueError):
-            EnsembleUncertainty([])
+            EnsembleUncertainty({}, [])
 
     def test_stores_members(self):
         members = [_ConstModel(float(i), D_OUT) for i in range(3)]
-        ens = EnsembleUncertainty(members)
+        ens = EnsembleUncertainty({}, members)
         assert len(ens.members) == 3
 
 
 class TestEnsembleUncertaintyEstimate:
     def _make(self, values):
-        return EnsembleUncertainty([_ConstModel(v, D_OUT) for v in values])
+        return EnsembleUncertainty({}, [_ConstModel(v, D_OUT) for v in values])
 
     def test_mean_pred_shape(self):
         ens = self._make([0.0, 1.0])
@@ -155,7 +155,7 @@ class TestEnsembleUncertaintyEstimate:
     def test_works_with_nn_module_members(self):
         members = [nn.Linear(D_Z + D_A, D_OUT) for _ in range(2)]
         callables = [lambda z, a, m=m: m(torch.cat([z, a], -1)) for m in members]
-        ens = EnsembleUncertainty(callables)
+        ens = EnsembleUncertainty({}, callables)
         mean, ep, al = ens.estimate(_rand((B, D_Z)), _rand((B, D_A)))
         assert mean.shape == (B, D_OUT)
         assert ep.shape == (B,)
@@ -165,26 +165,26 @@ class TestEnsembleUncertaintyEstimate:
 
 class TestEvidentialUncertaintyConstruction:
     def test_is_nn_module(self):
-        ev = EvidentialUncertainty(input_dim=D_Z + D_A, output_dim=D_OUT)
+        ev = EvidentialUncertainty({"input_dim": D_Z + D_A, "output_dim": D_OUT})
         assert isinstance(ev, nn.Module)
 
     def test_is_uncertainty_module(self):
-        ev = EvidentialUncertainty(input_dim=D_Z + D_A)
+        ev = EvidentialUncertainty({"input_dim": D_Z + D_A})
         assert isinstance(ev, UncertaintyModule)
 
     def test_default_output_dim_one(self):
-        ev = EvidentialUncertainty(input_dim=D_Z + D_A)
+        ev = EvidentialUncertainty({"input_dim": D_Z + D_A})
         assert ev.output_dim == 1
 
     def test_custom_hidden_dim(self):
-        ev = EvidentialUncertainty(input_dim=4, output_dim=1, hidden_dim=64)
+        ev = EvidentialUncertainty({"input_dim": 4, "output_dim": 1, "hidden_dim": 64})
         total = sum(p.numel() for p in ev.parameters())
         assert total > 0
 
 
 class TestEvidentialUncertaintyForward:
     def _make(self, output_dim=D_OUT):
-        return EvidentialUncertainty(input_dim=D_Z + D_A, output_dim=output_dim)
+        return EvidentialUncertainty({"input_dim": D_Z + D_A, "output_dim": output_dim})
 
     def test_forward_returns_four_tensors(self):
         ev = self._make()
@@ -215,7 +215,7 @@ class TestEvidentialUncertaintyForward:
 
 class TestEvidentialUncertaintyEstimate:
     def _make(self, output_dim=D_OUT):
-        return EvidentialUncertainty(input_dim=D_Z + D_A, output_dim=output_dim)
+        return EvidentialUncertainty({"input_dim": D_Z + D_A, "output_dim": output_dim})
 
     def test_mean_pred_shape(self):
         ev = self._make()
@@ -243,7 +243,7 @@ class TestEvidentialUncertaintyEstimate:
         assert (al >= 0).all()
 
     def test_output_dim_one(self):
-        ev = EvidentialUncertainty(input_dim=D_Z + D_A, output_dim=1)
+        ev = EvidentialUncertainty({"input_dim": D_Z + D_A, "output_dim": 1})
         mean, ep, al = ev.estimate(_rand((B, D_Z)), _rand((B, D_A)))
         assert mean.shape == (B, 1)
         assert ep.shape == (B,)
@@ -257,7 +257,7 @@ class TestEvidentialUncertaintyEstimate:
 
 class TestEvidentialUncertaintyNIGLoss:
     def _make(self):
-        return EvidentialUncertainty(input_dim=D_Z + D_A, output_dim=D_OUT)
+        return EvidentialUncertainty({"input_dim": D_Z + D_A, "output_dim": D_OUT})
 
     def test_loss_is_scalar(self):
         ev = self._make()
@@ -313,11 +313,11 @@ class TestMCDropoutUncertaintyConstruction:
     def test_requires_at_least_two_passes(self):
         m = _DropoutModel(D_Z + D_A, D_OUT)
         with pytest.raises(ValueError, match="at least 2"):
-            MCDropoutUncertainty(m, n_passes=1)
+            MCDropoutUncertainty({"mc_dropout_passes": 1}, m)
 
     def test_stores_model_and_passes(self):
         m = _DropoutModel(D_Z + D_A, D_OUT)
-        mc = MCDropoutUncertainty(m, n_passes=5)
+        mc = MCDropoutUncertainty({"mc_dropout_passes": 5}, m)
         assert mc.model is m
         assert mc.n_passes == 5
 
@@ -325,7 +325,8 @@ class TestMCDropoutUncertaintyConstruction:
 class TestMCDropoutUncertaintyEstimate:
     def _make(self, p=0.5, n_passes=20):
         return MCDropoutUncertainty(
-            _DropoutModel(D_Z + D_A, D_OUT, p=p), n_passes=n_passes
+            {"mc_dropout_passes": n_passes},
+            _DropoutModel(D_Z + D_A, D_OUT, p=p),
         )
 
     def test_mean_pred_shape(self):
@@ -369,14 +370,14 @@ class TestMCDropoutUncertaintyEstimate:
     def test_model_returned_to_original_train_mode(self):
         m = _DropoutModel(D_Z + D_A, D_OUT)
         m.eval()
-        mc = MCDropoutUncertainty(m, n_passes=5)
+        mc = MCDropoutUncertainty({"mc_dropout_passes": 5}, m)
         mc.estimate(_rand((B, D_Z)), _rand((B, D_A)))
         assert not m.training  # restored to eval
 
     def test_model_returned_to_original_eval_mode(self):
         m = _DropoutModel(D_Z + D_A, D_OUT)
         m.train()
-        mc = MCDropoutUncertainty(m, n_passes=5)
+        mc = MCDropoutUncertainty({"mc_dropout_passes": 5}, m)
         mc.estimate(_rand((B, D_Z)), _rand((B, D_A)))
         assert m.training  # restored to train
 
@@ -389,7 +390,7 @@ class TestMCDropoutUncertaintyEstimate:
             def forward(self, z, a):
                 return self.linear(torch.cat([z, a], dim=-1))
 
-        mc = MCDropoutUncertainty(NoDropoutModel(), n_passes=10)
+        mc = MCDropoutUncertainty({"mc_dropout_passes": 10}, NoDropoutModel())
         _, ep, _ = mc.estimate(_rand((B, D_Z)), _rand((B, D_A)))
         assert (ep.abs() < 1e-6).all()
 

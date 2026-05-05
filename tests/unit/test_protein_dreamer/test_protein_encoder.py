@@ -15,6 +15,17 @@ EMBED_DIM = 32
 SEQ_LEN = 20
 SEQ_HIDDEN = 128  # stub esm2 hidden size
 
+_ENC_CFG = {
+    "latent_dim": LATENT_DIM,
+    "seq_model_name": "esm2-650m",
+    "freeze_seq_encoder": True,
+    "use_structure": False,
+    "freeze_struct_encoder": True,
+    "gvp": {"hidden_dim": 32, "n_layers": 1, "dropout": 0.0},
+}
+_ENC_CFG_STRUCT = {**_ENC_CFG, "use_structure": True}
+_ACT_CFG = {"latent_dim": LATENT_DIM, "embed_dim": EMBED_DIM}
+
 
 
 
@@ -59,14 +70,9 @@ def _protein_encoder(use_structure: bool = False) -> ProteinEncoder:
     """build a ProteinEncoder with mocked esm2"""
     mock_model = _mock_esm2(SEQ_HIDDEN)
     mock_tok = _mock_tokenizer()
+    cfg = _ENC_CFG_STRUCT if use_structure else _ENC_CFG
     with patch.object(ProteinEncoder, "_hf_load", return_value=(mock_model, mock_tok)):
-        enc = ProteinEncoder(
-            latent_dim=LATENT_DIM,
-            use_structure=use_structure,
-            gvp_hidden_dim=32,
-            gvp_layers=1,
-            device=torch.device("cpu"),
-        )
+        enc = ProteinEncoder(cfg, device=torch.device("cpu"))
     return enc
 
 
@@ -139,8 +145,7 @@ class TestBuildProteinGraph:
 class TestActionEncoder:
     @pytest.fixture
     def ae(self):
-        return ActionEncoder(latent_dim=LATENT_DIM, embed_dim=EMBED_DIM,
-                             device=torch.device("cpu"))
+        return ActionEncoder(_ACT_CFG, device=torch.device("cpu"))
 
     def _action(self):
         return {
@@ -169,7 +174,7 @@ class TestActionEncoder:
         assert torch.isfinite(z).all()
 
     def test_default_mlp_created(self):
-        ae = ActionEncoder(latent_dim=LATENT_DIM, embed_dim=EMBED_DIM)
+        ae = ActionEncoder(_ACT_CFG)
         assert ae.action_mlp is not None
 
     def test_gradient_flows(self, ae):

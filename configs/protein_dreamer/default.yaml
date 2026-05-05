@@ -86,8 +86,6 @@ dynamics:
 reward:
   latent_dim:     256
   hidden_dim:     512
-  n_layers:       2
-  dropout:        0.1
   weights:
     stability:    1.0
     affinity:     1.0
@@ -95,6 +93,8 @@ reward:
     fitness:      0.5
 
 policy:
+  latent_dim:    256
+  action_dim:    256
   eta:           1.0           # epistemic value weight in EFE
   n_samples:     10            # Monte Carlo samples for uncertainty
   n_aa:          20
@@ -104,6 +104,9 @@ uncertainty:
   type:         "ensemble"     # "ensemble" | "mc_dropout" | "evidential"
   ensemble_size: 5
   mc_dropout_passes: 20
+  evidential:
+    output_dim: 1
+    hidden_dim: 256
 
 training:
   batch_size:         64
@@ -128,3 +131,19 @@ logging:
   wandb_project:    "protein-dreamer"
   checkpoint_freq:  1000        # steps between checkpoints
   eval_freq:        500         # steps between evaluations
+
+decoder:
+  n_layers:        4
+  n_heads:         8
+  mlp_ratio:       4.0
+  dropout:         0.0
+  max_seq_len:     512
+  default_seq_len: 50
+
+action_encoder:
+  embed_dim: 256
+
+environment:
+  max_steps:          50
+  fitness_threshold:  null
+  track_trajectory:   false

@@ -326,23 +326,23 @@ class TestESMFoldStructureOracle:
 class TestProteinEnvironmentConstruction:
     def test_empty_wt_raises(self):
         with pytest.raises(ValueError, match="non-empty"):
-            ProteinEnvironment("", ConstOracle())
+            ProteinEnvironment({}, "", ConstOracle())
 
     def test_invalid_oracle_raises(self):
         with pytest.raises(TypeError):
-            ProteinEnvironment(WT, "not_an_oracle")  # type: ignore
+            ProteinEnvironment({}, WT, "not_an_oracle")  # type: ignore
 
     def test_no_reset_state_is_none(self):
-        env = ProteinEnvironment(WT, ConstOracle())
+        env = ProteinEnvironment({}, WT, ConstOracle())
         assert env.current_state is None
 
     def test_step_before_reset_raises(self):
-        env = ProteinEnvironment(WT, ConstOracle())
+        env = ProteinEnvironment({}, WT, ConstOracle())
         with pytest.raises(RuntimeError, match="reset"):
             env.step("A1G")
 
     def test_render_before_reset_raises(self):
-        env = ProteinEnvironment(WT, ConstOracle())
+        env = ProteinEnvironment({}, WT, ConstOracle())
         with pytest.raises(RuntimeError, match="reset"):
             env.render()
 
@@ -352,7 +352,7 @@ class TestProteinEnvironmentConstruction:
 class TestProteinEnvironmentReset:
     @pytest.fixture
     def env(self) -> ProteinEnvironment:
-        return ProteinEnvironment(WT, DictOracle({WT: 0.0}))
+        return ProteinEnvironment({}, WT, DictOracle({WT: 0.0}))
 
     def test_reset_returns_state_dict(self, env):
         state = env.reset()
@@ -376,20 +376,20 @@ class TestProteinEnvironmentReset:
         assert state["coords"] is None
 
     def test_reset_with_structure_oracle(self):
-        env = ProteinEnvironment(WT, ConstOracle(), structure_oracle=ConstStructureOracle())
+        env = ProteinEnvironment({}, WT, ConstOracle(), structure_oracle=ConstStructureOracle())
         state = env.reset()
         assert state["coords"] is not None
         assert state["coords"].shape == (len(WT), 3)
 
     def test_reset_clears_trajectory(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         env.reset()
         assert env.trajectory == []
 
     def test_reset_resets_step_count(self):
-        env = ProteinEnvironment(WT, ConstOracle())
+        env = ProteinEnvironment({}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         env.reset()
@@ -403,7 +403,7 @@ class TestProteinEnvironmentStepString:
     @pytest.fixture
     def env(self) -> ProteinEnvironment:
         data = {WT: 0.0, MUT1: 1.5}
-        return ProteinEnvironment(WT, DMSLookupOracle(data, WT))
+        return ProteinEnvironment({}, WT, DMSLookupOracle(data, WT))
 
     def test_step_returns_four_values(self, env):
         env.reset()
@@ -454,7 +454,7 @@ class TestProteinEnvironmentStepDict:
     @pytest.fixture
     def env(self) -> ProteinEnvironment:
         data = {WT: 0.0, MUT1: 2.0}
-        return ProteinEnvironment(WT, DMSLookupOracle(data, WT))
+        return ProteinEnvironment({}, WT, DMSLookupOracle(data, WT))
 
     def test_dict_action_int_values(self, env):
         env.reset()
@@ -493,7 +493,7 @@ class TestProteinEnvironmentStepDict:
 
 class TestProteinEnvironmentDone:
     def test_done_on_max_steps(self):
-        env = ProteinEnvironment(WT, ConstOracle(1.0), max_steps=2)
+        env = ProteinEnvironment({"max_steps": 2}, WT, ConstOracle(1.0))
         env.reset()
         _, _, done1, _ = env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         _, _, done2, _ = env.step({"position": 1, "aa_old": 2, "aa_new": 3})
@@ -502,21 +502,21 @@ class TestProteinEnvironmentDone:
 
     def test_done_on_fitness_threshold(self):
         oracle = DictOracle({WT: 0.0, MUT1: 5.0})
-        env = ProteinEnvironment(WT, oracle, fitness_threshold=3.0)
+        env = ProteinEnvironment({"fitness_threshold": 3.0}, WT, oracle)
         env.reset()
         _, _, done, _ = env.step("A1G")
         assert done
 
     def test_not_done_below_threshold(self):
         oracle = DictOracle({WT: 0.0, MUT1: 1.0})
-        env = ProteinEnvironment(WT, oracle, fitness_threshold=3.0, max_steps=20)
+        env = ProteinEnvironment({"fitness_threshold": 3.0, "max_steps": 20}, WT, oracle)
         env.reset()
         _, _, done, _ = env.step("A1G")
         assert not done
 
     def test_nan_reward_does_not_trigger_threshold(self):
         oracle = DictOracle({})  # always NaN
-        env = ProteinEnvironment(WT, oracle, fitness_threshold=0.0, max_steps=20)
+        env = ProteinEnvironment({"fitness_threshold": 0.0, "max_steps": 20}, WT, oracle)
         env.reset()
         _, _, done, _ = env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         assert not done
@@ -527,7 +527,7 @@ class TestProteinEnvironmentDone:
 class TestProteinEnvironmentRender:
     @pytest.fixture
     def env(self) -> ProteinEnvironment:
-        return ProteinEnvironment(WT, ConstOracle(1.0))
+        return ProteinEnvironment({}, WT, ConstOracle(1.0))
 
     def test_render_keys(self, env):
         env.reset()
@@ -570,19 +570,19 @@ class TestProteinEnvironmentRender:
 
 class TestProteinEnvironmentTrajectory:
     def test_trajectory_empty_after_reset(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         assert env.trajectory == []
 
     def test_trajectory_grows_with_steps(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         env.step({"position": 1, "aa_old": 2, "aa_new": 3})
         assert len(env.trajectory) == 2
 
     def test_trajectory_entry_keys(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         entry = env.trajectory[0]
@@ -590,13 +590,13 @@ class TestProteinEnvironmentTrajectory:
             assert key in entry
 
     def test_trajectory_not_tracked_when_flag_false(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=False)
+        env = ProteinEnvironment({}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         assert env.trajectory == []
 
     def test_trajectory_is_copy(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step({"position": 0, "aa_old": 0, "aa_new": 1})
         traj = env.trajectory
@@ -613,6 +613,7 @@ class TestStateEncoderCompatibility:
     @pytest.fixture
     def env_with_struct(self) -> ProteinEnvironment:
         return ProteinEnvironment(
+            {},
             WT,
             ConstOracle(1.0),
             structure_oracle=ConstStructureOracle(),
@@ -737,7 +738,7 @@ class TestProteinEnvironmentMultiSite:
             "A1G:L10M": 2.5,   # double mutant string key
             MUT_DOUBLE: 2.5,   # also reachable by sequence diff
         }
-        return ProteinEnvironment(WT, DMSLookupOracle(data, WT))
+        return ProteinEnvironment({}, WT, DMSLookupOracle(data, WT))
 
     def test_double_mutant_string_applies_both_sites(self, env):
         env.reset()
@@ -775,13 +776,13 @@ class TestProteinEnvironmentMultiSite:
     def test_tsuboyama_oracle_with_double_mutation(self):
         data = {"A1G:L10M": -1.5}
         oracle = TsuboyamaDMSOracle(data, wt_sequence=WT)
-        env = ProteinEnvironment(WT, oracle)
+        env = ProteinEnvironment({}, WT, oracle)
         env.reset()
         _, reward, _, _ = env.step("A1G:L10M")
         assert reward == pytest.approx(1.5)  # negated by TsuboyamaDMSOracle
 
     def test_trajectory_stores_list_for_multi_site(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step("A1G:L10M")
         action_stored = env.trajectory[0]["action"]
@@ -789,7 +790,7 @@ class TestProteinEnvironmentMultiSite:
         assert len(action_stored) == 2
 
     def test_trajectory_stores_dict_for_single_site(self):
-        env = ProteinEnvironment(WT, ConstOracle(), track_trajectory=True)
+        env = ProteinEnvironment({"track_trajectory": True}, WT, ConstOracle())
         env.reset()
         env.step("A1G")
         action_stored = env.trajectory[0]["action"]

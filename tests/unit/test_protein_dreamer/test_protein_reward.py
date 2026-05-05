@@ -12,14 +12,16 @@ LATENT_DIM = 64
 HIDDEN_DIM = 32
 BATCH = 4
 
+_REW_CFG = {
+    "latent_dim": LATENT_DIM,
+    "hidden_dim": HIDDEN_DIM,
+    "weights": {"stability": 1.0, "affinity": 1.0, "activity": 1.0, "fitness": 1.0},
+}
+
 
 @pytest.fixture
 def reward_head() -> ProteinRewardHead:
-    return ProteinRewardHead(
-        latent_dim=LATENT_DIM,
-        hidden_dim=HIDDEN_DIM,
-        device=torch.device("cpu"),
-    )
+    return ProteinRewardHead(_REW_CFG, device=torch.device("cpu"))
 
 
 @pytest.fixture
@@ -45,8 +47,13 @@ class TestArchitecture:
             "stability", "affinity", "activity", "fitness"
         }
 
-    def test_default_weights_sum_to_one(self, reward_head):
-        total = sum(reward_head.weights.values())
+    def test_default_weights_sum_to_one(self):
+        # Default weights (no "weights" key in config) must sum to 1.0.
+        head = ProteinRewardHead(
+            {"latent_dim": LATENT_DIM, "hidden_dim": HIDDEN_DIM},
+            device=torch.device("cpu"),
+        )
+        total = sum(head.weights.values())
         assert abs(total - 1.0) < 1e-6
 
 
@@ -114,7 +121,7 @@ class TestComputeLoss:
 
     def test_loss_zero_on_perfect_prediction(self):
         # build a head whose weights are fixed identity so we can control the output.
-        head = ProteinRewardHead(latent_dim=2, hidden_dim=4, device=torch.device("cpu"))
+        head = ProteinRewardHead({"latent_dim": 2, "hidden_dim": 4}, device=torch.device("cpu"))
         z = torch.zeros(1, 2)
         multi = head.predict_multi(z)
         perfect_targets = {k: v.detach().clone() for k, v in multi.items()}

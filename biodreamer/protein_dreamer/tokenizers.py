@@ -47,17 +47,16 @@ class ProteinTokenizer:
       - mutated-sequence encoding with automatic [MUT] position flagging
       - organism token prepending
     """
-    def __init__(
-        self,
-        mode: TokenizerMode = "char",
-        k: int = 3,
-        stride: int | None = None,
-        bpe_vocab_size: int = 200,
-        bpe_merges: list[tuple[str, str]] | None = None,
-        organism_tokens: list[str] | None = None,
-        add_special_tokens: bool = True,
-        include_ambiguous: bool = True,
-    ) -> None:
+    def __init__(self, config: dict) -> None:
+        mode             = config.get("mode", "char")
+        k                = config.get("k", 3)
+        stride           = config.get("stride", None)
+        bpe_vocab_size   = config.get("bpe_vocab_size", 200)
+        bpe_merges       = config.get("bpe_merges", None)
+        organism_tokens  = config.get("organism_tokens", None)
+        add_special_tokens = config.get("add_special_tokens", True)
+        include_ambiguous  = config.get("include_ambiguous", True)
+
         self.mode = mode
         self.organism_tokens = organism_tokens or []
 
@@ -290,13 +289,13 @@ class ProteinTokenizer:
         organism_tokens: list[str] | None = None,
     ) -> ProteinTokenizer:
         saved = BPETokenizer.load(path)
-        return cls(
-            mode="bpe",
-            bpe_vocab_size=saved.target_vocab_size,
-            bpe_merges=saved.merges,
-            organism_tokens=organism_tokens or saved.organism_tokens,
-            add_special_tokens=saved.add_special_tokens,
-        )
+        return cls({
+            "mode":               "bpe",
+            "bpe_vocab_size":     saved.target_vocab_size,
+            "bpe_merges":         saved.merges,
+            "organism_tokens":    organism_tokens or saved.organism_tokens,
+            "add_special_tokens": saved.add_special_tokens,
+        })
 
     def __repr__(self) -> str:
         return (

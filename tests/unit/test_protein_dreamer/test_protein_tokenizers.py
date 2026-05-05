@@ -476,82 +476,82 @@ class TestBPETokenizer:
 
 class TestProteinTokenizer:
     def test_repr_class_name(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         assert repr(tok).startswith("ProteinTokenizer(")
 
     def test_repr_contains_mode(self):
-        tok = ProteinTokenizer(mode="kmer")
+        tok = ProteinTokenizer({"mode": "kmer"})
         assert "mode='kmer'" in repr(tok)
 
     def test_mode_char_vocab_size(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         assert tok.vocab_size == 32  # 6 special + 20 + 6 ambiguous
 
     def test_mode_kmer_created(self):
-        tok = ProteinTokenizer(mode="kmer", k=2)
+        tok = ProteinTokenizer({"mode": "kmer", "k": 2})
         out = tok.encode_sequence("ACDEF")
         assert len(out["input_ids"]) > 0
 
     def test_mode_bpe_created(self):
-        tok = ProteinTokenizer(mode="bpe", bpe_vocab_size=50)
+        tok = ProteinTokenizer({"mode": "bpe", "bpe_vocab_size": 50})
         out = tok.encode_sequence("ACDEF")
         assert len(out["input_ids"]) > 0
 
     def test_unknown_mode_raises(self):
         with pytest.raises(ValueError, match="Unknown tokenizer mode"):
-            ProteinTokenizer(mode="invalid")
+            ProteinTokenizer({"mode": "invalid"})
 
     def test_pad_token_id_accessible(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         assert isinstance(tok.pad_token_id, int)
 
     def test_mask_token_id_accessible(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         assert isinstance(tok.mask_token_id, int)
 
     def test_get_vocab_returns_dict(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         vocab = tok.get_vocab()
         assert isinstance(vocab, dict)
 
     def test_decode_roundtrip(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         seq = "ACDEFGHIK"
         ids = tok.encode_sequence(seq)["input_ids"]
         assert tok.decode(ids) == seq
 
     def test_batch_encode_sequences_shape(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.batch_encode_sequences(["AC", "ACDEF"], return_tensors=True)
         assert out["input_ids"].shape[0] == 2
 
     # encode_mutation_string
     def test_encode_mutation_string_substitution(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.encode_mutation_string("ACDEF", "A1G")
         assert "parsed_mutation" in out
         assert out["parsed_mutation"].records[0].mut_aa == "G"
 
     def test_encode_mutation_string_marks_position(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.encode_mutation_string("ACDEF", "A1G")
         # position 0 → token index 1 (after [CLS])
         assert out["mutation_mask"][1] == 1
 
     def test_encode_mutation_strict_false_fallback(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         # G1G has wt=G but actual is A — should fall back silently
         out = tok.encode_mutation_string("ACDEF", "G1V", strict_wt_check=False)
         assert len(out["input_ids"]) > 0
 
     def test_encode_mutation_strict_true_raises(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         with pytest.raises(ValueError):
             tok.encode_mutation_string("ACDEF", "G1V", strict_wt_check=True)
 
     # batch_encode_mutations
     def test_batch_encode_mutations_lengths_equal(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.batch_encode_mutations(
             ["ACDEF", "ACDEFGHIK"],
             ["A1G",   "A1G"],
@@ -561,7 +561,7 @@ class TestProteinTokenizer:
         assert lengths[0] == lengths[1]
 
     def test_batch_encode_mutations_return_tensors(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.batch_encode_mutations(
             ["ACDEF", "ACDEF"],
             ["A1G", "C2D"],
@@ -571,40 +571,40 @@ class TestProteinTokenizer:
         assert out["input_ids"].shape[0] == 2
 
     def test_batch_encode_mutations_parsed_list(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         out = tok.batch_encode_mutations(["ACDEF"], ["A1G"])
         assert len(out["parsed_mutations"]) == 1
 
     # encode_with_organism
     def test_encode_with_organism_prepends_token(self):
-        tok = ProteinTokenizer(mode="char", organism_tokens=["[ORG_HUMAN]"])
+        tok = ProteinTokenizer({"mode": "char", "organism_tokens": ["[ORG_HUMAN]"]})
         out = tok.encode_with_organism("ACDEF", "human")
         vocab = tok.get_vocab()
         assert out["input_ids"][0] == vocab["[ORG_HUMAN]"]
 
     def test_encode_with_organism_unknown_raises(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         with pytest.raises(KeyError):
             tok.encode_with_organism("ACDEF", "human")
 
     def test_encode_with_organism_padding(self):
-        tok = ProteinTokenizer(mode="char", organism_tokens=["[ORG_HUMAN]"])
+        tok = ProteinTokenizer({"mode": "char", "organism_tokens": ["[ORG_HUMAN]"]})
         out = tok.encode_with_organism("ACDEF", "human", max_length=20, padding=True)
         assert len(out["input_ids"]) == 20
 
     # BPE-specific helpers via wrapper
     def test_train_bpe_on_non_bpe_raises(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         with pytest.raises(RuntimeError, match="mode='bpe'"):
             tok.train_bpe(["ACDEF"])
 
     def test_save_bpe_on_non_bpe_raises(self):
-        tok = ProteinTokenizer(mode="char")
+        tok = ProteinTokenizer({"mode": "char"})
         with pytest.raises(RuntimeError, match="mode='bpe'"):
             tok.save_bpe("/tmp/bpe.json")
 
     def test_train_and_save_bpe(self):
-        tok = ProteinTokenizer(mode="bpe", bpe_vocab_size=50)
+        tok = ProteinTokenizer({"mode": "bpe", "bpe_vocab_size": 50})
         tok.train_bpe(["ACDEF"] * 20, min_frequency=2)
         with tempfile.TemporaryDirectory() as tmp:
             path = str(Path(tmp) / "bpe.json")

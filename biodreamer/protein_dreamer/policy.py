@@ -26,16 +26,17 @@ class ProteinActiveInferencePolicy(ActiveInferencePolicy):
     """
     def __init__(
         self,
-        latent_dim: int,
-        action_dim: int,
+        config: dict,
         world_model: nn.Module,
         action_encoder: nn.Module,
         seq_len: int,
-        n_aa: int = 20,
-        eta: float = 1.0,
-        n_samples: int = 10,
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim = config["latent_dim"]
+        action_dim = config["action_dim"]
+        n_aa       = config.get("n_aa", 20)
+        eta        = config.get("eta", 1.0)
+        n_samples  = config.get("n_samples", 10)
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,

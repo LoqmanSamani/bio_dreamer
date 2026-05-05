@@ -28,9 +28,7 @@ class ProteinRewardHead(BaseRewardHead):
     """
     def __init__(
         self,
-        latent_dim: int,
-        hidden_dim: int = 128,
-        weights: Optional[Dict[str, float]] = None,
+        config: dict,
         shared_backbone: Optional[Any] = None,
         stab_head: Optional[Any] = None,
         affin_head: Optional[Any] = None,
@@ -38,15 +36,19 @@ class ProteinRewardHead(BaseRewardHead):
         fitness_head: Optional[Any] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(latent_dim)
-        self.latent_dim = latent_dim
-        self.hidden_dim = hidden_dim
-        self.weights = weights if weights is not None else {
+        latent_dim = config["latent_dim"]
+        hidden_dim = config.get("hidden_dim", 128)
+        weights_cfg = config.get("weights", {})
+        weights = dict(weights_cfg) if weights_cfg else {
             "stability": 0.35,
             "affinity":  0.25,
             "activity":  0.20,
             "fitness":   0.20,
         }
+        super().__init__(latent_dim)
+        self.latent_dim = latent_dim
+        self.hidden_dim = hidden_dim
+        self.weights = weights
         self.device = (
             device if device is not None and isinstance(device, torch.device)
             else torch.device("cuda") if torch.cuda.is_available()

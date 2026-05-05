@@ -27,16 +27,18 @@ class EnergyBasedDynamics(BaseDynamics):
     """
     def __init__(
         self,
-        latent_dim: int,
-        action_dim: int,
+        config: dict,
         predictor: Optional[nn.Module] = None,
-        n_layers: int = 6,
-        n_heads: int = 8,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.1,
-        max_len: int = 1024,
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim = config["latent_dim"]
+        action_dim = config["action_dim"]
+        tf = config.get("transformer", {})
+        n_layers = tf.get("n_layers", 6) if isinstance(tf, dict) else tf.get("n_layers", 6)
+        n_heads  = tf.get("n_heads", 8) if isinstance(tf, dict) else tf.get("n_heads", 8)
+        mlp_ratio = tf.get("mlp_ratio", 4.0) if isinstance(tf, dict) else tf.get("mlp_ratio", 4.0)
+        dropout   = tf.get("dropout", 0.1) if isinstance(tf, dict) else tf.get("dropout", 0.1)
+        max_len   = tf.get("max_len", 1024) if isinstance(tf, dict) else tf.get("max_len", 1024)
         super().__init__()
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -104,14 +106,16 @@ class DiffusionDynamics(BaseDynamics):
 
     def __init__(
         self,
-        latent_dim: int,
-        action_dim: int,
+        config: dict,
         scheduler: Optional[nn.Module] = None,
         denoiser: Optional[nn.Module] = None,
-        diffusion_steps: int = 1000,
-        noise_schedule: str = "cosine",
         device: Optional[torch.device] = None,
     ) -> None:
+        latent_dim = config["latent_dim"]
+        action_dim = config["action_dim"]
+        ddpm_cfg = config.get("ddpm", {})
+        diffusion_steps = ddpm_cfg.get("time_steps", 1000) if isinstance(ddpm_cfg, dict) else 1000
+        noise_schedule  = ddpm_cfg.get("schedule", "cosine") if isinstance(ddpm_cfg, dict) else "cosine"
         super().__init__()
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -125,17 +129,19 @@ class DiffusionDynamics(BaseDynamics):
             self.scheduler = scheduler
         elif denoiser is not None:
             from .blocks import DDPM
-            self.scheduler = DDPM(
-                predictor=denoiser,
-                schedule_type=noise_schedule,
-                time_steps=diffusion_steps,
-            )
+            self.scheduler = DDPM(predictor=denoiser, schedule_type=noise_schedule, time_steps=diffusion_steps)
         else:
-            raise ValueError(
-                "DiffusionDynamics requires either 'scheduler' (a pre-built DDPM / SDE / "
-                "FlowMatchingScheduler) or 'denoiser' (an nn.Module from which a default "
-                "DDPM is constructed)."
+            # auto-build denoiser + DDPM from config
+            from .blocks import DDPM, DiffTransformer
+            denoiser_cfg = ddpm_cfg.get("denoiser", {}) if isinstance(ddpm_cfg, dict) else {}
+            auto_denoiser = DiffTransformer(
+                dim=latent_dim,
+                n_layers=denoiser_cfg.get("n_layers", 4) if isinstance(denoiser_cfg, dict) else 4,
+                n_heads=denoiser_cfg.get("n_heads", 8) if isinstance(denoiser_cfg, dict) else 8,
+                mlp_ratio=denoiser_cfg.get("mlp_ratio", 4.0) if isinstance(denoiser_cfg, dict) else 4.0,
+                dropout=denoiser_cfg.get("dropout", 0.0) if isinstance(denoiser_cfg, dict) else 0.0,
             )
+            self.scheduler = DDPM(predictor=auto_denoiser, schedule_type=noise_schedule, time_steps=diffusion_steps)
 
     def _conditioning(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
         """build (B, 2, latent_dim) conditioning context: [z_t token, action token]"""

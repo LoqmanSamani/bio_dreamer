@@ -19,6 +19,15 @@ N_CANDS    = SEQ_LEN * N_AA
 BATCH      = 3
 HORIZON    = 4
 
+_ACT_CFG = {"latent_dim": LATENT_DIM, "embed_dim": EMBED_DIM}
+_POL_CFG = {
+    "latent_dim": LATENT_DIM,
+    "action_dim": LATENT_DIM,
+    "eta":        1.0,
+    "n_samples":  2,
+    "n_aa":       N_AA,
+}
+
 
 
 
@@ -51,11 +60,7 @@ class _WorldModelStub:
 
 @pytest.fixture
 def ae() -> ActionEncoder:
-    return ActionEncoder(
-        latent_dim=LATENT_DIM,
-        embed_dim=EMBED_DIM,
-        device=torch.device("cpu"),
-    )
+    return ActionEncoder(_ACT_CFG, device=torch.device("cpu"))
 
 
 @pytest.fixture
@@ -66,14 +71,10 @@ def wm() -> _WorldModelStub:
 @pytest.fixture
 def policy(ae, wm) -> ProteinActiveInferencePolicy:
     return ProteinActiveInferencePolicy(
-        latent_dim=LATENT_DIM,
-        action_dim=LATENT_DIM,
+        _POL_CFG,
         world_model=wm,
         action_encoder=ae,
         seq_len=SEQ_LEN,
-        n_aa=N_AA,
-        eta=1.0,
-        n_samples=2,
         device=torch.device("cpu"),
     )
 

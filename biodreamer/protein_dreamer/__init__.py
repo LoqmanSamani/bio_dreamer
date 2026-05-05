@@ -10,4 +10,7 @@ from .data import (
     download_proteingym,
     download_tsuboyama,
 )
-from .model_loader import HFModelLoader, ModelConfig, ModelTask, ModelBackend
+try:
+    from .model_loader import HFModelLoader, ModelConfig, ModelTask, ModelBackend
+except ImportError:
+    pass
