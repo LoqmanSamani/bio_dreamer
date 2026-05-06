@@ -90,12 +90,12 @@ class ProteinEncoder(BaseEncoder):
                 self.structure_encoder = structure_encoder.to(self.device)
             else:
                 from .blocks import GvpGNN
-                self.structure_encoder = GvpGNN(
-                    in_node_dims=(1, 1),            # (plddt scalar, Cα position vector)
-                    in_edge_dims=(1, 1),            # (distance scalar, unit-displacement vector)
-                    hidden_dims=(gvp_hidden_dim, 4),
-                    n_layers=gvp_layers,
-                ).to(self.device)
+                self.structure_encoder = GvpGNN({
+                    "in_node_dims": (1, 1),         # (plddt scalar, Cα position vector)
+                    "in_edge_dims": (1, 1),         # (distance scalar, unit-displacement vector)
+                    "hidden_dims":  (gvp_hidden_dim, 4),
+                    "n_layers":     gvp_layers,
+                }).to(self.device)
             if freeze_struct_encoder:
                 for p in self.structure_encoder.parameters():
                     p.requires_grad_(False)

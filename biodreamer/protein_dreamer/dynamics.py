@@ -52,15 +52,15 @@ class EnergyBasedDynamics(BaseDynamics):
             self.predictor = predictor.to(self.device)
         else:
             from .blocks import DeterministicPredictor
-            self.predictor = DeterministicPredictor(
-                latent_dim=latent_dim,
-                n_layers=n_layers,
-                n_heads=n_heads,
-                mlp_ratio=mlp_ratio,
-                dropout=dropout,
-                max_len=max_len,
-                causal=False,
-            ).to(self.device)
+            self.predictor = DeterministicPredictor({
+                "latent_dim": latent_dim,
+                "n_layers":   n_layers,
+                "n_heads":    n_heads,
+                "mlp_ratio":  mlp_ratio,
+                "dropout":    dropout,
+                "max_len":    max_len,
+                "causal":     False,
+            }).to(self.device)
 
     def predict(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
         """predict ẑ_{t+1} = g_φ(z_t, action_emb).
@@ -129,19 +129,25 @@ class DiffusionDynamics(BaseDynamics):
             self.scheduler = scheduler
         elif denoiser is not None:
             from .blocks import DDPM
-            self.scheduler = DDPM(predictor=denoiser, schedule_type=noise_schedule, time_steps=diffusion_steps)
+            self.scheduler = DDPM(
+                {"schedule_type": noise_schedule, "time_steps": diffusion_steps},
+                predictor=denoiser,
+            )
         else:
             # auto-build denoiser + DDPM from config
             from .blocks import DDPM, DiffTransformer
             denoiser_cfg = ddpm_cfg.get("denoiser", {}) if isinstance(ddpm_cfg, dict) else {}
-            auto_denoiser = DiffTransformer(
-                dim=latent_dim,
-                n_layers=denoiser_cfg.get("n_layers", 4) if isinstance(denoiser_cfg, dict) else 4,
-                n_heads=denoiser_cfg.get("n_heads", 8) if isinstance(denoiser_cfg, dict) else 8,
-                mlp_ratio=denoiser_cfg.get("mlp_ratio", 4.0) if isinstance(denoiser_cfg, dict) else 4.0,
-                dropout=denoiser_cfg.get("dropout", 0.0) if isinstance(denoiser_cfg, dict) else 0.0,
+            auto_denoiser = DiffTransformer({
+                "dim":      latent_dim,
+                "n_layers": denoiser_cfg.get("n_layers", 4) if isinstance(denoiser_cfg, dict) else 4,
+                "n_heads":  denoiser_cfg.get("n_heads", 8) if isinstance(denoiser_cfg, dict) else 8,
+                "mlp_ratio": denoiser_cfg.get("mlp_ratio", 4.0) if isinstance(denoiser_cfg, dict) else 4.0,
+                "dropout":  denoiser_cfg.get("dropout", 0.0) if isinstance(denoiser_cfg, dict) else 0.0,
+            })
+            self.scheduler = DDPM(
+                {"schedule_type": noise_schedule, "time_steps": diffusion_steps},
+                predictor=auto_denoiser,
             )
-            self.scheduler = DDPM(predictor=auto_denoiser, schedule_type=noise_schedule, time_steps=diffusion_steps)
 
     def _conditioning(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:
         """build (B, 2, latent_dim) conditioning context: [z_t token, action token]"""

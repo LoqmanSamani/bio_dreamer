@@ -598,7 +598,7 @@ class TestSDEConstruction:
 class TestSDESchedule:
     @pytest.fixture
     def sde_vp(self) -> SDE:
-        return SDE(predictor=_LinearPredictor(DIM), method="vp", schedule_type="linear")
+        return SDE({"method": "vp", "schedule_type": "linear"}, predictor=_LinearPredictor(DIM))
 
     def test_beta_positive(self, sde_vp):
         t = torch.linspace(0.01, 0.99, 10)
@@ -619,7 +619,7 @@ class TestSDESchedule:
         assert (sde_vp.snr(t) > 0).all()
 
     def test_cosine_schedule(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), schedule_type="cosine")
+        sde = SDE({"schedule_type": "cosine"}, predictor=_LinearPredictor(DIM))
         t = torch.linspace(0.01, 0.99, 10)
         assert torch.isfinite(sde.beta(t)).all()
 
@@ -627,7 +627,7 @@ class TestSDESchedule:
 class TestSDEForwardDiff:
     @pytest.fixture
     def sde(self) -> SDE:
-        return SDE(predictor=_LinearPredictor(DIM), method="vp", pred_type="noise")
+        return SDE({"method": "vp", "pred_type": "noise"}, predictor=_LinearPredictor(DIM))
 
     def test_output_shapes(self, sde):
         x0 = torch.randn(BATCH, DIM)
@@ -654,12 +654,12 @@ class TestSDEForwardDiff:
 
 class TestSDESampleTime:
     def test_output_shape(self):
-        sde = SDE(predictor=_LinearPredictor(DIM))
+        sde = SDE({}, predictor=_LinearPredictor(DIM))
         t = sde.sample_time(BATCH, device=torch.device("cpu"))
         assert t.shape == (BATCH,)
 
     def test_values_in_range(self):
-        sde = SDE(predictor=_LinearPredictor(DIM), time_eps=0.01)
+        sde = SDE({"time_eps": 0.01}, predictor=_LinearPredictor(DIM))
         t = sde.sample_time(100, eps=0.01, device=torch.device("cpu"))
         assert (t >= 0.01).all()
         assert (t <= 1.0).all()
@@ -671,22 +671,20 @@ class TestFlowMatchingScheduler:
     @pytest.fixture
     def fm_euler(self) -> FlowMatchingScheduler:
         return FlowMatchingScheduler(
+            {"num_steps": 5, "solver": "euler"},
             predictor=_LinearPredictor(DIM),
-            num_steps=5,
-            solver="euler",
         )
 
     @pytest.fixture
     def fm_heun(self) -> FlowMatchingScheduler:
         return FlowMatchingScheduler(
+            {"num_steps": 5, "solver": "heun"},
             predictor=_LinearPredictor(DIM),
-            num_steps=5,
-            solver="heun",
         )
 
     def test_invalid_solver_raises(self):
         with pytest.raises(ValueError, match="solver"):
-            FlowMatchingScheduler(predictor=_LinearPredictor(DIM), solver="rk4")
+            FlowMatchingScheduler({"solver": "rk4"}, predictor=_LinearPredictor(DIM))
 
     def test_noise_step_shapes(self, fm_euler):
         x1 = torch.randn(BATCH, DIM)

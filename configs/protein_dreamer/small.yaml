@@ -1,0 +1,100 @@
+# ProteinDreamer — Small / Debug Configuration
+#
+# Use this for fast iteration, unit-testing pipelines end-to-end, and CI runs.
+# Overrides default.yaml: only keys that differ from the defaults are listed.
+#
+# Usage:
+#   cfg = ProteinDreamerConfig.load("small")          # merge over default
+#   cfg = ProteinDreamerConfig.from_yaml("configs/protein_dreamer/small.yaml")  # standalone
+#
+# latent_dim is reduced to 64 throughout.  All cross-section references
+# (encoder ↔ dynamics ↔ reward ↔ policy etc.) must stay consistent here.
+
+data:
+  pretokenize:  false   # skip pre-tokenization to keep memory low in CI
+
+dataloader:
+  batch_size:     8
+  val_batch_size: 16
+  num_workers:    0     # avoid subprocess overhead in CI
+
+encoder:
+  latent_dim:          64
+  seq_model_name:      "esm2-8m"   # smallest ESM-2 model; loads quickly without GPU
+  freeze_seq_encoder:  true
+  use_structure:       false        # no structure branch in small runs
+  gvp:
+    hidden_dim: 64
+    n_layers:   2
+
+action_encoder:
+  latent_dim: 64
+  embed_dim:  32
+
+dynamics:
+  latent_dim: 64
+  action_dim: 64
+
+  transformer:
+    n_layers:  2
+    n_heads:   4
+    mlp_ratio: 2.0
+    dropout:   0.0
+    max_len:   128
+
+  ddpm:
+    time_steps: 10
+    schedule:   "linear"
+    denoiser:
+      n_layers: 2
+      n_heads:  4
+
+  sde:
+    num_steps: 10
+
+  flow_matching:
+    num_steps: 5
+
+decoder:
+  latent_dim:      64
+  n_layers:        2
+  n_heads:         4
+  default_seq_len: 20
+
+reward:
+  latent_dim: 64
+  hidden_dim: 128
+
+policy:
+  latent_dim:          64
+  action_dim:          64
+  n_samples:           3
+  imagination_horizon: 2
+
+uncertainty:
+  input_dim:         64
+  hidden_dim:        64
+  ensemble_size:     2
+  mc_dropout_passes: 5
+
+environment:
+  max_steps: 10
+
+training:
+  batch_size:   8
+  lr:           1.0e-3
+  warmup_steps: 10
+  max_steps:    200
+  sig_reg:
+    latent_dim: 64
+  ema:
+    tau: 0.99
+
+active_learning:
+  rounds:               2
+  candidates_per_round: 8
+  oracle_budget:        16
+
+logging:
+  checkpoint_freq: 50
+  eval_freq:       25

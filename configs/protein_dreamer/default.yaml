@@ -1,149 +1,273 @@
-# ProteinDreamer — Default Training Configuration
+# ProteinDreamer — Default Configuration
 #
-# Sections:
-#   data        — dataset paths and preprocessing
-#   encoder     — sequence PLM backbone, GVP-GNN structure encoder, fusion
-#   dynamics    — world model architecture and per-arch hyperparams
-#   reward      — multi-objective reward head
-#   policy      — active inference / RL settings
-#   uncertainty — epistemic uncertainty estimation
-#   training    — optimiser, scheduler, gradient clipping
-#   active_learning — acquisition function and oracle budget
-#   logging     — W&B, checkpointing, evaluation
+# Each top-level section maps 1-to-1 to the config dict consumed by the
+# corresponding class:
+#
+#   data          →  ProteinGymDataset / TsuboyamaDataset / CustomAssayDataset
+#   dataloader    →  make_dataloaders()
+#   tokenizer     →  ProteinTokenizer
+#   encoder       →  ProteinEncoder
+#   action_encoder→  ActionEncoder
+#   dynamics      →  EnergyBasedDynamics | DiffusionDynamics
+#   decoder       →  ProteinDecoder / ProteinBlockDecoder
+#   reward        →  ProteinRewardHead
+#   policy        →  ProteinActiveInferencePolicy
+#   uncertainty   →  EnsembleUncertainty | EvidentialUncertainty | MCDropoutUncertainty
+#   environment   →  ProteinEnvironment
+#   training      →  WorldModelTrainer / PolicyTrainer (includes SIGReg + EMAUpdater)
+#   active_learning→ ActiveLearner
+#   logging       →  callbacks / W&B
+#
+# Keys marked (*required*) have no default in the class — they must be present.
+# Keys marked (*shared*) appear in multiple sections; keep them in sync.
+#
+# Load with:
+#   from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+#   cfg = ProteinDreamerConfig.default()
+#   encoder = ProteinEncoder(cfg["encoder"])
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Data  (ProteinGymDataset / TsuboyamaDataset / CustomAssayDataset)
+# ─────────────────────────────────────────────────────────────────────────────
 data:
-  proteingym_dir: "data/proteingym"
-  tsuboyama_dir:  "data/tsuboyama"
-  max_seq_len:    512
-  pretokenize:    true          # cache tokens at dataset init; set false if RAM is limited
+  # Paths to raw data directories (used by download.py and training scripts)
+  proteingym_dir:  "data/proteingym"
+  tsuboyama_dir:   "data/tsuboyama"
 
+  # ProteinGymDataset / TsuboyamaDataset hyperparameters
+  max_length:       null   # truncate sequences at this length (null = no truncation)
+  return_tensors:   false  # return torch tensors from tokenizer (false = lists)
+  strict_wt_check:  true   # raise if mutant sequence doesn't match WT at expected positions
+  load_structures:  false  # load ESMFold Cα coordinates per sample (slow; needs ESMFold)
+  struct_cache_dir: null   # where to cache / read structure predictions (null = temp dir)
+  tokenizer_mode:   "char" # internal tokenizer mode for mutation encoding: "char" | "kmer" | "bpe"
+  pretokenize:      true   # tokenize all sequences at init (faster training, more RAM)
+
+  # CustomAssayDataset column name overrides
+  seq_col:     "sequence"  # column containing amino acid sequence strings
+  fitness_col: "fitness"   # column containing fitness / score values
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DataLoader  (make_dataloaders)
+# ─────────────────────────────────────────────────────────────────────────────
+dataloader:
+  batch_size:      64
+  val_batch_size:  128
+  test_batch_size: 128
+  num_workers:     4
+  pin_memory:      true
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tokenizer  (ProteinTokenizer)
+# ─────────────────────────────────────────────────────────────────────────────
+tokenizer:
+  mode:               "char"   # "char" | "kmer" | "bpe"
+  k:                  3        # k-mer size (only used when mode="kmer")
+  stride:             null     # k-mer stride (null = non-overlapping)
+  bpe_vocab_size:     200      # BPE vocabulary target size (only when mode="bpe")
+  bpe_merges:         null     # pre-trained BPE merge table (null = train from scratch)
+  organism_tokens:    null     # list of organism-specific special tokens, e.g. ["[ORG_HUMAN]"]
+  add_special_tokens: true     # prepend [CLS] / append [EOS]
+  include_ambiguous:  true     # include ambiguous amino acid codes (B, Z, X, U)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Encoder  (ProteinEncoder)
+# ─────────────────────────────────────────────────────────────────────────────
 encoder:
-  latent_dim:           256
-  seq_model_name:       "esm2-650m"   # esm2-8m | esm2-35m | esm2-150m | esm2-650m | esm2-3b
-  freeze_seq_encoder:   true
-  use_structure:        true
-  freeze_struct_encoder: true
+  latent_dim:            256         # (*shared*) output z_t dimension
+  seq_model_name:        "esm2-650m" # "esm2-8m" | "esm2-35m" | "esm2-150m" | "esm2-650m" | "esm2-3b"
+  freeze_seq_encoder:    true        # freeze ESM-2 weights (recommended for limited GPU)
+  freeze_struct_encoder: true        # freeze GVP-GNN weights
+  use_structure:         false       # enable GVP-GNN structure branch (requires ESMFold coords)
+
+  # GVP-GNN structure encoder (only used when use_structure=true)
   gvp:
-    hidden_dim:  256
-    n_layers:    3
-    conv_type:   "gvp"           # "gvp" | "transformer"
-    n_heads:     4               # only used when conv_type="transformer"
+    hidden_dim:  256    # GVP-GNN hidden scalar dimension (*shared* with gvp_hidden_dim)
+    n_layers:    3      # number of GVP message-passing layers
+    conv_type:   "gvp" # "gvp" (equivariant) | "transformer" (graph transformer)
+    n_heads:     4      # attention heads (only when conv_type="transformer")
     dropout:     0.0
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Action Encoder  (ActionEncoder)
+# ─────────────────────────────────────────────────────────────────────────────
+action_encoder:
+  latent_dim: 256   # (*shared*) output action vector dim — must match dynamics.action_dim
+  embed_dim:  128   # internal embedding dim for position / amino acid tokens
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dynamics  (EnergyBasedDynamics | DiffusionDynamics)
+# ─────────────────────────────────────────────────────────────────────────────
 dynamics:
-  arch:         "energy_based"   # "energy_based" | "diffusion" | "flow_matching"
-  latent_dim:   256
-  action_dim:   256
+  arch:       "energy_based" # which architecture to instantiate: "energy_based" | "diffusion"
+  latent_dim: 256            # (*shared*) must match encoder.latent_dim
+  action_dim: 256            # must match action_encoder.latent_dim
 
-  # EnergyBased (Architecture B) — DeterministicPredictor
+  # ── Architecture B: EnergyBasedDynamics (DeterministicPredictor) ──
   transformer:
-    n_layers:    6
-    n_heads:     8
-    mlp_ratio:   4.0
-    dropout:     0.1
-    max_len:     1024
+    n_layers:  6
+    n_heads:   8
+    mlp_ratio: 4.0
+    dropout:   0.1
+    max_len:   1024
+    causal:    false  # false = bidirectional (JEPA predictor); true = autoregressive
 
-  # DDPM (Architecture A) — DiffTransformer predictor + DDPMScheduler
+  # ── Architecture A: DiffusionDynamics — DDPM scheduler ──
+  # dynamics.py reads: ddpm.time_steps, ddpm.schedule, ddpm.denoiser.*
+  # DDPM block receives: {"schedule_type": ddpm.schedule, "time_steps": ddpm.time_steps, ...}
   ddpm:
     time_steps:    1000
-    schedule:      "cosine"       # "linear" | "cosine"
-    pred_type:     "noise"        # "noise" | "x0" | "v"
-    var_type:      "fixed_small"  # "fixed_small" | "fixed_large" | "learned"
+    schedule:      "cosine"      # noise schedule passed to DDPM as schedule_type: "linear" | "cosine"
+    pred_type:     "noise"       # "noise" | "x0" | "v"
+    var_type:      "fixed_small" # "fixed_small" | "fixed_large" | "learned"
     beta_min:      0.0001
     beta_max:      0.02
     cosine_s:      0.008
     clip_out:      true
-    denoiser:
-      n_layers:    4
-      n_heads:     8
-      mlp_ratio:   4.0
-      dropout:     0.0
 
-  # Flow Matching (Architecture A-alt) — DiffTransformer predictor + FlowMatchingScheduler
-  flow_matching:
-    num_steps:   100
-    solver:      "heun"          # "euler" | "heun"
-    time_eps:    1.0e-3
-    predictor:
+    # Auto-built DiffTransformer denoiser (used when no denoiser is injected)
+    denoiser:
       n_layers:  4
       n_heads:   8
       mlp_ratio: 4.0
       dropout:   0.0
 
-  # SDE settings (continuous-time diffusion)
+  # ── Architecture A-alt: DiffusionDynamics — SDE scheduler ──
+  # Passed directly as SDE(config) when scheduler="sde" in training scripts
   sde:
-    method:        "vp"          # "vp" | "ve" | "sub-vp" | "ode"
-    pred_type:     "v"           # "noise" | "score" | "v"
-    schedule_type: "cosine"      # "linear" | "cosine"
+    method:        "vp"      # "vp" (variance-preserving) | "ve" (variance-exploding) | "sub-vp" | "ode"
+    pred_type:     "v"       # "noise" | "score" | "v"
+    schedule_type: "cosine"  # "linear" | "cosine"
     beta_min:      0.1
     beta_max:      20.0
     time_eps:      1.0e-5
     num_steps:     1000
-    sigma_min:     0.01          # only for method="ve"
-    sigma_max:     50.0          # only for method="ve"
+    sigma_min:     0.01      # only for method="ve"
+    sigma_max:     50.0      # only for method="ve"
 
-reward:
-  latent_dim:     256
-  hidden_dim:     512
-  weights:
-    stability:    1.0
-    affinity:     1.0
-    activity:     1.0
-    fitness:      0.5
+  # ── Architecture A-alt: DiffusionDynamics — Flow Matching scheduler ──
+  # Passed directly as FlowMatchingScheduler(config) in training scripts
+  flow_matching:
+    num_steps: 100
+    solver:    "heun"   # "euler" | "heun"
+    time_eps:  1.0e-3
 
-policy:
-  latent_dim:    256
-  action_dim:    256
-  eta:           1.0           # epistemic value weight in EFE
-  n_samples:     10            # Monte Carlo samples for uncertainty
-  n_aa:          20
-  imagination_horizon: 5
 
-uncertainty:
-  type:         "ensemble"     # "ensemble" | "mc_dropout" | "evidential"
-  ensemble_size: 5
-  mc_dropout_passes: 20
-  evidential:
-    output_dim: 1
-    hidden_dim: 256
-
-training:
-  batch_size:         64
-  lr:                 3.0e-4
-  weight_decay:       1.0e-4
-  warmup_steps:       1000
-  max_steps:          100000
-  grad_clip:          1.0
-  beta_dyn:           1.0       # dynamics loss weight
-  beta_rew:           0.1       # reward loss weight
-  lambda_reg:         0.01      # SIGReg weight
-  ema_tau:            0.99      # EMA target encoder momentum
-  device:             "cuda"
-
-active_learning:
-  acquisition:       "ucb"      # "ucb" | "greedy" | "thompson"
-  rounds:            10
-  candidates_per_round: 96
-  oracle_budget:     960
-
-logging:
-  wandb_project:    "protein-dreamer"
-  checkpoint_freq:  1000        # steps between checkpoints
-  eval_freq:        500         # steps between evaluations
-
+# ─────────────────────────────────────────────────────────────────────────────
+# Decoder  (ProteinDecoder / ProteinBlockDecoder)
+# ─────────────────────────────────────────────────────────────────────────────
 decoder:
+  latent_dim:      256  # (*shared*) must match encoder.latent_dim
   n_layers:        4
   n_heads:         8
   mlp_ratio:       4.0
   dropout:         0.0
-  max_seq_len:     512
-  default_seq_len: 50
+  max_seq_len:     512  # maximum generated sequence length
+  default_seq_len: 50   # sequence length used when length is not inferred from the latent
 
-action_encoder:
-  embed_dim: 256
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Reward  (ProteinRewardHead)
+# ─────────────────────────────────────────────────────────────────────────────
+reward:
+  latent_dim: 256   # (*shared*) must match encoder.latent_dim
+  hidden_dim: 512   # MLP hidden width
+
+  # Loss weights for the four reward heads (NaN-masked during training)
+  weights:
+    stability: 1.0   # ΔΔG / ΔG folding measurements (Tsuboyama, ProteinGym stability)
+    affinity:  1.0   # binding affinity / Kd (ProteinGym binding assays)
+    activity:  1.0   # catalytic activity / kcat (ProteinGym activity assays)
+    fitness:   0.5   # organismal / holistic fitness (catch-all head)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Policy  (ProteinActiveInferencePolicy)
+# ─────────────────────────────────────────────────────────────────────────────
+policy:
+  latent_dim:           256   # (*shared*) must match encoder.latent_dim
+  action_dim:           256   # must match action_encoder.latent_dim
+  n_aa:                 20    # number of amino acid choices per site
+  eta:                  1.0   # epistemic value weight in EFE (higher = more exploration)
+  n_samples:            10    # Monte Carlo rollouts for uncertainty / EFE estimation
+  imagination_horizon:  5     # steps of imagined planning per decision
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Uncertainty  (EnsembleUncertainty | EvidentialUncertainty | MCDropoutUncertainty)
+# ─────────────────────────────────────────────────────────────────────────────
+uncertainty:
+  type: "ensemble"   # which estimator to use: "ensemble" | "evidential" | "mc_dropout"
+
+  # EvidentialUncertainty (*required* keys for this type)
+  input_dim:  256    # (*required*) must match encoder.latent_dim
+  output_dim: 1      # number of prediction targets
+  hidden_dim: 256    # MLP hidden width
+
+  # EnsembleUncertainty
+  ensemble_size: 5   # number of ensemble members
+
+  # MCDropoutUncertainty
+  mc_dropout_passes: 20   # forward passes with dropout active at inference
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Environment  (ProteinEnvironment)
+# ─────────────────────────────────────────────────────────────────────────────
 environment:
-  max_steps:          50
-  fitness_threshold:  null
-  track_trajectory:   false
+  max_steps:         50      # max mutation steps per episode
+  fitness_threshold: null    # stop early if fitness exceeds this value (null = never)
+  track_trajectory:  false   # store full sequence trajectory in episode info dict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Training  (WorldModelTrainer / PolicyTrainer)
+# ─────────────────────────────────────────────────────────────────────────────
+training:
+  batch_size:    64
+  lr:            3.0e-4
+  weight_decay:  1.0e-4
+  warmup_steps:  1000
+  max_steps:     100000
+  grad_clip:     1.0          # max gradient norm (0 = disabled)
+  beta_dyn:      1.0          # dynamics loss weight (L_B or L_A)
+  beta_rew:      0.1          # reward prediction loss weight
+  device:        "cuda"       # "cuda" | "cpu"
+
+  # SIGReg (latent space regulariser, class SIGReg in utils.py)
+  sig_reg:
+    latent_dim:   256   # (*shared*) must match encoder.latent_dim
+    num_proj:     16    # number of random 1D projections
+    mean_weight:  1.0   # weight on the mean-centering term
+    var_weight:   1.0   # weight on the variance-normalisation term
+    proj_weight:  1.0   # weight on the random-projection uniformity term
+    eps:          1.0e-6
+
+  # EMAUpdater (target encoder momentum, class EMAUpdater in utils.py)
+  ema:
+    tau: 0.99   # EMA decay: target ← τ·target + (1-τ)·online  (must be in (0, 1))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Active Learning  (ActiveLearner)
+# ─────────────────────────────────────────────────────────────────────────────
+active_learning:
+  acquisition:           "ucb"  # "ucb" | "greedy" | "thompson"
+  rounds:                10     # number of active learning rounds
+  candidates_per_round:  96     # sequences to score per round
+  oracle_budget:         960    # total oracle (wet-lab) evaluations
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging  (W&B callbacks, checkpointing)
+# ─────────────────────────────────────────────────────────────────────────────
+logging:
+  wandb_project:    "protein-dreamer"
+  checkpoint_freq:  1000   # steps between checkpoint saves
+  eval_freq:        500    # steps between validation evaluations

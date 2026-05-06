@@ -139,11 +139,11 @@ class TestAssayTypeMap:
 
 class TestProteinGymDataset:
     def test_basic_length(self):
-        ds = ProteinGymDataset(_simple_df())
+        ds = ProteinGymDataset({}, _simple_df())
         assert len(ds) == 1
 
     def test_item_keys(self):
-        ds = ProteinGymDataset(_simple_df())
+        ds = ProteinGymDataset({}, _simple_df())
         item = ds[0]
         assert "wt_sequence" in item
         assert "mutant_sequence" in item
@@ -151,12 +151,12 @@ class TestProteinGymDataset:
         assert "action" in item
 
     def test_targets_dict_structure(self):
-        ds = ProteinGymDataset(_simple_df())
+        ds = ProteinGymDataset({}, _simple_df())
         item = ds[0]
         assert set(item["targets"].keys()) == {"stability", "affinity", "activity", "fitness"}
 
     def test_default_routes_fitness_to_organismal_fitness(self):
-        ds = ProteinGymDataset(_simple_df(fitness=0.75))
+        ds = ProteinGymDataset({}, _simple_df(fitness=0.75))
         item = ds[0]
         assert item["targets"]["fitness"] == pytest.approx(0.75)
         assert math.isnan(item["targets"]["stability"])
@@ -165,7 +165,7 @@ class TestProteinGymDataset:
 
     def test_assay_type_map_routing(self):
         df = _multi_df()
-        ds = ProteinGymDataset(df, assay_type_map=_ASSAY_TYPE_MAP)
+        ds = ProteinGymDataset({}, df, assay_type_map=_ASSAY_TYPE_MAP)
         items = [ds[i] for i in range(len(ds))]
         stab = next(it for it in items if it["assay_id"] == "STAB_001")
         bind = next(it for it in items if it["assay_id"] == "BIND_001")
@@ -181,7 +181,7 @@ class TestProteinGymDataset:
         assert math.isnan(actv["targets"]["stability"])
 
     def test_action_is_dict_with_position(self):
-        ds = ProteinGymDataset(_simple_df())
+        ds = ProteinGymDataset({}, _simple_df())
         action = ds[0]["action"]
         assert action is not None
         assert "position" in action
@@ -189,14 +189,14 @@ class TestProteinGymDataset:
         assert "aa_new" in action
 
     def test_action_position_is_long_tensor(self):
-        ds = ProteinGymDataset(_simple_df(mutation="A1C"))
+        ds = ProteinGymDataset({}, _simple_df(mutation="A1C"))
         action = ds[0]["action"]
         assert action["position"].dtype == torch.long
         assert action["position"].item() == 0  # 0-based
 
     def test_dataframe_input(self):
         df = _simple_df()
-        ds = ProteinGymDataset(df)
+        ds = ProteinGymDataset({}, df)
         assert len(ds) == 1
 
     def test_missing_fitness_gives_nan_targets(self):
@@ -205,7 +205,7 @@ class TestProteinGymDataset:
             "mutation": "A1C",
             "mutant_sequence": "C" + _WT[1:],
         }])
-        ds = ProteinGymDataset(df)
+        ds = ProteinGymDataset({}, df)
         item = ds[0]
         assert all(math.isnan(v) for v in item["targets"].values())
 
@@ -215,7 +215,7 @@ class TestTsuboyamaDataset:
     def test_all_targets_route_to_stability(self):
         df = _multi_df()
         # even with an affinity assay_type_map, TsuboyamaDataset overrides to stability
-        ds = TsuboyamaDataset(df, assay_type_map=_ASSAY_TYPE_MAP)
+        ds = TsuboyamaDataset({}, df, assay_type_map=_ASSAY_TYPE_MAP)
         for i in range(len(ds)):
             item = ds[i]
             assert not math.isnan(item["targets"]["stability"])
@@ -226,7 +226,7 @@ class TestTsuboyamaDataset:
 
 class TestFitnessTransitionDataset:
     def test_structure(self):
-        base = ProteinGymDataset(_simple_df(fitness=0.75))
+        base = ProteinGymDataset({}, _simple_df(fitness=0.75))
         td = FitnessTransitionDataset(base)
         assert len(td) == 1
         item = td[0]
@@ -237,13 +237,13 @@ class TestFitnessTransitionDataset:
         assert "targets" in item
 
     def test_reward_is_primary_target(self):
-        base = ProteinGymDataset(_simple_df(fitness=0.75))
+        base = ProteinGymDataset({}, _simple_df(fitness=0.75))
         td = FitnessTransitionDataset(base)
         assert td[0]["reward"] == pytest.approx(0.75)
 
     def test_targets_propagated(self):
         df = _multi_df()
-        base = ProteinGymDataset(df, assay_type_map=_ASSAY_TYPE_MAP)
+        base = ProteinGymDataset({}, df, assay_type_map=_ASSAY_TYPE_MAP)
         td = FitnessTransitionDataset(base)
         for i in range(len(td)):
             item = td[i]
@@ -251,7 +251,7 @@ class TestFitnessTransitionDataset:
             assert set(targets.keys()) == {"stability", "affinity", "activity", "fitness"}
 
     def test_sequence_in_states(self):
-        base = ProteinGymDataset(_simple_df())
+        base = ProteinGymDataset({}, _simple_df())
         td = FitnessTransitionDataset(base)
         item = td[0]
         assert isinstance(item["s_t"]["sequence"], str)
@@ -266,7 +266,7 @@ class TestFitnessTransitionDataset:
 
 class TestCollation:
     def _make_batch(self):
-        base = ProteinGymDataset(_multi_df(), assay_type_map=_ASSAY_TYPE_MAP)
+        base = ProteinGymDataset({}, _multi_df(), assay_type_map=_ASSAY_TYPE_MAP)
         td = FitnessTransitionDataset(base)
         return [td[i] for i in range(len(td))]
 
