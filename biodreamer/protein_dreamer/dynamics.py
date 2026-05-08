@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
 
 from biodreamer.core.dynamics import BaseDynamics
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
+
+
+
 
 
 class EnergyBasedDynamics(BaseDynamics):
@@ -27,18 +31,20 @@ class EnergyBasedDynamics(BaseDynamics):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         predictor: Optional[nn.Module] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
-        action_dim = config["action_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["dynamics"]
+        latent_dim = config.get("latent_dim", 256)
+        action_dim = config.get("action_dim", 256)
         tf = config.get("transformer", {})
-        n_layers = tf.get("n_layers", 6) if isinstance(tf, dict) else tf.get("n_layers", 6)
-        n_heads  = tf.get("n_heads", 8) if isinstance(tf, dict) else tf.get("n_heads", 8)
-        mlp_ratio = tf.get("mlp_ratio", 4.0) if isinstance(tf, dict) else tf.get("mlp_ratio", 4.0)
-        dropout   = tf.get("dropout", 0.1) if isinstance(tf, dict) else tf.get("dropout", 0.1)
-        max_len   = tf.get("max_len", 1024) if isinstance(tf, dict) else tf.get("max_len", 1024)
+        n_layers = tf.get("n_layers", 6)
+        n_heads  = tf.get("n_heads", 8)
+        mlp_ratio = tf.get("mlp_ratio", 4.0)
+        dropout   = tf.get("dropout", 0.1)
+        max_len   = tf.get("max_len", 1024)
         super().__init__()
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -106,16 +112,18 @@ class DiffusionDynamics(BaseDynamics):
 
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         scheduler: Optional[nn.Module] = None,
         denoiser: Optional[nn.Module] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
-        action_dim = config["action_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["dynamics"]
+        latent_dim = config.get("latent_dim", 256)
+        action_dim = config.get("action_dim", 256)
         ddpm_cfg = config.get("ddpm", {})
-        diffusion_steps = ddpm_cfg.get("time_steps", 1000) if isinstance(ddpm_cfg, dict) else 1000
-        noise_schedule  = ddpm_cfg.get("schedule", "cosine") if isinstance(ddpm_cfg, dict) else "cosine"
+        diffusion_steps = ddpm_cfg.get("time_steps", 400)
+        noise_schedule  = ddpm_cfg.get("schedule", "cosine")
         super().__init__()
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -124,7 +132,7 @@ class DiffusionDynamics(BaseDynamics):
         )
         self.latent_dim = latent_dim
         self.action_proj = nn.Linear(action_dim, latent_dim).to(self.device)
-
+        
         if scheduler is not None:
             self.scheduler = scheduler
         elif denoiser is not None:
@@ -136,13 +144,13 @@ class DiffusionDynamics(BaseDynamics):
         else:
             # auto-build denoiser + DDPM from config
             from .blocks import DDPM, DiffTransformer
-            denoiser_cfg = ddpm_cfg.get("denoiser", {}) if isinstance(ddpm_cfg, dict) else {}
+            denoiser_cfg = ddpm_cfg.get("denoiser", {})
             auto_denoiser = DiffTransformer({
                 "dim":      latent_dim,
-                "n_layers": denoiser_cfg.get("n_layers", 4) if isinstance(denoiser_cfg, dict) else 4,
-                "n_heads":  denoiser_cfg.get("n_heads", 8) if isinstance(denoiser_cfg, dict) else 8,
-                "mlp_ratio": denoiser_cfg.get("mlp_ratio", 4.0) if isinstance(denoiser_cfg, dict) else 4.0,
-                "dropout":  denoiser_cfg.get("dropout", 0.0) if isinstance(denoiser_cfg, dict) else 0.0,
+                "n_layers": denoiser_cfg.get("n_layers", 4),
+                "n_heads":  denoiser_cfg.get("n_heads", 8),
+                "mlp_ratio": denoiser_cfg.get("mlp_ratio", 4.0),
+                "dropout":  denoiser_cfg.get("dropout", 0.1),
             })
             self.scheduler = DDPM(
                 auto_denoiser,

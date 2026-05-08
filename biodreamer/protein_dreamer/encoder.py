@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from ..core.encoder import BaseEncoder
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ class ProteinEncoder(BaseEncoder):
     fusion: [seq_pooled | struct_pooled | pTM] -> MLP -> LayerNorm -> z_t.
     when use_structure=False, only seq_pooled is used.
     """
-
     # esm2 hidden sizes by shorthand name
     _ESM2_HIDDEN: Dict[str, int] = {
         "esm2-8m":   320,
@@ -40,20 +40,24 @@ class ProteinEncoder(BaseEncoder):
 
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         sequence_encoder: Optional[Any] = None,
         sequence_tokenizer: Optional[Any] = None,
         structure_encoder: Optional[Any] = None,
+        fusion_mlp: Optional[Any] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["encoder"]
+        latent_dim = config.get("latent_dim", 256)
         seq_model_name = config.get("seq_model_name", "esm2-650m")
         freeze_seq_encoder = config.get("freeze_seq_encoder", True)
         freeze_struct_encoder = config.get("freeze_struct_encoder", True)
         use_structure = config.get("use_structure", False)
-        gvp_cfg = config.get("gvp", {})
-        gvp_hidden_dim = gvp_cfg.get("hidden_dim", 256) if isinstance(gvp_cfg, dict) else gvp_cfg.get("hidden_dim", 256)
-        gvp_layers = gvp_cfg.get("n_layers", 3) if isinstance(gvp_cfg, dict) else gvp_cfg.get("n_layers", 3)
+        gvp_cfg = config.get("gvp_gnn", {})
+        h_dim = gvp_cfg.get("hidden_dim", (256, 4))
+        gvp_hidden_dim = h_dim[0]
+        gvp_layers = gvp_cfg.get("n_layers", 3)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -93,7 +97,7 @@ class ProteinEncoder(BaseEncoder):
                 self.structure_encoder = GvpGNN({
                     "in_node_dims": (1, 1),         # (plddt scalar, Cα position vector)
                     "in_edge_dims": (1, 1),         # (distance scalar, unit-displacement vector)
-                    "hidden_dims":  (gvp_hidden_dim, 4),
+                    "hidden_dims":  h_dim,
                     "n_layers":     gvp_layers,
                 }).to(self.device)
             if freeze_struct_encoder:
@@ -104,7 +108,7 @@ class ProteinEncoder(BaseEncoder):
 
         # fusion MLP
         fusion_in = seq_hidden + (gvp_hidden_dim + 1 if use_structure else 0)
-        self.fusion_mlp = nn.Sequential(
+        self.fusion_mlp = fusion_mlp.to(self.device) if fusion_mlp is not None else nn.Sequential(
             nn.Linear(fusion_in, latent_dim * 2),
             nn.ReLU(),
             nn.Linear(latent_dim * 2, latent_dim),
@@ -219,15 +223,17 @@ class ActionEncoder(BaseEncoder):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         action_mlp: Optional[Any] = None,
         pos_embed: Optional[Any] = None,
         aa_embed: Optional[Any] = None,
         aa_new_embed: Optional[Any] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
-        embed_dim = config.get("embed_dim", 128)
+        if config is None:
+            config = ProteinDreamerConfig().default()["action_encoder"]
+        latent_dim = config.get("latent_dim", 256)
+        embed_dim = config.get("embed_dim", 256)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)

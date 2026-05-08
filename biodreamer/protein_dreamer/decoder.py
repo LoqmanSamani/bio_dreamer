@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from biodreamer.core.decoder import BaseDecoder
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 from .blocks import TransformerLayer
 from .utils import aa_indices_to_sequence
 
@@ -31,16 +32,18 @@ class ProteinSequenceDecoder(BaseDecoder):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim      = config["latent_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["decoder"]
+        latent_dim      = config.get("latent_dim", 256)
         n_layers        = config.get("n_layers", 4)
         n_heads         = config.get("n_heads", 8)
         mlp_ratio       = config.get("mlp_ratio", 4.0)
-        dropout         = config.get("dropout", 0.0)
-        max_seq_len     = config.get("max_seq_len", 512)
-        default_seq_len = config.get("default_seq_len", 50)
+        dropout         = config.get("dropout", 0.1)
+        max_seq_len     = config.get("max_seq_len", 1024)
+        default_seq_len = config.get("default_seq_len", 100)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -50,20 +53,16 @@ class ProteinSequenceDecoder(BaseDecoder):
         self.latent_dim = latent_dim
         self.max_seq_len = max_seq_len
         self.default_seq_len = default_seq_len
-
         self.pos_queries = nn.Parameter(torch.zeros(max_seq_len, latent_dim))
         nn.init.trunc_normal_(self.pos_queries, std=0.02)
-
         # z_t (global) is projected to a single key/value token for cross-attention
         self.z_proj = nn.Linear(latent_dim, latent_dim)
-
         self.layers = nn.ModuleList([
             TransformerLayer({"dim": latent_dim, "n_heads": n_heads, "mlp_ratio": mlp_ratio, "dropout": dropout})
             for _ in range(n_layers)
         ])
         self.norm = nn.LayerNorm(latent_dim)
         self.logit_head = nn.Linear(latent_dim, 20)
-
         self.to(self.device)
 
     def set_seq_len(self, seq_len: int) -> None:
@@ -93,10 +92,8 @@ class ProteinSequenceDecoder(BaseDecoder):
 
         # positional queries: (B, L, latent_dim)
         queries = self.pos_queries[:L].unsqueeze(0).expand(B, -1, -1)
-
         # z_t as single conditioning token: (B, 1, latent_dim)
         cond = self.z_proj(z_t).unsqueeze(1)
-
         x = queries
         for layer in self.layers:
             x = layer(x, cond=cond)
@@ -130,16 +127,18 @@ class ProteinStructureDecoder(BaseDecoder):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim      = config["latent_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["decoder"]
+        latent_dim      = config.get("latent_dim", 256)
         n_layers        = config.get("n_layers", 4)
         n_heads         = config.get("n_heads", 8)
         mlp_ratio       = config.get("mlp_ratio", 4.0)
-        dropout         = config.get("dropout", 0.0)
-        max_seq_len     = config.get("max_seq_len", 512)
-        default_seq_len = config.get("default_seq_len", 50)
+        dropout         = config.get("dropout", 0.1)
+        max_seq_len     = config.get("max_seq_len", 1024)
+        default_seq_len = config.get("default_seq_len", 100)
         super().__init__(latent_dim)
         self.device = (
             device if device is not None and isinstance(device, torch.device)
@@ -149,10 +148,8 @@ class ProteinStructureDecoder(BaseDecoder):
         self.latent_dim = latent_dim
         self.max_seq_len = max_seq_len
         self.default_seq_len = default_seq_len
-
         self.pos_queries = nn.Parameter(torch.zeros(max_seq_len, latent_dim))
         nn.init.trunc_normal_(self.pos_queries, std=0.02)
-
         self.z_proj = nn.Linear(latent_dim, latent_dim)
 
         self.layers = nn.ModuleList([
@@ -161,7 +158,6 @@ class ProteinStructureDecoder(BaseDecoder):
         ])
         self.norm = nn.LayerNorm(latent_dim)
         self.coord_head = nn.Linear(latent_dim, 3)
-
         self.to(self.device)
 
     def set_seq_len(self, seq_len: int) -> None:
@@ -190,13 +186,11 @@ class ProteinStructureDecoder(BaseDecoder):
 
         queries = self.pos_queries[:L].unsqueeze(0).expand(B, -1, -1)
         cond = self.z_proj(z_t).unsqueeze(1)
-
         x = queries
         for layer in self.layers:
             x = layer(x, cond=cond)
         x = self.norm(x)
         coords = self.coord_head(x)               # (B, L, 3)
-
         return {"coords": coords}
 
     def forward(self, z_t: torch.Tensor, seq_len: Optional[int] = None) -> Dict[str, torch.Tensor]:

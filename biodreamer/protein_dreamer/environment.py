@@ -63,14 +63,14 @@ class ProteinEnvironment(BaseEnvironment):
     """
     def __init__(
         self,
-        config: dict,
         wild_type_sequence: str,
         fitness_oracle: BaseOracle,
+        config: Any = None,
         structure_oracle: Optional[BaseStructureOracle] = None,
     ) -> None:
-        max_steps         = config.get("max_steps", 50)
-        fitness_threshold = config.get("fitness_threshold", None)
-        track_trajectory  = config.get("track_trajectory", False)
+        self.max_steps         = config.get("max_steps", 50)
+        self.fitness_threshold = config.get("fitness_threshold", None)
+        self.track_trajectory  = config.get("track_trajectory", False)
         if not wild_type_sequence:
             raise ValueError("wild_type_sequence must be non-empty")
         if not isinstance(fitness_oracle, BaseOracle):
@@ -80,14 +80,9 @@ class ProteinEnvironment(BaseEnvironment):
         self.wild_type_sequence = wild_type_sequence
         self.fitness_oracle = fitness_oracle
         self.structure_oracle = structure_oracle
-        self.max_steps = max_steps
-        self.fitness_threshold = fitness_threshold
-        self.track_trajectory = track_trajectory
-
         self._current_state: Optional[State] = None
         self._step_count: int = 0
         self._trajectory: List[Dict[str, Any]] = []
-
 
     def reset(self) -> State:
         """reset the episode to the wild-type sequence and return its state."""

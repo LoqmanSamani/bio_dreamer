@@ -106,7 +106,7 @@ encoder:
 # ─────────────────────────────────────────────────────────────────────────────
 action_encoder:
   latent_dim: 256   # (*shared*) output action vector dim — must match dynamics.action_dim
-  embed_dim:  128   # internal embedding dim for position / amino acid tokens
+  embed_dim:  256   # internal embedding dim for position / amino acid tokens
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -226,16 +226,16 @@ residual_mlp:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Decoder  (ProteinDecoder / ProteinBlockDecoder)
+# Decoder, sequence and structure  (ProteinSequenceDecoder / ProteinStructureDecoder)
 # ─────────────────────────────────────────────────────────────────────────────
 decoder:
   latent_dim:      256  # (*shared*) must match encoder.latent_dim
   n_layers:        4
   n_heads:         8
   mlp_ratio:       4.0
-  dropout:         0.0
-  max_seq_len:     512  # maximum generated sequence length
-  default_seq_len: 50   # sequence length used when length is not inferred from the latent
+  dropout:         0.1
+  max_seq_len:     1024  # maximum generated sequence length
+  default_seq_len: 100   # sequence length used when length is not inferred from the latent
 
 
 # ─────────────────────────────────────────────────────────────────────────────
