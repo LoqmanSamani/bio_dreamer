@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import math
 from typing import Any, Optional, Tuple
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,6 +18,7 @@ class DDPM(nn.Module):
         super().__init__()
         self.predictor     = predictor
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["dynamics"]["ddpm"]
         self.pred_type     = config.get("pred_type", "noise")
         self.schedule_type = config.get("schedule_type", "cosine")
@@ -222,6 +221,7 @@ class SDE(nn.Module):
         self.predictor     = predictor
         self.register_buffer("_anchor", torch.zeros(1))
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["dynamics"]["sde"]
         self.method        = config.get("method", "ode")
         self.pred_type     = config.get("pred_type", "v")
@@ -479,6 +479,7 @@ class FlowMatching(nn.Module):
         super().__init__()
         self.predictor = predictor
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["dynamics"]["flow_matching"]
         self.solver = config.get("solver", "heun")
         self.num_steps = config.get("num_steps", 100)
@@ -536,6 +537,7 @@ class ResidualMLP(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["residual_mlp"]
         in_dim     = config.get("in_dim", 256)
         hidden_dim = config.get("hidden_dim", 512)
@@ -584,6 +586,7 @@ class GvpGNN(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["gvp_gnn"]
         in_node_dims = config.get("in_node_dims", (16, 4))
         in_edge_dims = config.get("in_edge_dims", (16, 4))
@@ -686,6 +689,7 @@ class GVPConv(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["gvp_conv"]
         self.node_dims = config.get("node_dims", (256, 4))
         self.edge_dims = config.get("edge_dims", (256, 4))
@@ -751,6 +755,7 @@ class GraphTransformer(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["gvp_transformer"]
         n_layers   = config.get("n_layers", 3)
         self.layers = nn.ModuleList(
@@ -779,6 +784,7 @@ class GraphTransformerLayer(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["gvp_transformer"]
         node_dims  = config.get("node_dims", (256, 4))
         edge_dims  = config.get("edge_dims", (256, 4))
@@ -895,6 +901,7 @@ class GVP(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig.default()["gvp"]
         self.in_s, self.in_v = config.get("in_node_dims", (16, 4))
         self.out_s, self.out_v = config.get("out_node_dims", (256, 4))
@@ -991,16 +998,19 @@ class DeterministicPredictor(nn.Module):
     """
     def __init__(self, config: Any = None) -> None:
         super().__init__()
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["dynamics"]["transformer"]
         latent_dim = config.get("latent_dim", 256)
         n_layers   = config.get("n_layers", 6)
         max_len    = config.get("max_len", 1024)
-        causal     = config.get("causal", True)
+        causal     = config.get("causal", False)
         self.latent_dim = latent_dim
         self.causal = causal
         self.input_proj = nn.Identity()
         self.pos_emb = nn.Parameter(torch.zeros(max_len, latent_dim))
         nn.init.trunc_normal_(self.pos_emb, std=0.02)
-        layer_cfg = dict(config) if config is not None else {}
+        layer_cfg = dict(config) 
         layer_cfg.setdefault("dim", latent_dim)
         self.layers = nn.ModuleList(
             [
@@ -1042,8 +1052,11 @@ class DeterministicPredictor(nn.Module):
 
 class TransformerLayer(nn.Module):
     """standard pre-ln transformer block used as deterministic predictor in latent space"""
-    def __init__(self, config: Any = None) -> None:
+    def __init__(self, config: Any = None, mlp: Any = None) -> None:
         super().__init__()
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["dynamics"]["transformer"]
         dim = config.get("dim", 256)
         n_heads = config.get("n_heads", 8)
         mlp_ratio = config.get("mlp_ratio", 4.0)
@@ -1059,7 +1072,7 @@ class TransformerLayer(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = nn.Sequential(
+        self.mlp = mlp if mlp is not None else nn.Sequential(
             nn.Linear(dim, mlp_hidden_dim),
             nn.GELU(),
             nn.Linear(mlp_hidden_dim, dim),
@@ -1129,8 +1142,11 @@ class DiffTransformer(nn.Module):
       t:    (B,) tensor of timestep scalars (int or float)
       cond: optional conditioning sequence (B, M, C) or global vector (B, C)
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["dynamics"]["transformer"]
         dim          = config.get("dim", 256)
         n_layers     = config.get("n_layers", 4)
         n_heads      = config.get("n_heads", 8)

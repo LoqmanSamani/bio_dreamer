@@ -19,7 +19,6 @@ from typing import Any, Callable, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +146,7 @@ class EvidentialUncertainty(UncertaintyModule, nn.Module):
     def __init__(self, config: Any = None, net: Any = None) -> None:
         nn.Module.__init__(self)
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["uncertainty"]
         input_dim  = config.get("input_dim", 256)
         output_dim = config.get("output_dim", 1)
@@ -243,6 +243,7 @@ class MCDropoutUncertainty(UncertaintyModule):
 
     def __init__(self, config: Any = None, model: Optional[nn.Module] = None) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["uncertainty"]
         n_passes = config.get("mc_dropout_passes", 20)
         if n_passes < 2:

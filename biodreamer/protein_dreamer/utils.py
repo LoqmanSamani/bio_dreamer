@@ -6,7 +6,6 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class SIGReg(nn.Module):
     def __init__(self, config: Any = None) -> None:
         super().__init__()
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["training"]["sig_reg"]
         self.latent_dim  = config.get("latent_dim", 256)
         self.num_proj    = config.get("num_proj", 1024)
@@ -81,6 +81,7 @@ class EMAUpdater:
     """
     def __init__(self, config: Any = None) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["training"]["ema"]
         tau = config.get("tau", 0.99)
         if not 0.0 < tau < 1.0:

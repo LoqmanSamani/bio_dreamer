@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 
 from ..core.encoder import BaseEncoder
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +47,7 @@ class ProteinEncoder(BaseEncoder):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["encoder"]
         latent_dim = config.get("latent_dim", 256)
         seq_model_name = config.get("seq_model_name", "esm2-650m")
@@ -235,6 +235,7 @@ class ActionEncoder(BaseEncoder):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["action_encoder"]
         latent_dim = config.get("latent_dim", 256)
         embed_dim = config.get("embed_dim", 256)

@@ -31,7 +31,6 @@ from typing import Literal, Any
 import torch
 
 from ..core.tokenizers import BaseProteinTokenizer
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +52,7 @@ class ProteinTokenizer:
     """
     def __init__(self, config: Any = None) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["tokenizer"]
         mode             = config.get("mode", "char")
         k                = config.get("k", 3)

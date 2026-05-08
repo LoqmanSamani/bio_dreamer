@@ -55,6 +55,22 @@ data:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Preprocessing  (tokenize_sequence / load_structure / build_protein_graph /
+#                 normalize_fitness / augment_dms_data)
+# ─────────────────────────────────────────────────────────────────────────────
+preprocessing:
+  tokenizer_model:  "esm2-150m"  # HF model used by tokenize_sequence (matches encoder default)
+  return_tensors:   false         # return torch tensors from tokenize_sequence
+  padding:          true          # pad sequences in tokenize_sequence
+  truncation:       true          # truncate sequences exceeding the model max length
+  coord_mode:       "ca"          # coordinate extraction: "ca" | "backbone" | "all_atom"
+  struct_cache_dir: null          # ESMFold prediction cache dir (null = ~/.cache/biodreamer/structures)
+  contact_cutoff:   10.0          # Cα contact distance threshold in Å for build_protein_graph
+  fitness_norm:     "quantile"    # fitness normalisation method: "minmax" | "zscore" | "quantile"
+  augmentation:     "none"        # DMS data augmentation strategy: "none" | "reverse"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DataLoader  (make_dataloaders)
 # ─────────────────────────────────────────────────────────────────────────────
 dataloader:
@@ -63,6 +79,9 @@ dataloader:
   test_batch_size: 128
   num_workers:     4
   pin_memory:      true
+  train_shuffle:   true
+  val_shuffle:     false
+  test_shuffle:    false
 
 
 # ─────────────────────────────────────────────────────────────────────────────

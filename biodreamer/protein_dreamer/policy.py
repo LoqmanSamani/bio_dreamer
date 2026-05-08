@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 
 from biodreamer.core.active_inference import ActiveInferencePolicy
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ class ProteinActiveInferencePolicy(ActiveInferencePolicy):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["policy"]
         latent_dim = config.get("latent_dim", 256)
         action_dim = config.get("action_dim", 256)

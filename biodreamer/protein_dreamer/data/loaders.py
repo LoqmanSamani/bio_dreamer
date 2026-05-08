@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -127,45 +127,51 @@ def make_collate_fn(
 
 def make_dataloader(
     dataset: Any,
-    batch_size: int = 32,
-    shuffle: bool = False,
-    num_workers: int = 0,
-    pin_memory: bool = False,
+    config: Any = None,
+    shuffle: bool = True,
     collate_fn: Optional[Callable] = None,
 ) -> "DataLoader":
+    if config is None:
+        from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+        config = ProteinDreamerConfig().default()["dataloader"]
+    _batch_size  = config.get("batch_size",  64)
+    _num_workers = config.get("num_workers", 4)
+    _pin_memory  = config.get("pin_memory",  True)
     if collate_fn is None:
         collate_fn = make_collate_fn(dataset)
     return DataLoader(
         dataset,
-        batch_size=batch_size,
+        batch_size=_batch_size,
         shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
+        num_workers=_num_workers,
+        pin_memory=_pin_memory,
         collate_fn=collate_fn,
     )
 
 
 
 def make_dataloaders(
-    train_dataset: Optional[Any],
+    config: Any = None,
+    train_dataset: Optional[Any] = None,
     val_dataset: Optional[Any] = None,
-    test_dataset: Optional[Any] = None,
-    batch_size: int = 32,
-    val_batch_size: Optional[int] = None,
-    test_batch_size: Optional[int] = None,
-    num_workers: int = 4,
-    pin_memory: bool = False,
+    test_dataset: Optional[Any] = None
 ) -> Dict[str, Optional["DataLoader"]]:
     """build train/val/test DataLoaders"""
+    if config is None:
+        from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+        config = ProteinDreamerConfig().default()["dataloader"]
+    _train_shuffle = config.get("train_shuffle", True)
+    _val_shuffle   = config.get("val_shuffle",   False)
+    _test_shuffle  = config.get("test_shuffle",  False)
+    
+
     loaders: Dict[str, Optional[Any]] = {}
 
     if train_dataset is not None:
         loaders["train"] = make_dataloader(
             train_dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
+            config=config,
+            shuffle=_train_shuffle
         )
     else:
         loaders["train"] = None
@@ -173,21 +179,17 @@ def make_dataloaders(
     if val_dataset is not None:
         loaders["val"] = make_dataloader(
             val_dataset,
-            batch_size=val_batch_size or batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-        )
+            config=config,
+            shuffle=_val_shuffle
+            )
     else:
         loaders["val"] = None
 
     if test_dataset is not None:
         loaders["test"] = make_dataloader(
             test_dataset,
-            batch_size=test_batch_size or batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
+            config=config,
+            shuffle=_test_shuffle
         )
     else:
         loaders["test"] = None

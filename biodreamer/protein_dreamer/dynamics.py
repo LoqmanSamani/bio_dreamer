@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 
 from biodreamer.core.dynamics import BaseDynamics
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,7 @@ class EnergyBasedDynamics(BaseDynamics):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["dynamics"]
         latent_dim = config.get("latent_dim", 256)
         action_dim = config.get("action_dim", 256)
@@ -118,6 +118,7 @@ class DiffusionDynamics(BaseDynamics):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["dynamics"]
         latent_dim = config.get("latent_dim", 256)
         action_dim = config.get("action_dim", 256)

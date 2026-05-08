@@ -155,8 +155,8 @@ class ProteinGymDataset(Dataset):
 
     def __init__(
         self,
-        config: dict,
-        path: "str | pd.DataFrame",
+        config: Any = None,
+        path: "str | pd.DataFrame" = None,
         tokenizer: Optional[Any] = None,
         seq_col: Optional[str] = None,
         mutation_col: Optional[str] = None,
@@ -165,6 +165,9 @@ class ProteinGymDataset(Dataset):
         assay_col: Optional[str] = None,
         assay_type_map: Optional[Dict[str, AssayType]] = None,
     ) -> None:
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["data"]
         max_length       = config.get("max_length", None)
         return_tensors   = config.get("return_tensors", False)
         strict_wt_check  = config.get("strict_wt_check", True)
@@ -374,7 +377,10 @@ class ProteinGymDataset(Dataset):
 
 class TsuboyamaDataset(ProteinGymDataset):
     """loads Tsuboyama 2023 mega-scale stability data"""
-    def __init__(self, config: dict, path: "str | pd.DataFrame", **kwargs) -> None:
+    def __init__(self, config: Any = None, path: "str | pd.DataFrame" = None, **kwargs) -> None:
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["data"]
         # force all rows to STABILITY regardless of any provided assay_type_map
         kwargs.setdefault("assay_type_map", {})
         super().__init__(config, path, **kwargs)
@@ -430,7 +436,10 @@ class FitnessTransitionDataset(Dataset):
 
 class CustomAssayDataset(ProteinGymDataset):
     """dataset for user-uploaded csv files with `sequence` and `fitness` columns"""
-    def __init__(self, config: dict, path: "str | pd.DataFrame", **kwargs) -> None:
+    def __init__(self, config: Any = None, path: "str | pd.DataFrame" = None, **kwargs) -> None:
+        if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
+            config = ProteinDreamerConfig().default()["data"]
         kwargs.setdefault("seq_col", config.get("seq_col", "sequence"))
         kwargs.setdefault("fitness_col", config.get("fitness_col", "fitness"))
         super().__init__(config, path, **kwargs)

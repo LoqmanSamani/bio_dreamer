@@ -8,7 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from biodreamer.core.reward import BaseRewardHead
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,7 @@ class ProteinRewardHead(BaseRewardHead):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["reward"]
         latent_dim = config.get("latent_dim", 256)
         hidden_dim = config.get("hidden_dim", 512)

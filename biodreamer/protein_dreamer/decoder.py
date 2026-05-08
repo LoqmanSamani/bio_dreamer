@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 
 from biodreamer.core.decoder import BaseDecoder
-from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 from .blocks import TransformerLayer
 from .utils import aa_indices_to_sequence
 
@@ -36,6 +35,7 @@ class ProteinSequenceDecoder(BaseDecoder):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["decoder"]
         latent_dim      = config.get("latent_dim", 256)
         n_layers        = config.get("n_layers", 4)
@@ -131,6 +131,7 @@ class ProteinStructureDecoder(BaseDecoder):
         device: Optional[torch.device] = None,
     ) -> None:
         if config is None:
+            from biodreamer.protein_dreamer.config import ProteinDreamerConfig
             config = ProteinDreamerConfig().default()["decoder"]
         latent_dim      = config.get("latent_dim", 256)
         n_layers        = config.get("n_layers", 4)
