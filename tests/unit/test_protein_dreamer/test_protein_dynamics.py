@@ -268,7 +268,7 @@ class TestDiffusionDynamicsConstruction:
 
     def test_custom_scheduler_is_stored(self):
         from biodreamer.protein_dreamer.blocks import DDPM
-        sched = DDPM({"schedule_type": "cosine", "time_steps": 5}, predictor=_StubDenoiser(LATENT_DIM))
+        sched = DDPM(_StubDenoiser(LATENT_DIM), {"schedule_type": "cosine", "time_steps": 5})
         dyn = DiffusionDynamics(_DIFF_CFG, scheduler=sched, device=torch.device("cpu"))
         assert dyn.scheduler is sched
 
@@ -281,7 +281,7 @@ class TestDiffusionDynamicsConstruction:
 
     def test_scheduler_takes_priority_over_denoiser(self):
         from biodreamer.protein_dreamer.blocks import DDPM
-        sched = DDPM({"schedule_type": "linear", "time_steps": 5}, predictor=_StubDenoiser(LATENT_DIM))
+        sched = DDPM(_StubDenoiser(LATENT_DIM), {"schedule_type": "linear", "time_steps": 5})
         dyn = DiffusionDynamics(
             _DIFF_CFG, scheduler=sched, denoiser=_StubDenoiser(LATENT_DIM),
             device=torch.device("cpu"),
@@ -313,16 +313,16 @@ class TestDiffusionDynamicsTrainingStep:
         )
 
     def _flow_dyn(self) -> DiffusionDynamics:
-        from biodreamer.protein_dreamer.blocks import FlowMatchingScheduler
-        sched = FlowMatchingScheduler(
-            {"num_steps": 3, "solver": "euler"}, predictor=_StubDenoiser(LATENT_DIM)
+        from biodreamer.protein_dreamer.blocks import FlowMatching
+        sched = FlowMatching(
+            _StubDenoiser(LATENT_DIM), {"num_steps": 3, "solver": "euler"}
         )
         return DiffusionDynamics(_DIFF_CFG, scheduler=sched, device=torch.device("cpu"))
 
     def _sde_dyn(self) -> DiffusionDynamics:
         from biodreamer.protein_dreamer.blocks import SDE
         sched = SDE(
-            {"method": "vp", "pred_type": "noise", "num_steps": 5}, predictor=_StubDenoiser(LATENT_DIM)
+            _StubDenoiser(LATENT_DIM), {"method": "vp", "pred_type": "noise", "num_steps": 5}
         )
         return DiffusionDynamics(_DIFF_CFG, scheduler=sched, device=torch.device("cpu"))
 
@@ -362,9 +362,9 @@ class TestDiffusionDynamicsTrainingStep:
 class TestDiffusionDynamicsFlowMatching:
     @pytest.fixture
     def dyn(self) -> DiffusionDynamics:
-        from biodreamer.protein_dreamer.blocks import FlowMatchingScheduler
-        sched = FlowMatchingScheduler(
-            {"num_steps": 3, "solver": "euler"}, predictor=_StubDenoiser(LATENT_DIM)
+        from biodreamer.protein_dreamer.blocks import FlowMatching
+        sched = FlowMatching(
+            _StubDenoiser(LATENT_DIM), {"num_steps": 3, "solver": "euler"}
         )
         return DiffusionDynamics(_DIFF_CFG, scheduler=sched, device=torch.device("cpu"))
 
@@ -408,7 +408,7 @@ class TestDiffusionDynamicsSDE:
     def dyn(self) -> DiffusionDynamics:
         from biodreamer.protein_dreamer.blocks import SDE
         sched = SDE(
-            {"method": "vp", "pred_type": "noise", "num_steps": 5}, predictor=_StubDenoiser(LATENT_DIM)
+            _StubDenoiser(LATENT_DIM), {"method": "vp", "pred_type": "noise", "num_steps": 5}
         )
         return DiffusionDynamics(_DIFF_CFG, scheduler=sched, device=torch.device("cpu"))
 

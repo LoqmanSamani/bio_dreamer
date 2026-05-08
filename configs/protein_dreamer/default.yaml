@@ -17,6 +17,11 @@
 #   training      →  WorldModelTrainer / PolicyTrainer (includes SIGReg + EMAUpdater)
 #   active_learning→ ActiveLearner
 #   logging       →  callbacks / W&B
+#   gvp           →  GVP (standalone fallback defaults)
+#   gvp_conv      →  GVPConv (standalone fallback defaults)
+#   gvp_gnn       →  GvpGNN (standalone fallback defaults)
+#   gvp_transformer→ GraphTransformer / GraphTransformerLayer (standalone fallback defaults)
+#   residual_mlp  →  ResidualMLP
 #
 # Keys marked (*required*) have no default in the class — they must be present.
 # Keys marked (*shared*) appear in multiple sections; keep them in sync.
@@ -84,13 +89,16 @@ encoder:
   freeze_struct_encoder: true        # freeze GVP-GNN weights
   use_structure:         false       # enable GVP-GNN structure branch (requires ESMFold coords)
 
-  # GVP-GNN structure encoder (only used when use_structure=true)
-  gvp:
-    hidden_dim:  256    # GVP-GNN hidden scalar dimension (*shared* with gvp_hidden_dim)
-    n_layers:    3      # number of GVP message-passing layers
-    conv_type:   "gvp" # "gvp" (equivariant) | "transformer" (graph transformer)
-    n_heads:     4      # attention heads (only when conv_type="transformer")
-    dropout:     0.0
+  # GVP-GNN structure encoder sub-config (only used when use_structure=true)
+  gvp_gnn:
+    in_node_dims: [4, 0]    # input scalar and vector node dimensions (4 = [x,y,z,pLDDT])
+    in_edge_dims: [1, 0]    # input scalar and vector edge dimensions (1 = distance)
+    hidden_dims:  [256, 4]  # hidden scalar and vector dimensions
+    n_layers:     3
+    vector_dim:   3
+    conv_type:    "gvp"
+    n_heads:      4
+    dropout:      0.1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -109,54 +117,112 @@ dynamics:
   latent_dim: 256            # (*shared*) must match encoder.latent_dim
   action_dim: 256            # must match action_encoder.latent_dim
 
-  # ── Architecture B: EnergyBasedDynamics (DeterministicPredictor) ──
+  # EnergyBasedDynamics (DeterministicPredictor)
   transformer:
+    dim:       256  # (*shared*) must match encoder.latent_dim
     n_layers:  6
     n_heads:   8
     mlp_ratio: 4.0
     dropout:   0.1
     max_len:   1024
     causal:    false  # false = bidirectional (JEPA predictor); true = autoregressive
+    time_emb_dim: 256
 
-  # ── Architecture A: DiffusionDynamics — DDPM scheduler ──
-  # dynamics.py reads: ddpm.time_steps, ddpm.schedule, ddpm.denoiser.*
-  # DDPM block receives: {"schedule_type": ddpm.schedule, "time_steps": ddpm.time_steps, ...}
+  # DiffusionDynamics — DDPM Scheduler
   ddpm:
-    time_steps:    1000
-    schedule:      "cosine"      # noise schedule passed to DDPM as schedule_type: "linear" | "cosine"
+    time_steps:    400
+    schedule_type: "cosine"      # noise schedule: "linear" | "cosine"
     pred_type:     "noise"       # "noise" | "x0" | "v"
     var_type:      "fixed_small" # "fixed_small" | "fixed_large" | "learned"
     beta_min:      0.0001
     beta_max:      0.02
     cosine_s:      0.008
+    clip_min:      0.0001
+    clip_max:      0.9999
     clip_out:      true
+    valid_types:     ["noise", "x0", "v"]      # for sanity-checking config values
+    valid_schedules: ["linear", "cosine"]       # for sanity-checking config values
 
     # Auto-built DiffTransformer denoiser (used when no denoiser is injected)
     denoiser:
       n_layers:  4
       n_heads:   8
       mlp_ratio: 4.0
-      dropout:   0.0
+      dropout:   0.1
 
-  # ── Architecture A-alt: DiffusionDynamics — SDE scheduler ──
-  # Passed directly as SDE(config) when scheduler="sde" in training scripts
+  # SDE scheduler
   sde:
-    method:        "vp"      # "vp" (variance-preserving) | "ve" (variance-exploding) | "sub-vp" | "ode"
-    pred_type:     "v"       # "noise" | "score" | "v"
-    schedule_type: "cosine"  # "linear" | "cosine"
-    beta_min:      0.1
-    beta_max:      20.0
-    time_eps:      1.0e-5
-    num_steps:     1000
-    sigma_min:     0.01      # only for method="ve"
-    sigma_max:     50.0      # only for method="ve"
+    method:          "ode"     # "vp" | "ve" | "sub-vp" | "ode"
+    pred_type:       "v"       # "noise" | "score" | "v"
+    schedule_type:   "cosine"  # "linear" | "cosine"
+    beta_min:        0.1
+    beta_max:        20.0
+    time_eps:        1.0e-5
+    num_steps:       400
+    sigma_min:       0.01      # only for method="ve"
+    sigma_max:       50.0      # only for method="ve"
+    cosine_s:        0.008     # only for schedule_type="cosine"
+    eps:             1.0e-8    # numerical stability constant for score-based sampling
+    valid_methods:   ["vp", "ve", "sub-vp", "ode"]  # for sanity-checking config values
+    valid_types:     ["noise", "score", "v"]          # for sanity-checking config values
+    valid_schedules: ["linear", "cosine"]             # for sanity-checking config values
 
-  # ── Architecture A-alt: DiffusionDynamics — Flow Matching scheduler ──
-  # Passed directly as FlowMatchingScheduler(config) in training scripts
+  # Flow matching scheduler
   flow_matching:
-    num_steps: 100
-    solver:    "heun"   # "euler" | "heun"
-    time_eps:  1.0e-3
+    num_steps:    100
+    solver:       "heun"        # "euler" | "heun"
+    time_eps:     1.0e-3
+    valid_solvers: ["euler", "heun"]  # for sanity-checking config values
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GVP building blocks — standalone fallback defaults
+# These are used when GVP / GVPConv / GvpGNN / GraphTransformer are
+# instantiated without an explicit config argument.
+# ─────────────────────────────────────────────────────────────────────────────
+gvp:
+  in_node_dims:  [16, 16]
+  out_node_dims: [256, 256]
+  vector_dim:    3
+  dropout:       0.1
+  use_layernorm: false
+  eps:           1.0e-8
+
+gvp_conv:
+  node_dims:    [256, 256]
+  edge_dims:    [256, 256]
+  message_dims: [256, 256]
+  vector_dim:   3
+
+gvp_gnn:
+  in_node_dims: [16, 16]
+  in_edge_dims: [16, 16]
+  hidden_dims:  [256, 256]
+  n_layers:     3
+  vector_dim:   3
+  conv_type:    "gvp"
+  n_heads:      4
+  dropout:      0.1
+
+gvp_transformer:
+  node_dims:  [256, 256]
+  edge_dims:  [256, 256]
+  hidden_dim: 256
+  n_heads:    4
+  dropout:    0.1
+  vector_dim: 3
+  n_layers:   3
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ResidualMLP  (used in EnergyBasedDynamics and DiffTransformer blocks)
+# ─────────────────────────────────────────────────────────────────────────────
+residual_mlp:
+  in_dim:     256   # must match encoder.latent_dim for dynamics
+  hidden_dim: 512   # mlp hidden width
+  out_dim:    256   # must match encoder.latent_dim for dynamics
+  n_layers:   2
+  dropout:    0.1
 
 
 # ─────────────────────────────────────────────────────────────────────────────

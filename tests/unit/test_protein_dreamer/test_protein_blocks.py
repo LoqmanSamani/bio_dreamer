@@ -11,7 +11,7 @@ from biodreamer.protein_dreamer.blocks import (
     SDE,
     DeterministicPredictor,
     DiffTransformer,
-    FlowMatchingScheduler,
+    FlowMatching,
     GVP,
     GVPConv,
     GraphTransformer,
@@ -89,7 +89,7 @@ class TestResidualMLP:
 
 class TestGVP:
     def test_scalar_only_output_shape(self):
-        gvp = GVP(in_dims=(8, 0), out_dims=(16, 0))
+        gvp = GVP({"in_node_dims": (8, 0), "out_node_dims": (16, 0)})
         s = torch.randn(5, 8)
         v = None
         s_out, v_out = gvp(s, v)
@@ -97,7 +97,7 @@ class TestGVP:
         assert v_out is None
 
     def test_vector_output_shape(self):
-        gvp = GVP(in_dims=(8, 2), out_dims=(16, 4), vector_dim=3)
+        gvp = GVP({"in_node_dims": (8, 2), "out_node_dims": (16, 4), "vector_dim": 3})
         s = torch.randn(5, 8)
         v = torch.randn(5, 2, 3)
         s_out, v_out = gvp(s, v)
@@ -105,18 +105,18 @@ class TestGVP:
         assert v_out.shape == (5, 4, 3)
 
     def test_output_finite(self):
-        gvp = GVP(in_dims=(8, 2), out_dims=(16, 4))
+        gvp = GVP({"in_node_dims": (8, 2), "out_node_dims": (16, 4)})
         s_out, v_out = gvp(torch.randn(5, 8), torch.randn(5, 2, 3))
         assert torch.isfinite(s_out).all()
         assert torch.isfinite(v_out).all()
 
     def test_layernorm_option(self):
-        gvp = GVP(in_dims=(8, 0), out_dims=(16, 0), use_layernorm=True)
+        gvp = GVP({"in_node_dims": (8, 0), "out_node_dims": (16, 0), "use_layernorm": True})
         s_out, _ = gvp(torch.randn(5, 8), None)
         assert s_out.shape == (5, 16)
 
     def test_gradient_flows(self):
-        gvp = GVP(in_dims=(8, 2), out_dims=(16, 4))
+        gvp = GVP({"in_node_dims": (8, 2), "out_node_dims": (16, 4)})
         s = torch.randn(5, 8, requires_grad=True)
         v = torch.randn(5, 2, 3, requires_grad=True)
         s_out, v_out = gvp(s, v)
@@ -130,11 +130,11 @@ class TestGVP:
 class TestGVPConv:
     @pytest.fixture
     def conv(self) -> GVPConv:
-        return GVPConv(
-            node_dims=(8, 2),
-            edge_dims=(4, 1),
-            message_dims=(8, 2),
-        )
+        return GVPConv({
+            "node_dims": (8, 2),
+            "edge_dims": (4, 1),
+            "message_dims": (8, 2),
+        })
 
     def test_output_shapes(self, conv):
         s, v, edge_index = _make_graph(n=5, n_s=8, n_v=2, e=8)
@@ -146,7 +146,7 @@ class TestGVPConv:
 
     def test_no_edge_features(self):
         # edge_dims=(0,0) → None edge inputs are valid
-        conv = GVPConv(node_dims=(8, 2), edge_dims=(0, 0), message_dims=(8, 2))
+        conv = GVPConv({"node_dims": (8, 2), "edge_dims": (0, 0), "message_dims": (8, 2)})
         s, v, edge_index = _make_graph(n=5, n_s=8, n_v=2, e=8)
         s_out, v_out = conv(s, v, edge_index, None, None)
         assert s_out.shape == (5, 8)
@@ -240,12 +240,12 @@ class TestGvpGNN:
 class TestGraphTransformerLayer:
     @pytest.fixture
     def layer(self) -> GraphTransformerLayer:
-        return GraphTransformerLayer(
-            node_dims=(16, 2),
-            edge_dims=(8, 1),
-            hidden_dim=16,
-            n_heads=4,
-        )
+        return GraphTransformerLayer({
+            "node_dims": (16, 2),
+            "edge_dims": (8, 1),
+            "hidden_dim": 16,
+            "n_heads": 4,
+        })
 
     def test_output_shapes(self, layer):
         s, v, edge_index = _make_graph(n=6, n_s=16, n_v=2, e=12)
@@ -289,7 +289,7 @@ class TestGraphTransformer:
 class TestTransformerLayer:
     @pytest.fixture
     def layer(self) -> TransformerLayer:
-        return TransformerLayer(dim=32, n_heads=4, mlp_ratio=2.0)
+        return TransformerLayer({"dim": 32, "n_heads": 4, "mlp_ratio": 2.0})
 
     def test_output_shape(self, layer):
         x = torch.randn(2, 6, 32)
@@ -424,16 +424,16 @@ BATCH = 4
 @pytest.fixture
 def ddpm_linear() -> DDPM:
     return DDPM(
+        _LinearPredictor(DIM),
         {"time_steps": 10, "schedule_type": "linear", "pred_type": "noise"},
-        predictor=_LinearPredictor(DIM),
     )
 
 
 @pytest.fixture
 def ddpm_cosine() -> DDPM:
     return DDPM(
+        _LinearPredictor(DIM),
         {"time_steps": 10, "schedule_type": "cosine", "pred_type": "noise"},
-        predictor=_LinearPredictor(DIM),
     )
 
 
@@ -454,15 +454,15 @@ class TestDDPMSchedule:
 
     def test_invalid_pred_type_raises(self):
         with pytest.raises(ValueError, match="pred_type"):
-            DDPM({"pred_type": "bad"}, predictor=_LinearPredictor(DIM))
+            DDPM(_LinearPredictor(DIM), {"pred_type": "bad"})
 
     def test_invalid_schedule_raises(self):
         with pytest.raises(ValueError, match="schedule_type"):
-            DDPM({"schedule_type": "bad"}, predictor=_LinearPredictor(DIM))
+            DDPM(_LinearPredictor(DIM), {"schedule_type": "bad"})
 
     def test_linear_beta_range_validation(self):
         with pytest.raises(ValueError, match="0 < beta_min"):
-            DDPM({"schedule_type": "linear", "beta_min": 0.1, "beta_max": 0.01}, predictor=_LinearPredictor(DIM))
+            DDPM(_LinearPredictor(DIM), {"schedule_type": "linear", "beta_min": 0.1, "beta_max": 0.01})
 
     def test_device_property(self, ddpm_linear):
         assert ddpm_linear._device == ddpm_linear.betas.device
@@ -486,7 +486,7 @@ class TestDDPMForwardDiff:
         assert torch.isfinite(target).all()
 
     def test_x0_pred_type_target_is_x0(self):
-        ddpm = DDPM({"time_steps": 10, "pred_type": "x0"}, predictor=_LinearPredictor(DIM))
+        ddpm = DDPM(_LinearPredictor(DIM), {"time_steps": 10, "pred_type": "x0"})
         x0 = torch.randn(BATCH, DIM)
         _, target = ddpm.forward_diff(x0, torch.zeros(BATCH, dtype=torch.long), torch.randn_like(x0))
         assert torch.allclose(target, x0)
@@ -557,48 +557,48 @@ class TestDDPMPredictX0:
 
 class TestSDEConstruction:
     def test_vp_construction(self):
-        sde = SDE({"method": "vp"}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"method": "vp"})
         assert sde.method == "vp"
 
     def test_ode_construction(self):
-        sde = SDE({"method": "ode"}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"method": "ode"})
         assert sde.method == "ode"
 
     def test_invalid_method_raises(self):
         with pytest.raises(ValueError, match="method must be one of"):
-            SDE({"method": "invalid"}, predictor=_LinearPredictor(DIM))
+            SDE(_LinearPredictor(DIM), {"method": "invalid"})
 
     def test_invalid_pred_type_raises(self):
         with pytest.raises(ValueError, match="pred_type"):
-            SDE({"pred_type": "invalid"}, predictor=_LinearPredictor(DIM))
+            SDE(_LinearPredictor(DIM), {"pred_type": "invalid"})
 
     def test_invalid_schedule_raises(self):
         with pytest.raises(ValueError, match="schedule_type"):
-            SDE({"schedule_type": "invalid"}, predictor=_LinearPredictor(DIM))
+            SDE(_LinearPredictor(DIM), {"schedule_type": "invalid"})
 
     def test_anchor_buffer_exists(self):
-        sde = SDE({}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {})
         assert hasattr(sde, "_anchor")
         assert isinstance(sde._anchor, torch.Tensor)
 
     def test_device_property(self):
-        sde = SDE({}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {})
         assert sde._device == sde._anchor.device
 
     def test_sigma_params_stored(self):
-        sde = SDE({"sigma_min": 0.02, "sigma_max": 80.0}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"sigma_min": 0.02, "sigma_max": 80.0})
         assert sde.sigma_min == pytest.approx(0.02)
         assert sde.sigma_max == pytest.approx(80.0)
 
     def test_eps_stored(self):
-        sde = SDE({"eps": 1e-7}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"eps": 1e-7})
         assert sde.eps == pytest.approx(1e-7)
 
 
 class TestSDESchedule:
     @pytest.fixture
     def sde_vp(self) -> SDE:
-        return SDE({"method": "vp", "schedule_type": "linear"}, predictor=_LinearPredictor(DIM))
+        return SDE(_LinearPredictor(DIM), {"method": "vp", "schedule_type": "linear"})
 
     def test_beta_positive(self, sde_vp):
         t = torch.linspace(0.01, 0.99, 10)
@@ -619,7 +619,7 @@ class TestSDESchedule:
         assert (sde_vp.snr(t) > 0).all()
 
     def test_cosine_schedule(self):
-        sde = SDE({"schedule_type": "cosine"}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"schedule_type": "cosine"})
         t = torch.linspace(0.01, 0.99, 10)
         assert torch.isfinite(sde.beta(t)).all()
 
@@ -627,7 +627,7 @@ class TestSDESchedule:
 class TestSDEForwardDiff:
     @pytest.fixture
     def sde(self) -> SDE:
-        return SDE({"method": "vp", "pred_type": "noise"}, predictor=_LinearPredictor(DIM))
+        return SDE(_LinearPredictor(DIM), {"method": "vp", "pred_type": "noise"})
 
     def test_output_shapes(self, sde):
         x0 = torch.randn(BATCH, DIM)
@@ -654,12 +654,12 @@ class TestSDEForwardDiff:
 
 class TestSDESampleTime:
     def test_output_shape(self):
-        sde = SDE({}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {})
         t = sde.sample_time(BATCH, device=torch.device("cpu"))
         assert t.shape == (BATCH,)
 
     def test_values_in_range(self):
-        sde = SDE({"time_eps": 0.01}, predictor=_LinearPredictor(DIM))
+        sde = SDE(_LinearPredictor(DIM), {"time_eps": 0.01})
         t = sde.sample_time(100, eps=0.01, device=torch.device("cpu"))
         assert (t >= 0.01).all()
         assert (t <= 1.0).all()
@@ -667,24 +667,24 @@ class TestSDESampleTime:
 
 
 
-class TestFlowMatchingScheduler:
+class TestFlowMatching:
     @pytest.fixture
-    def fm_euler(self) -> FlowMatchingScheduler:
-        return FlowMatchingScheduler(
+    def fm_euler(self) -> FlowMatching:
+        return FlowMatching(
+            _LinearPredictor(DIM),
             {"num_steps": 5, "solver": "euler"},
-            predictor=_LinearPredictor(DIM),
         )
 
     @pytest.fixture
-    def fm_heun(self) -> FlowMatchingScheduler:
-        return FlowMatchingScheduler(
+    def fm_heun(self) -> FlowMatching:
+        return FlowMatching(
+            _LinearPredictor(DIM),
             {"num_steps": 5, "solver": "heun"},
-            predictor=_LinearPredictor(DIM),
         )
 
     def test_invalid_solver_raises(self):
         with pytest.raises(ValueError, match="solver"):
-            FlowMatchingScheduler({"solver": "rk4"}, predictor=_LinearPredictor(DIM))
+            FlowMatching(_LinearPredictor(DIM), {"solver": "rk4"})
 
     def test_noise_step_shapes(self, fm_euler):
         x1 = torch.randn(BATCH, DIM)

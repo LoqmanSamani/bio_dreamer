@@ -130,8 +130,8 @@ class DiffusionDynamics(BaseDynamics):
         elif denoiser is not None:
             from .blocks import DDPM
             self.scheduler = DDPM(
+                denoiser,
                 {"schedule_type": noise_schedule, "time_steps": diffusion_steps},
-                predictor=denoiser,
             )
         else:
             # auto-build denoiser + DDPM from config
@@ -145,8 +145,8 @@ class DiffusionDynamics(BaseDynamics):
                 "dropout":  denoiser_cfg.get("dropout", 0.0) if isinstance(denoiser_cfg, dict) else 0.0,
             })
             self.scheduler = DDPM(
+                auto_denoiser,
                 {"schedule_type": noise_schedule, "time_steps": diffusion_steps},
-                predictor=auto_denoiser,
             )
 
     def _conditioning(self, z_t: torch.Tensor, action_emb: torch.Tensor) -> torch.Tensor:

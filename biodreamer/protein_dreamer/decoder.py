@@ -58,7 +58,7 @@ class ProteinSequenceDecoder(BaseDecoder):
         self.z_proj = nn.Linear(latent_dim, latent_dim)
 
         self.layers = nn.ModuleList([
-            TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            TransformerLayer({"dim": latent_dim, "n_heads": n_heads, "mlp_ratio": mlp_ratio, "dropout": dropout})
             for _ in range(n_layers)
         ])
         self.norm = nn.LayerNorm(latent_dim)
@@ -156,7 +156,7 @@ class ProteinStructureDecoder(BaseDecoder):
         self.z_proj = nn.Linear(latent_dim, latent_dim)
 
         self.layers = nn.ModuleList([
-            TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
+            TransformerLayer({"dim": latent_dim, "n_heads": n_heads, "mlp_ratio": mlp_ratio, "dropout": dropout})
             for _ in range(n_layers)
         ])
         self.norm = nn.LayerNorm(latent_dim)

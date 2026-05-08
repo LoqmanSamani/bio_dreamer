@@ -195,7 +195,7 @@ def _download_proteingym_hf(
 
 
 def download_proteingym(cfg: dict, root: Path, dry_run: bool = False) -> None:
-    """Download selected ProteinGym subsets from S3 or Hugging Face."""
+    """download selected ProteinGym subsets from S3 or Hugging Face"""
     pg_cfg = cfg["proteingym"]
     if not pg_cfg.get("enabled", True):
         logger.info("ProteinGym download disabled — skipping.")
@@ -247,7 +247,7 @@ def download_proteingym(cfg: dict, root: Path, dry_run: bool = False) -> None:
 
 
 def download_tsuboyama(cfg: dict, root: Path, dry_run: bool = False) -> None:
-    """Download selected files from the Tsuboyama 2023 Zenodo record."""
+    """download selected files from the Tsuboyama 2023 Zenodo record"""
     ts_cfg = cfg["tsuboyama"]
     if not ts_cfg.get("enabled", True):
         logger.info("Tsuboyama download disabled — skipping.")

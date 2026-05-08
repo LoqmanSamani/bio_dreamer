@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from typing import Any, Optional, Tuple
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 import torch
 import torch.nn as nn
@@ -13,27 +14,28 @@ logger = logging.getLogger(__name__)
 
 
 
-
 class DDPM(nn.Module):
     """diffusion-based dynamics model for ProteinDreamer"""
-    def __init__(self, config: dict, *, predictor: Any) -> None:
+    def __init__(self, predictor: Any, config: Any = None) -> None:
         super().__init__()
         self.predictor     = predictor
+        if config is None:
+            config = ProteinDreamerConfig.default()["dynamics"]["ddpm"]
         self.pred_type     = config.get("pred_type", "noise")
-        self.schedule_type = config.get("schedule_type", "linear")
+        self.schedule_type = config.get("schedule_type", "cosine")
         self.beta_min      = config.get("beta_min", 0.0001)
         self.beta_max      = config.get("beta_max", 0.02)
-        self.time_steps    = config.get("time_steps", 1000)
+        self.time_steps    = config.get("time_steps", 400)
         self.cosine_s      = config.get("cosine_s", 0.008)
         self.clip_min      = config.get("clip_min", 0.0001)
         self.clip_max      = config.get("clip_max", 0.9999)
         self.clip_out      = config.get("clip_out", True)
         self.var_type      = config.get("var_type", "fixed_small")
 
-        valid_types = ["noise", "x0", "v"]
+        valid_types = config.get("valid_types", ["noise", "x0", "v"])
         if self.pred_type not in valid_types:
             raise ValueError(f"pred_type must be one of {valid_types}, got {self.pred_type}")
-        valid_schedules = ["linear", "cosine"]
+        valid_schedules = config.get("valid_schedules", ["linear", "cosine"])
         if self.schedule_type not in valid_schedules:
             raise ValueError(f"schedule_type must be one of {valid_schedules}, got {self.schedule_type}")
         if self.schedule_type == "linear" and not (0.0 < self.beta_min < self.beta_max):
@@ -215,29 +217,31 @@ class DDPM(nn.Module):
 
 class SDE(nn.Module):
     """score-based generative model via stochastic differential equations"""
-    def __init__(self, config: dict, *, predictor: Any) -> None:
+    def __init__(self, predictor: Any, config: Any = None) -> None:
         super().__init__()
         self.predictor     = predictor
         self.register_buffer("_anchor", torch.zeros(1))
+        if config is None:
+            config = ProteinDreamerConfig.default()["dynamics"]["sde"]
         self.method        = config.get("method", "ode")
         self.pred_type     = config.get("pred_type", "v")
         self.schedule_type = config.get("schedule_type", "cosine")
         self.beta_min      = config.get("beta_min", 0.1)
         self.beta_max      = config.get("beta_max", 20.0)
         self.time_eps      = config.get("time_eps", 1e-5)
-        self.num_steps     = config.get("num_steps", 1000)
+        self.num_steps     = config.get("num_steps", 400)
         self.cosine_s      = config.get("cosine_s", 0.008)
         self.sigma_min     = config.get("sigma_min", 0.01)
         self.sigma_max     = config.get("sigma_max", 50.0)
         self.eps           = config.get("eps", 1e-8)
 
-        valid_methods = ["vp", "ve", "sub-vp", "ode"]
+        valid_methods = config.get("valid_methods", ["vp", "ve", "sub-vp", "ode"])
         if self.method not in valid_methods:
             raise ValueError(f"method must be one of {valid_methods}, got {self.method}")
-        valid_types = ["noise", "score", "v"]
+        valid_types = config.get("valid_types", ["noise", "score", "v"])
         if self.pred_type not in valid_types:
             raise ValueError(f"pred_type must be one of {valid_types}, got {self.pred_type}")
-        valid_schedules = ["linear", "cosine"]
+        valid_schedules = config.get("valid_schedules", ["linear", "cosine"])
         if self.schedule_type not in valid_schedules:
             raise ValueError(f"schedule_type must be one of {valid_schedules}, got {self.schedule_type}")
         if self.schedule_type == "linear" and not (0.0 < self.beta_min < self.beta_max):
@@ -469,22 +473,20 @@ class SDE(nn.Module):
         return t
 
 
-class FlowMatchingScheduler(nn.Module):
-    """rectified flow matching for latent space dynamics.
-
-    linear interpolation: x_t = (1-t)*x_noise + t*x_data, t in [0,1].
-    training: predict velocity v = x_data - x_noise; loss = MSE(v_θ(x_t, t, cond), v).
-    sampling: ode dx/dt = v_θ(x, t, cond) from t=0 (noise) to t=1 (data).
-    """
-    def __init__(self, config: dict, *, predictor: nn.Module) -> None:
+class FlowMatching(nn.Module):
+    """rectified flow matching for latent space dynamics"""
+    def __init__(self, predictor: Any, config: Any = None) -> None:
         super().__init__()
-        solver = config.get("solver", "heun")
-        if solver not in ("euler", "heun"):
-            raise ValueError(f"solver must be 'euler' or 'heun', got {solver!r}")
         self.predictor = predictor
+        if config is None:
+            config = ProteinDreamerConfig.default()["dynamics"]["flow_matching"]
+        self.solver = config.get("solver", "heun")
         self.num_steps = config.get("num_steps", 100)
-        self.solver    = solver
         self.time_eps  = config.get("time_eps", 1e-3)
+        
+        solvers = config.get("valid_solvers", ["euler", "heun"])
+        if self.solver not in solvers:
+            raise ValueError(f"solver must be one of {solvers}, got {self.solver}")
 
     def noise_step(
         self, x1: torch.Tensor, cond: Optional[torch.Tensor] = None
@@ -523,19 +525,23 @@ class FlowMatchingScheduler(nn.Module):
         return x
 
 
+
+
 class ResidualMLP(nn.Module):
     """mlp with residual blocks.
 
     each block: LayerNorm -> Linear -> Act -> Linear -> Dropout -> residual add.
     in_proj maps in_dim -> hidden_dim, out_proj maps hidden_dim -> out_dim.
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        in_dim     = config["in_dim"]
-        hidden_dim = config["hidden_dim"]
-        out_dim    = config["out_dim"]
+        if config is None:
+            config = ProteinDreamerConfig.default()["residual_mlp"]
+        in_dim     = config.get("in_dim", 256)
+        hidden_dim = config.get("hidden_dim", 512)
+        out_dim    = config.get("out_dim", 256)
         n_layers   = config.get("n_layers", 2)
-        dropout    = config.get("dropout", 0.0)
+        dropout    = config.get("dropout", 0.1)
         act_cls    = config.get("act_cls", nn.GELU)
         self.in_proj = nn.Linear(in_dim, hidden_dim)
         self.blocks = nn.ModuleList()
@@ -575,39 +581,56 @@ class GvpGNN(nn.Module):
     displacement vectors, distances, edge-type scalars), returns updated per-residue
     embeddings.
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        in_node_dims = config["in_node_dims"]
-        in_edge_dims = config["in_edge_dims"]
-        hidden_dims  = config["hidden_dims"]
+        if config is None:
+            config = ProteinDreamerConfig.default()["gvp_gnn"]
+        in_node_dims = config.get("in_node_dims", (16, 16))
+        in_edge_dims = config.get("in_edge_dims", (16, 16))
+        hidden_dims  = config.get("hidden_dims", (256, 256))
         n_layers     = config.get("n_layers", 3)
         vector_dim   = config.get("vector_dim", 3)
         conv_type    = config.get("conv_type", "gvp")
         n_heads      = config.get("n_heads", 4)
-        dropout      = config.get("dropout", 0.0)
+        dropout      = config.get("dropout", 0.1)
         self.vector_dim = vector_dim
-        self.node_embed = GVP(in_node_dims, hidden_dims, vector_dim=vector_dim)
-        self.edge_embed = GVP(in_edge_dims, hidden_dims, vector_dim=vector_dim)
+        self.node_embed = GVP({
+            "in_node_dims": in_node_dims,
+            "out_node_dims": hidden_dims,
+            "vector_dim": vector_dim,
+            "dropout": dropout,
+        })
+        self.edge_embed = GVP({
+            "in_node_dims": in_edge_dims,
+            "out_node_dims": hidden_dims,
+            "vector_dim": vector_dim,
+            "dropout": dropout,
+        })
         self.conv_type = conv_type
         layers = []
         if conv_type == "gvp":
+            conv_cfg = {
+                "node_dims": hidden_dims,
+                "edge_dims": hidden_dims,
+                "message_dims": hidden_dims,
+                "vector_dim": vector_dim,
+            }
             for _ in range(n_layers):
-                layers.append(GVPConv(hidden_dims, hidden_dims, hidden_dims, vector_dim=vector_dim))
+                layers.append(GVPConv(conv_cfg))
         elif conv_type == "transformer":
             hidden_s = hidden_dims[0]
             if hidden_s % n_heads != 0:
                 n_heads = max(1, math.gcd(hidden_s, n_heads))
+            transformer_cfg = {
+                "node_dims": hidden_dims,
+                "edge_dims": hidden_dims,
+                "hidden_dim": hidden_s,
+                "n_heads": n_heads,
+                "dropout": dropout,
+                "vector_dim": vector_dim,
+            }
             for _ in range(n_layers):
-                layers.append(
-                    GraphTransformerLayer(
-                        node_dims=hidden_dims,
-                        edge_dims=hidden_dims,
-                        hidden_dim=hidden_dims[0],
-                        n_heads=n_heads,
-                        dropout=dropout,
-                        vector_dim=vector_dim,
-                    )
-                )
+                layers.append(GraphTransformerLayer(transformer_cfg))
         else:
             raise ValueError(f"Unsupported conv_type: {conv_type!r}. Use 'gvp' or 'transformer'.")
         self.layers = nn.ModuleList(layers)
@@ -646,6 +669,7 @@ class GvpGNN(nn.Module):
         return s_h, v_h
 
 
+
 class GVPConv(nn.Module):
     """single GVP message-passing layer.
 
@@ -659,22 +683,26 @@ class GVPConv(nn.Module):
         edge_s: (e, edge_s_dim)
         edge_v: (e, edge_v_dim, 3)
     """
-    def __init__(
-        self,
-        node_dims: Tuple[int, int],
-        edge_dims: Tuple[int, int],
-        message_dims: Tuple[int, int],
-        vector_dim: int = 3,
-    ) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        self.node_dims = node_dims
-        self.edge_dims = edge_dims
-        self.msg_dims = message_dims
-        self.vector_dim = vector_dim
-        msg_in_dims = (node_dims[0] + edge_dims[0], node_dims[1] + edge_dims[1])
-        self.message_gvp = GVP(msg_in_dims, message_dims, vector_dim=vector_dim)
-        node_update_in = (node_dims[0] + message_dims[0], node_dims[1] + message_dims[1])
-        self.node_gvp = GVP(node_update_in, node_dims, vector_dim=vector_dim)
+        if config is None:
+            config = ProteinDreamerConfig.default()["gvp_conv"]
+        self.node_dims = config.get("node_dims", (256, 256))
+        self.edge_dims = config.get("edge_dims", (256, 256))
+        self.msg_dims = config.get("message_dims", (256, 256))
+        self.vector_dim = config.get("vector_dim", 3)
+        msg_in_dims = (self.node_dims[0] + self.edge_dims[0], self.node_dims[1] + self.edge_dims[1])
+        self.message_gvp = GVP({
+            "in_node_dims": msg_in_dims,
+            "out_node_dims": self.msg_dims,
+            "vector_dim": self.vector_dim,
+        })
+        node_update_in = (self.node_dims[0] + self.msg_dims[0], self.node_dims[1] + self.msg_dims[1])
+        self.node_gvp = GVP({
+            "in_node_dims": node_update_in,
+            "out_node_dims": self.node_dims,
+            "vector_dim": self.vector_dim,
+        })
 
     def forward(
         self,
@@ -720,26 +748,14 @@ class GVPConv(nn.Module):
 
 class GraphTransformer(nn.Module):
     """stack of GraphTransformerLayer layers"""
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        node_dims  = config["node_dims"]
-        edge_dims  = config["edge_dims"]
-        hidden_dim = config["hidden_dim"]
+        if config is None:
+            config = ProteinDreamerConfig.default()["gvp_transformer"]
         n_layers   = config.get("n_layers", 3)
-        n_heads    = config.get("n_heads", 4)
-        dropout    = config.get("dropout", 0.0)
-        vector_dim = config.get("vector_dim", 3)
         self.layers = nn.ModuleList(
             [
-                GraphTransformerLayer(
-                    node_dims=node_dims,
-                    edge_dims=edge_dims,
-                    hidden_dim=hidden_dim,
-                    n_heads=n_heads,
-                    dropout=dropout,
-                    vector_dim=vector_dim,
-                )
-                for _ in range(n_layers)
+                GraphTransformerLayer(config) for _ in range(n_layers)
             ]
         )
 
@@ -757,42 +773,41 @@ class GraphTransformer(nn.Module):
         return s_h, v_h
 
 
+
 class GraphTransformerLayer(nn.Module):
     """graph-transformer message-passing layer with multi-head attention and optional edge biasing"""
-    def __init__(
-        self,
-        node_dims: Tuple[int, int],
-        edge_dims: Tuple[int, int],
-        hidden_dim: int,
-        n_heads: int = 4,
-        dropout: float = 0.0,
-        vector_dim: int = 3,
-    ) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        in_s, in_v = node_dims
+        if config is None:
+            config = ProteinDreamerConfig.default()["gvp_transformer"]
+        node_dims  = config.get("node_dims", (256, 256))
+        edge_dims  = config.get("edge_dims", (256, 256))
+        hidden_dim = config.get("hidden_dim", 256)
+        n_heads    = config.get("n_heads", 4)
+        dropout    = config.get("dropout", 0.0)
+        vector_dim = config.get("vector_dim", 3)
         edge_s_dim = edge_dims[0]
-        self.in_s = in_s
-        self.in_v = in_v
+        self.in_s, self.in_v = node_dims
         self.hidden_dim = hidden_dim
         self.n_heads = n_heads
         self.head_dim = hidden_dim // n_heads
         self.vector_dim = vector_dim
-        self.q = nn.Linear(in_s + in_v, hidden_dim)
-        self.k = nn.Linear(in_s + in_v, hidden_dim)
-        self.v = nn.Linear(in_s + in_v, hidden_dim)
-        self.out_proj = nn.Linear(hidden_dim, in_s)
+        self.q = nn.Linear(self.in_s + self.in_v, hidden_dim)
+        self.k = nn.Linear(self.in_s + self.in_v, hidden_dim)
+        self.v = nn.Linear(self.in_s + self.in_v, hidden_dim)
+        self.out_proj = nn.Linear(hidden_dim, self.in_s)
         self.edge_att = nn.Linear(edge_s_dim, n_heads) if edge_s_dim > 0 else None
-        if in_v > 0:
-            self.w_v = nn.Parameter(torch.empty(in_v, in_v))
+        if self.in_v > 0:
+            self.w_v = nn.Parameter(torch.empty(self.in_v, self.in_v))
             nn.init.xavier_uniform_(self.w_v)
         else:
             self.w_v = None
-        self.norm1 = nn.LayerNorm(in_s)
-        self.norm2 = nn.LayerNorm(in_s)
+        self.norm1 = nn.LayerNorm(self.in_s)
+        self.norm2 = nn.LayerNorm(self.in_s)
         self.ff = nn.Sequential(
-            nn.Linear(in_s, max(in_s * 2, 4)),
+            nn.Linear(self.in_s, max(self.in_s * 2, 4)),
             nn.GELU(),
-            nn.Linear(max(in_s * 2, 4), in_s),
+            nn.Linear(max(self.in_s * 2, 4), self.in_s),
         )
         self.dropout = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
 
@@ -820,7 +835,7 @@ class GraphTransformerLayer(nn.Module):
             v_norm = torch.sqrt((v ** 2).sum(dim=-1) + 1e-8)  # (n, in_v)
         else:
             v_norm = torch.zeros(n, 0, device=device, dtype=s.dtype)
-        # Pre-ln: normalise before projecting q/k/v
+        # pre-ln: normalise before projecting q/k/v
         s_norm = self.norm1(s)
         s_input = torch.cat([s_norm, v_norm], dim=-1)
         q = self.q(s_input).view(n, self.n_heads, self.head_dim)
@@ -859,6 +874,7 @@ class GraphTransformerLayer(nn.Module):
         return s_out, v_out
 
 
+
 class GVP(nn.Module):
     """Geometric Vector Perceptron (GVP) core block.
 
@@ -876,49 +892,46 @@ class GVP(nn.Module):
         s' = Linear([s, v_norm]) → s_out
         gate = σ(Linear(s')) applied to v'
     """
-    def __init__(
-        self,
-        in_dims: Tuple[int, int],
-        out_dims: Tuple[int, int],
-        vector_dim: int = 3,
-        scalar_act: Optional[nn.Module] = None,
-        use_layernorm: bool = False,
-        dropout: float = 0.0,
-        eps: float = 1e-8,
-    ) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        in_s, in_v = in_dims
-        out_s, out_v = out_dims
-        self.in_s, self.in_v = in_s, in_v
-        self.out_s, self.out_v = out_s, out_v
-        self.vector_dim = vector_dim
-        self.use_layernorm = use_layernorm
-        if in_v > 0 and out_v > 0:
-            self.w_v = nn.Parameter(torch.empty(out_v, in_v))
+        if config is None:
+            config = ProteinDreamerConfig.default()["gvp"]
+        self.in_s, self.in_v = config.get("in_node_dims", (16, 16))
+        self.out_s, self.out_v = config.get("out_node_dims", (256, 256))
+        self.vector_dim = config.get("vector_dim", 3)
+        self.use_layernorm = config.get("use_layernorm", False)
+        scalar_act_cls = config.get("scalar_act", nn.GELU)
+        if isinstance(scalar_act_cls, str):
+            scalar_act_cls = nn.GELU
+        self.scalar_act = scalar_act_cls()
+        self.layernorm_s = nn.LayerNorm(self.out_s) if (self.use_layernorm and self.out_s > 0) else None
+        dropout = config.get("dropout", 0.1)
+        self.dropout = nn.Dropout(dropout) if dropout > 0.0 else None
+        self._eps = config.get("eps", 1e-8)
+        
+        if self.in_v > 0 and self.out_v > 0:
+            self.w_v = nn.Parameter(torch.empty(self.out_v, self.in_v))
             nn.init.xavier_uniform_(self.w_v)
         else:
             self.w_v = None
         # v_norm is concatenated whenever out_v > 0 (from real norms or zero fallback)
-        scalar_in = in_s + (out_v if out_v > 0 else 0)
-        if out_s > 0:
-            self.linear_s = nn.Linear(scalar_in, out_s)
+        scalar_in = self.in_s + (self.out_v if self.out_v > 0 else 0)
+        if self.out_s > 0:
+            self.linear_s = nn.Linear(scalar_in, self.out_s)
             nn.init.xavier_uniform_(self.linear_s.weight)
             if self.linear_s.bias is not None:
                 nn.init.zeros_(self.linear_s.bias)
         else:
             self.linear_s = None
-        if out_v > 0:
-            gate_in = out_s if out_s > 0 else scalar_in
-            self.gate = nn.Linear(gate_in, out_v)
+        if self.out_v > 0:
+            gate_in = self.out_s if self.out_s > 0 else scalar_in
+            self.gate = nn.Linear(gate_in, self.out_v)
             nn.init.xavier_uniform_(self.gate.weight)
             if self.gate.bias is not None:
                 nn.init.zeros_(self.gate.bias)
         else:
             self.gate = None
-        self.scalar_act = scalar_act if scalar_act is not None else nn.GELU()
-        self.layernorm_s = nn.LayerNorm(out_s) if (use_layernorm and out_s > 0) else None
-        self.dropout = nn.Dropout(dropout) if dropout > 0.0 else None
-        self._eps = eps
+            
 
     def forward(
         self, s: torch.Tensor, v: Optional[torch.Tensor]
@@ -966,6 +979,7 @@ class GVP(nn.Module):
         return s_out, v_out
 
 
+
 class DeterministicPredictor(nn.Module):
     """autoregressive deterministic latent predictor using a stack of TransformerLayer blocks.
 
@@ -975,13 +989,10 @@ class DeterministicPredictor(nn.Module):
         attend to previous positions (autoregressive).
       - returns predicted next-token latent of shape (B, C) (prediction for position T → T+1).
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        latent_dim = config["latent_dim"]
+        latent_dim = config.get("latent_dim", 256)
         n_layers   = config.get("n_layers", 6)
-        n_heads    = config.get("n_heads", 8)
-        mlp_ratio  = config.get("mlp_ratio", 4.0)
-        dropout    = config.get("dropout", 0.1)
         max_len    = config.get("max_len", 1024)
         causal     = config.get("causal", True)
         self.latent_dim = latent_dim
@@ -989,10 +1000,11 @@ class DeterministicPredictor(nn.Module):
         self.input_proj = nn.Identity()
         self.pos_emb = nn.Parameter(torch.zeros(max_len, latent_dim))
         nn.init.trunc_normal_(self.pos_emb, std=0.02)
+        layer_cfg = dict(config) if config is not None else {}
+        layer_cfg.setdefault("dim", latent_dim)
         self.layers = nn.ModuleList(
             [
-                TransformerLayer(latent_dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
-                for _ in range(n_layers)
+                TransformerLayer(layer_cfg) for _ in range(n_layers)
             ]
         )
         self.norm = nn.LayerNorm(latent_dim)
@@ -1027,16 +1039,15 @@ class DeterministicPredictor(nn.Module):
         return out[:, -1, :]
 
 
+
 class TransformerLayer(nn.Module):
     """standard pre-ln transformer block used as deterministic predictor in latent space"""
-    def __init__(
-        self,
-        dim: int,
-        n_heads: int = 4,
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.0,
-    ) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
+        dim = config.get("dim", 256)
+        n_heads = config.get("n_heads", 8)
+        mlp_ratio = config.get("mlp_ratio", 4.0)
+        dropout = config.get("dropout", 0.1)    
         self.dim = dim
         self.n_heads = n_heads
         self.head_dim = dim // n_heads
@@ -1076,7 +1087,7 @@ class TransformerLayer(nn.Module):
         returns: (B, N, C)
         """
         B, N, C = x.shape
-        # Pre-ln: normalise x before computing queries, keys, values
+        # pre-ln: normalise x before computing queries, keys, values
         x_norm = self.norm1(x)
         q = self.q(x_norm).reshape(B, N, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         if cond is not None:
@@ -1109,6 +1120,7 @@ class TransformerLayer(nn.Module):
         return x
 
 
+
 class DiffTransformer(nn.Module):
     """transformer-style predictor for diffusion models.
 
@@ -1119,16 +1131,13 @@ class DiffTransformer(nn.Module):
     """
     def __init__(self, config: dict) -> None:
         super().__init__()
-        dim          = config["dim"]
+        dim          = config.get("dim", 256)
         n_layers     = config.get("n_layers", 4)
         n_heads      = config.get("n_heads", 8)
-        mlp_ratio    = config.get("mlp_ratio", 4.0)
-        dropout      = config.get("dropout", 0.0)
-        time_emb_dim = config.get("time_emb_dim", None)
+        self.time_emb_dim = config.get("time_emb_dim", 256)
         assert dim % n_heads == 0, "dim must be divisible by n_heads"
         self.dim = dim
         self.n_layers = n_layers
-        self.time_emb_dim = time_emb_dim if time_emb_dim is not None else dim
         self.time_mlp = nn.Sequential(
             nn.Linear(self.time_emb_dim, self.time_emb_dim * 2),
             nn.GELU(),
@@ -1136,8 +1145,7 @@ class DiffTransformer(nn.Module):
         )
         self.layers = nn.ModuleList(
             [
-                TransformerLayer(dim, n_heads=n_heads, mlp_ratio=mlp_ratio, dropout=dropout)
-                for _ in range(n_layers)
+                TransformerLayer(config) for _ in range(n_layers)
             ]
         )
         self.norm = nn.LayerNorm(dim)
