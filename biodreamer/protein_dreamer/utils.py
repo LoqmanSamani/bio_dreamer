@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,12 @@ class SIGReg(nn.Module):
       - per-dimension variance ≠ 1
       - random 1d projections fail mean/variance/kurtosis checks
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
         super().__init__()
-        self.latent_dim  = config["latent_dim"]
-        self.num_proj    = config.get("num_proj", 16)
+        if config is None:
+            config = ProteinDreamerConfig().default()["training"]["sig_reg"]
+        self.latent_dim  = config.get("latent_dim", 256)
+        self.num_proj    = config.get("num_proj", 1024)
         self.mean_weight = config.get("mean_weight", 1.0)
         self.var_weight  = config.get("var_weight", 1.0)
         self.proj_weight = config.get("proj_weight", 1.0)
@@ -76,7 +79,9 @@ class EMAUpdater:
     the EMAUpdater is an alternative regularisation strategy, where the target encoder is a slow-moving 
     average of the online encoder, and the SIGReg loss is not used.
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
+        if config is None:
+            config = ProteinDreamerConfig().default()["training"]["ema"]
         tau = config.get("tau", 0.99)
         if not 0.0 < tau < 1.0:
             raise ValueError(f"tau must be in (0, 1), got {tau}")

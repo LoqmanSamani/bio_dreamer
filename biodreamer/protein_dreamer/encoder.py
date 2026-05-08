@@ -54,8 +54,12 @@ class ProteinEncoder(BaseEncoder):
         freeze_seq_encoder = config.get("freeze_seq_encoder", True)
         freeze_struct_encoder = config.get("freeze_struct_encoder", True)
         use_structure = config.get("use_structure", False)
-        gvp_cfg = config.get("gvp_gnn", {})
-        h_dim = gvp_cfg.get("hidden_dim", (256, 4))
+        gvp_cfg = config.get("gvp_gnn", config.get("gvp", {}))
+        h_dim_raw = gvp_cfg.get("hidden_dims", gvp_cfg.get("hidden_dim", (256, 4)))
+        if isinstance(h_dim_raw, int):
+            h_dim = (h_dim_raw, 4)
+        else:
+            h_dim = tuple(h_dim_raw)
         gvp_hidden_dim = h_dim[0]
         gvp_layers = gvp_cfg.get("n_layers", 3)
         super().__init__(latent_dim)

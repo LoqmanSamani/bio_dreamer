@@ -71,7 +71,7 @@ class ActiveInferencePolicy(BasePolicy):
     The world model is stored as a reference (not a sub-module) so its
     parameters are not double-counted during optimisation.
     """
-    def __init__(self, latent_dim: int, action_dim: int, world_model: nn.Module, eta: float = 1.0, n_samples: int = 10) -> None:
+    def __init__(self, latent_dim: int, action_dim: int, world_model: nn.Module, eta: float = 1.0, n_samples: int = 20) -> None:
         """
         Args:
             latent_dim: Dimensionality of the latent state.

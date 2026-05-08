@@ -19,6 +19,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +95,12 @@ class EnsembleUncertainty(UncertaintyModule):
 
     def __init__(
         self,
-        config: dict,
-        members: List[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]],
+        config: Any = None,
+        members: List[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]] = (),
     ) -> None:
         if len(members) < 2:
             raise ValueError("EnsembleUncertainty requires at least 2 members")
-        self.members = members
+        self.members = list(members)
 
     def estimate(
         self,
@@ -143,13 +144,15 @@ class EvidentialUncertainty(UncertaintyModule, nn.Module):
         hidden_dim: Width of the two-layer MLP head.
     """
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None, net: Any = None) -> None:
         nn.Module.__init__(self)
-        input_dim  = config["input_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["uncertainty"]
+        input_dim  = config.get("input_dim", 256)
         output_dim = config.get("output_dim", 1)
         hidden_dim = config.get("hidden_dim", 256)
         self.output_dim = output_dim
-        self.net = nn.Sequential(
+        self.net = net if net is not None else nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.SiLU(),
             nn.Linear(hidden_dim, output_dim * 4),
@@ -238,7 +241,9 @@ class MCDropoutUncertainty(UncertaintyModule):
         n_passes: Number of stochastic forward passes.
     """
 
-    def __init__(self, config: dict, model: nn.Module) -> None:
+    def __init__(self, config: Any = None, model: Optional[nn.Module] = None) -> None:
+        if config is None:
+            config = ProteinDreamerConfig().default()["uncertainty"]
         n_passes = config.get("mc_dropout_passes", 20)
         if n_passes < 2:
             raise ValueError("n_passes must be at least 2")

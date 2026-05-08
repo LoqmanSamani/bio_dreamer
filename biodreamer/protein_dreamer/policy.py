@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 import torch
 import torch.nn as nn
 
 from biodreamer.core.active_inference import ActiveInferencePolicy
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,20 @@ class ProteinActiveInferencePolicy(ActiveInferencePolicy):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
+        *,
         world_model: nn.Module,
         action_encoder: nn.Module,
         seq_len: int,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
-        action_dim = config["action_dim"]
+        if config is None:
+            config = ProteinDreamerConfig().default()["policy"]
+        latent_dim = config.get("latent_dim", 256)
+        action_dim = config.get("action_dim", 256)
         n_aa       = config.get("n_aa", 20)
         eta        = config.get("eta", 1.0)
-        n_samples  = config.get("n_samples", 10)
+        n_samples  = config.get("n_samples", 20)
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,

@@ -26,11 +26,12 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Any
 
 import torch
 
 from ..core.tokenizers import BaseProteinTokenizer
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ _SINGLE_SUB_RE = re.compile(r"^([A-Za-z*])(\d+)([A-Za-z\-*])$")
 _INSERTION_RE = re.compile(r"^\d+ins\d+$", re.IGNORECASE)
 
 
+
+
+
 class ProteinTokenizer:
     """
     wraps CharTokenizer, KmerTokenizer, or BPETokenizer and adds:
@@ -47,7 +51,9 @@ class ProteinTokenizer:
       - mutated-sequence encoding with automatic [MUT] position flagging
       - organism token prepending
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: Any = None) -> None:
+        if config is None:
+            config = ProteinDreamerConfig().default()["tokenizer"]
         mode             = config.get("mode", "char")
         k                = config.get("k", 3)
         stride           = config.get("stride", None)
@@ -56,10 +62,8 @@ class ProteinTokenizer:
         organism_tokens  = config.get("organism_tokens", None)
         add_special_tokens = config.get("add_special_tokens", True)
         include_ambiguous  = config.get("include_ambiguous", True)
-
         self.mode = mode
         self.organism_tokens = organism_tokens or []
-
         if mode == "char":
             self._tok: BaseProteinTokenizer = CharTokenizer(
                 add_special_tokens=add_special_tokens,

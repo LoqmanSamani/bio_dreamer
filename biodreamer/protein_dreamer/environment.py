@@ -63,11 +63,14 @@ class ProteinEnvironment(BaseEnvironment):
     """
     def __init__(
         self,
-        wild_type_sequence: str,
-        fitness_oracle: BaseOracle,
         config: Any = None,
+        wild_type_sequence: str = "",
+        fitness_oracle: Optional[BaseOracle] = None,
         structure_oracle: Optional[BaseStructureOracle] = None,
     ) -> None:
+        if config is None:
+            from .config import ProteinDreamerConfig
+            config = ProteinDreamerConfig.default()["environment"]
         self.max_steps         = config.get("max_steps", 50)
         self.fitness_threshold = config.get("fitness_threshold", None)
         self.track_trajectory  = config.get("track_trajectory", False)

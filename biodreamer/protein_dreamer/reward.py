@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from biodreamer.core.reward import BaseRewardHead
+from biodreamer.protein_dreamer.config import ProteinDreamerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class ProteinRewardHead(BaseRewardHead):
     """
     def __init__(
         self,
-        config: dict,
+        config: Any = None,
         shared_backbone: Optional[Any] = None,
         stab_head: Optional[Any] = None,
         affin_head: Optional[Any] = None,
@@ -36,8 +37,10 @@ class ProteinRewardHead(BaseRewardHead):
         fitness_head: Optional[Any] = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        latent_dim = config["latent_dim"]
-        hidden_dim = config.get("hidden_dim", 128)
+        if config is None:
+            config = ProteinDreamerConfig().default()["reward"]
+        latent_dim = config.get("latent_dim", 256)
+        hidden_dim = config.get("hidden_dim", 512)
         weights_cfg = config.get("weights", {})
         weights = dict(weights_cfg) if weights_cfg else {
             "stability": 0.35,

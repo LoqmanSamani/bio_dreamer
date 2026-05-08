@@ -130,7 +130,7 @@ dynamics:
 
   # DiffusionDynamics — DDPM Scheduler
   ddpm:
-    time_steps:    400
+    time_steps:    1000
     schedule_type: "cosine"      # noise schedule: "linear" | "cosine"
     pred_type:     "noise"       # "noise" | "x0" | "v"
     var_type:      "fixed_small" # "fixed_small" | "fixed_large" | "learned"
@@ -181,23 +181,23 @@ dynamics:
 # instantiated without an explicit config argument.
 # ─────────────────────────────────────────────────────────────────────────────
 gvp:
-  in_node_dims:  [16, 16]
-  out_node_dims: [256, 256]
+  in_node_dims:  [16, 4]  
+  out_node_dims: [256, 4]   
   vector_dim:    3
   dropout:       0.1
   use_layernorm: false
   eps:           1.0e-8
 
 gvp_conv:
-  node_dims:    [256, 256]
-  edge_dims:    [256, 256]
-  message_dims: [256, 256]
+  node_dims:    [256, 4]
+  edge_dims:    [256, 4]
+  message_dims: [256, 4]
   vector_dim:   3
 
 gvp_gnn:
-  in_node_dims: [16, 16]
-  in_edge_dims: [16, 16]
-  hidden_dims:  [256, 256]
+  in_node_dims: [16, 4]
+  in_edge_dims: [16, 4]
+  hidden_dims:  [256, 4]
   n_layers:     3
   vector_dim:   3
   conv_type:    "gvp"
@@ -205,8 +205,8 @@ gvp_gnn:
   dropout:      0.1
 
 gvp_transformer:
-  node_dims:  [256, 256]
-  edge_dims:  [256, 256]
+  node_dims:  [256, 4]
+  edge_dims:  [256, 4]
   hidden_dim: 256
   n_heads:    4
   dropout:    0.1
@@ -247,10 +247,10 @@ reward:
 
   # Loss weights for the four reward heads (NaN-masked during training)
   weights:
-    stability: 1.0   # ΔΔG / ΔG folding measurements (Tsuboyama, ProteinGym stability)
-    affinity:  1.0   # binding affinity / Kd (ProteinGym binding assays)
-    activity:  1.0   # catalytic activity / kcat (ProteinGym activity assays)
-    fitness:   0.5   # organismal / holistic fitness (catch-all head)
+    stability: 0.35   # ΔΔG / ΔG folding measurements (Tsuboyama, ProteinGym stability)
+    affinity:  0.25   # binding affinity / Kd (ProteinGym binding assays)
+    activity:  0.20   # catalytic activity / kcat (ProteinGym activity assays)
+    fitness:   0.20   # organismal / holistic fitness (catch-all head)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -261,8 +261,8 @@ policy:
   action_dim:           256   # must match action_encoder.latent_dim
   n_aa:                 20    # number of amino acid choices per site
   eta:                  1.0   # epistemic value weight in EFE (higher = more exploration)
-  n_samples:            10    # Monte Carlo rollouts for uncertainty / EFE estimation
-  imagination_horizon:  5     # steps of imagined planning per decision
+  n_samples:            20    # Monte Carlo rollouts for uncertainty / EFE estimation
+  imagination_horizon:  10     # steps of imagined planning per decision
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ uncertainty:
   hidden_dim: 256    # MLP hidden width
 
   # EnsembleUncertainty
-  ensemble_size: 5   # number of ensemble members
+  ensemble_size: 5    # number of ensemble members
 
   # MCDropoutUncertainty
   mc_dropout_passes: 20   # forward passes with dropout active at inference
@@ -304,12 +304,12 @@ training:
   grad_clip:     1.0          # max gradient norm (0 = disabled)
   beta_dyn:      1.0          # dynamics loss weight (L_B or L_A)
   beta_rew:      0.1          # reward prediction loss weight
-  device:        "cuda"       # "cuda" | "cpu"
+  device:        "cpu"        # "cuda" | "cpu"
 
   # SIGReg (latent space regulariser, class SIGReg in utils.py)
   sig_reg:
     latent_dim:   256   # (*shared*) must match encoder.latent_dim
-    num_proj:     16    # number of random 1D projections
+    num_proj:     1024    # number of random 1D projections
     mean_weight:  1.0   # weight on the mean-centering term
     var_weight:   1.0   # weight on the variance-normalisation term
     proj_weight:  1.0   # weight on the random-projection uniformity term

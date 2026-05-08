@@ -25,7 +25,7 @@ class DDPM(nn.Module):
         self.schedule_type = config.get("schedule_type", "cosine")
         self.beta_min      = config.get("beta_min", 0.0001)
         self.beta_max      = config.get("beta_max", 0.02)
-        self.time_steps    = config.get("time_steps", 400)
+        self.time_steps    = config.get("time_steps", 1000)
         self.cosine_s      = config.get("cosine_s", 0.008)
         self.clip_min      = config.get("clip_min", 0.0001)
         self.clip_max      = config.get("clip_max", 0.9999)
@@ -585,9 +585,9 @@ class GvpGNN(nn.Module):
         super().__init__()
         if config is None:
             config = ProteinDreamerConfig.default()["gvp_gnn"]
-        in_node_dims = config.get("in_node_dims", (16, 16))
-        in_edge_dims = config.get("in_edge_dims", (16, 16))
-        hidden_dims  = config.get("hidden_dims", (256, 256))
+        in_node_dims = config.get("in_node_dims", (16, 4))
+        in_edge_dims = config.get("in_edge_dims", (16, 4))
+        hidden_dims  = config.get("hidden_dims", (256, 4))
         n_layers     = config.get("n_layers", 3)
         vector_dim   = config.get("vector_dim", 3)
         conv_type    = config.get("conv_type", "gvp")
@@ -687,9 +687,9 @@ class GVPConv(nn.Module):
         super().__init__()
         if config is None:
             config = ProteinDreamerConfig.default()["gvp_conv"]
-        self.node_dims = config.get("node_dims", (256, 256))
-        self.edge_dims = config.get("edge_dims", (256, 256))
-        self.msg_dims = config.get("message_dims", (256, 256))
+        self.node_dims = config.get("node_dims", (256, 4))
+        self.edge_dims = config.get("edge_dims", (256, 4))
+        self.msg_dims = config.get("message_dims", (256, 4))
         self.vector_dim = config.get("vector_dim", 3)
         msg_in_dims = (self.node_dims[0] + self.edge_dims[0], self.node_dims[1] + self.edge_dims[1])
         self.message_gvp = GVP({
@@ -780,8 +780,8 @@ class GraphTransformerLayer(nn.Module):
         super().__init__()
         if config is None:
             config = ProteinDreamerConfig.default()["gvp_transformer"]
-        node_dims  = config.get("node_dims", (256, 256))
-        edge_dims  = config.get("edge_dims", (256, 256))
+        node_dims  = config.get("node_dims", (256, 4))
+        edge_dims  = config.get("edge_dims", (256, 4))
         hidden_dim = config.get("hidden_dim", 256)
         n_heads    = config.get("n_heads", 4)
         dropout    = config.get("dropout", 0.0)
@@ -896,8 +896,8 @@ class GVP(nn.Module):
         super().__init__()
         if config is None:
             config = ProteinDreamerConfig.default()["gvp"]
-        self.in_s, self.in_v = config.get("in_node_dims", (16, 16))
-        self.out_s, self.out_v = config.get("out_node_dims", (256, 256))
+        self.in_s, self.in_v = config.get("in_node_dims", (16, 4))
+        self.out_s, self.out_v = config.get("out_node_dims", (256, 4))
         self.vector_dim = config.get("vector_dim", 3)
         self.use_layernorm = config.get("use_layernorm", False)
         scalar_act_cls = config.get("scalar_act", nn.GELU)
